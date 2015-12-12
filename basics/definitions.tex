@@ -1,0 +1,169 @@
+
+
+\usepackage[utf8]{inputenc}
+\usepackage{uniinput}
+\usepackage{geometry}
+%\usepackage{fancyhdr}
+%\usepackage{blindtext}
+%\usepackage{setspace}
+\usepackage{cmap} % pro­vides char­ac­ter map ta­bles, which makes PDFs search­able and copy-able (I don't see a difference yet!!!)
+\setlength\parindent{0pt} % stop indenting every paragraph by 1cm. It looks awful!
+
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows, decorations.markings, calc, datavisualization, datavisualization.formats.functions}
+%\usepackage{pgfplots}   %plotting with tex
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+%\usepackage{esint}
+\usepackage{ulem}
+\usepackage{bbm}		% sames as above, but won't redefine the better looking ams-mathbb, doesn't contain \mathbbm{0} though
+\usepackage{cancel}		% for making a stroke through a calculation
+%\usepackage{tensor}
+\allowdisplaybreaks     % allow page breaks for longer align-environments
+
+\usepackage{tabularx}
+\newcolumntype{Y}{>{\centering\arraybackslash}X} % centered column of adjustable size i.e. with auto line break
+\usepackage{multirow}
+\usepackage{multicol}
+
+\usepackage{xcolor}
+\usepackage{rotating}	% rotate imported picture
+\usepackage{pdflscape}	% rotate site by 90° with \begin{landscape}
+\usepackage{fancyhdr}
+\usepackage[binary-units=true]{siunitx}    % SI units paper conform with \SI{3}{\nano\seconds} 
+                                           % sudo apt-get install texlive-science
+\usepackage[labelfont=bf,format=plain]{caption} % enables \captionof for non figure/table environments
+%\numberwithin{equation}{chapter}    % equation number contains chapter number
+%\numberwithin{figure}{chapter}
+%\numberwithin{table}{chapter}
+
+%\usepackage{textcomp}	%for \textdegree
+%\usepackage{gensymb}	%for \degree in math mode
+
+\usepackage{url}		%for \url{} command to not get problems with :\\ and other symbols
+%\usepackage{breakurl}  % only needed when compiling via dvips/ps2pdf
+\usepackage{hyperref}	%for labellinks
+
+\usepackage{attachfile} % insert attachments into pdf O_O
+\usepackage{animate}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%\renewcommand{\vec}[1]{\overrightarrow{#1}}	%overrightarrow is basically just a bigger vector arrow
+\newcommand{\important}[1]{\textcolor{BrickRed}{#1}}
+\newcommand{\mat}[1]{\mathbf{#1}}
+
+%\renewcommand{\i}{\text{i}} %normal math i is without point
+
+\newcommand{\de}{\text{d}}
+\newcommand{\const}{\text{\small const.}}
+\renewcommand{\div}{\text{div}\,}
+\renewcommand{\nabla}{\overrightarrow{\bigtriangledown}}
+\newcommand{\laplace}{\bigtriangleup}
+\newcommand{\grad}{\text{grad}\,}
+\newcommand{\rot}{\text{rot}\,}
+\newcommand{\dalembert}{\square}
+\newcommand{\affects}[1]{\overset{\downarrow}{#1}}
+\newcommand{\vecb}[2]{\left(\vec{#1}\right)_{#2}}
+\newcommand{\fpart}[2]{\frac{\partial #1}{\partial #2}}
+\newcommand{\ftdif}[2]{\frac{\de #1}{\de #2}}
+\newcommand{\slfrac}[2]{\left.#1\middle/#2\right.}
+\newcommand{\scos}[1]{\text{c}_{#1}\,}
+\newcommand{\ssin}[1]{\text{s}_{#1}\,}
+
+%ToDo: Switch between shorter symbols for inverse functions
+\newcommand{\invf}[1]{#1^{-1}}				%Inverse function notation
+
+\newcommand{\arsinh}{\text{arsinh}\,}
+\newcommand{\arcosh}{\text{arcosh}\,}
+\newcommand{\arcoth}{\text{arcoth}\,}
+\newcommand{\artanh}{\text{artanh}\,}
+
+\newcommand{\atan}{\text{atan}\,} %short for ArcTan
+\newcommand{\asin}{\text{asin}\,}
+\newcommand{\acos}{\text{acos}\,}
+
+%Physik
+\newcommand{\angstrom}{\overset{\circ}{\text{A}}}
+\newcommand{\tesla}{\text{T}}
+%\newcommand{\lagrangian}{\mathcal{L}}
+%\newcommand{\lagsecondkind}{\ftdif{}{t}\fpart{\lagrangian}{\dot{q_j}}-\fpart{\lagrangian}{q_j}}
+
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\smd}[2]{\sum\limits_{#1}^{#2}} %SuM with Defined boundaries
+\newcommand{\ind}[2]{\int\limits_{#1}^{#2}} %INtegral with Defined boundaries
+
+\newcommand{\ex}{\hat{x}}
+\newcommand{\ey}{\hat{y}}
+\newcommand{\ez}{\hat{z}}
+
+%For use in matrices to denote vectors inside a matrix
+\newcommand*{\vertbar}{\vrule}%\rule[1ex]{0.5pt}{2.5ex}}
+\newcommand*{\horzbar}{\rule[.5ex]{2.0ex}{0.5pt}}	%[Vertical-Shift]{Length}{Thickness}
+
+%Unicodes
+\DeclareUnicodeCharacter{2208}{\ensuremath{\in}}
+\DeclareUnicodeCharacter{2115}{\ensuremath{\mathbb N}}
+\DeclareUnicodeCharacter{2124}{\ensuremath{\mathbb Z}}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+
+%QT
+\newcommand{\mean}[1]{\langle #1 \rangle}
+\newcommand{\esk}[1]{\textcolor{BrickRed}{#1}}	%Einsteinsche Summenkonvention Marker
+\usepackage{braket} %Bra,Ket,Braket(scaled) vs. bra,ket,braket(smaller)
+\usepackage{MnSymbol} %sumint
+
+%Math
+\newcommand{\HR}{\mathcal{H}} %Hilbertraum
+\newcommand{\solvefor}[1]{\textcolor{Blue}{#1}}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\definecolor{mygreen}{rgb}{0,0.6,0}
+\definecolor{mygray}{rgb}{0.5,0.5,0.5}
+\definecolor{mymauve}{rgb}{0.58,0,0.82}
+
+\usepackage{listings}   % source code listings
+\usepackage{textcomp}   % for upquotes inside lstlisting
+
+\usepackage{courier}    % for lstlisting
+
+\lstset{ %
+  backgroundcolor=\color{white},   % choose the background color; you must add \usepackage{color} or \usepackage{xcolor}
+  basicstyle=\footnotesize\ttfamily, % the size of the fonts that are used for the code
+  breakatwhitespace=false,         % sets if automatic breaks should only happen at whitespace
+  breaklines=true,                 % sets automatic line breaking
+  captionpos=b,                    % sets the caption-position to bottom
+  commentstyle=\color{mygreen},    % comment style
+%  deletekeywords={...},            % if you want to delete keywords from the given language
+  escapeinside={\%*}{*)},          % if you want to add LaTeX within your code
+  extendedchars=false,              % lets you use non-ASCII characters; for 8-bits encodings only, does not work with UTF-8
+  %frame=single,                    % adds a frame around the code
+  keepspaces=true,                 % keeps spaces in text, useful for keeping indentation of code (possibly needs columns=flexible)
+  keywordstyle=\color{blue},       % keyword style
+  morekeywords={*,...},            % if you want to add more keywords to the set
+  numbers=left,                    % where to put the line-numbers; possible values are (none, left, right)
+  numbersep=5pt,                   % how far the line-numbers are from the code
+  numberstyle=\tiny\color{mygray}, % the style that is used for the line-numbers
+  rulecolor=\color{black},         % if not set, the frame-color may be changed on line-breaks within not-black text (e.g. comments (green here))
+  showspaces=false,                % show spaces everywhere adding particular underscores; it overrides 'showstringspaces'
+  showstringspaces=false,          % underline spaces within strings only
+  showtabs=false,                  % show tabs within strings adding particular underscores
+  stepnumber=1,                    % the step between two line-numbers. If it's 1, each line will be numbered
+  stringstyle=\color{mymauve},     % string literal style
+  tabsize=2,                       % sets default tabsize to 2 spaces
+  title=\lstname,                  % show the filename of files included with \lstinputlisting; also try caption instead of title
+  xleftmargin=.25in,               % indent listings by default
+  upquote=true                     % single quotes '' appear straight instead of as backticks. Needs textcomp
+}
+
