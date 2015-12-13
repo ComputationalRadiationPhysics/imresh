@@ -32,25 +32,11 @@ int testSdlPlot( SDL_Renderer * rpRenderer )
 
 
 /*
-todo: histogram, if smaller than zero, then plot bar downwards ...
-plot x-axis in middle for histogram, instead of down below!
-
-Instead of simple histplots, draw:
-
-                           +------------+
-                           | cos coeffs |
-        +---------+        +------------+
-        |functions|  ->    +------------+
-        +---------+        | sin coeffs |
-                           +------------+
-
  - show how large the kernel must be, so that \int_-infty^? 255 gaus(x) dx < 0.5
  - kernel == vector of weights, meaning this i the same as newtonCotes !!
  - similarily show results of different gaussian blurs in 1D
 
  - make ft with continuous spectra work (bzw. DFT), also show like above
- - Re and Im, maybe even in same plot :3 -> plot colors and plot labels
- - make title work, and or Plot Legend
 
  - implement gaussian blur in 2D
  - generate some kind of test data -> random, checkerboard, circle, ...
@@ -64,8 +50,83 @@ Instead of simple histplots, draw:
 
 
 
+#include "gaussian.h"
+#include <cstdlib> // srand, rand, RAND_MAX
 
+void testGaussianBlurVector
+( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data, int nData,
+  const float sigma, const char * title )
+{
+    SDL_RenderDrawHistogram(rpRenderer, rect, 0,0,0,0,
+        data,nData, 0/*binWidth*/,false/*fill*/, true/*drawAxis*/, title );
+    SDL_RenderDrawArrow( rpRenderer, rect.x+1.1*rect.w,rect.y+rect.h/2,
+                                     rect.x+1.3*rect.w,rect.y+rect.h/2 );
+    rect.x += 1.5*rect.w;
 
+    gaussianBlur( data, nData, 1 );
+
+    char title2[128];
+    sprintf( title2,"G(s=%0.1f)*%s",sigma,title );
+    SDL_RenderDrawHistogram(rpRenderer, rect, 0,0,0,0,
+        data,nData, 0/*binWidth*/,false/*fill*/, true/*drawAxis*/, title2 );
+}
+
+void testGaussian( SDL_Renderer * rpRenderer )
+{
+    srand(165158631);
+    SDL_Rect rect = { 40,40,200,80 };
+
+    const int nData = 50;
+    float data[nData];
+
+    /* Try different data sets */
+    for ( int i = 0; i < nData; ++i )
+        data[i] = 255*rand()/(double)RAND_MAX;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "Random" );
+    rect.y += 100;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 2.0, "Random" );
+    rect.y += 100;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 4.0, "Random" );
+    rect.y += 100;
+
+    for ( int i = 0; i < nData; ++i )
+        data[i] = i > nData/2 ? 1 : 0;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "Step" );
+    rect.y += 100;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 4.0, "Step" );
+    rect.y += 100;
+
+    /* @todo: what is gaussian convoluted with itself? wan't it also
+     * a gaussian? so is this correct or not? Where are my notes for that :S,
+     * I'm sure I already did this calculation ... */
+    const float sigma = 4.0;
+    const float a =  1.0/( sqrt(2.0*M_PI)*sigma );
+    const float b = -1.0/( 2.0*sigma*sigma );
+    for ( int i = 0; i < nData; ++i )
+        data[i] = a*exp( (i-nData/2)*(i-nData/2)*b );
+    char title[64];
+    sprintf(title,"G(s=%.2f)",sigma);
+    testGaussianBlurVector( rpRenderer,rect,data,nData, sigma, title );
+    rect.y += 100;
+}
+
+void testGaussianConvergence( SDL_Renderer * rpRenderer )
+{
+    SDL_Rect rect = { 40,40,200,80 };
+
+    const int nData = 50;
+    float data[nData];
+
+    /* Delta Peak */
+    for ( int i = 0; i < nData; ++i )
+        data[i] = 0;
+    data[nData/2] = 1;
+
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "1" );
+    rect.y += 100;
+    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "1" );
+    rect.y += 100;
+}
 
 
 int main(void)
@@ -94,7 +155,7 @@ int main(void)
 
     pWindow = SDL_CreateWindow( "Output",
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        800, 600, SDL_WINDOW_SHOWN );
+        800, 700, SDL_WINDOW_SHOWN );
     SDL_CHECK( pWindow );
 
     pRenderer = SDL_CreateRenderer( pWindow, -1, SDL_RENDERER_ACCELERATED );
@@ -107,7 +168,8 @@ int main(void)
     //testSdlPlot(pRenderer);
     /* Do and plot tests */
     SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-    testDcft(pRenderer);
+    //testDcft(pRenderer);
+    testGaussian(pRenderer);
 
 
     //SDL_drawLineControl drawControl;

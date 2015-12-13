@@ -3,6 +3,10 @@ int SDL_drawString
 ( SDL_Renderer * rpRenderer, TTF_Font * rFont, const char * rString,
   SDL_Rect * rTarget, int rXAlign, int rYAlign )
 {
+    /* Ignore empty strings */
+    if ( rString[0] == 0 )
+        return 1;
+
     SDL_Color fc; /* use same font color as rendering color */
     SDL_GetRenderDrawColor( rpRenderer, &fc.r, &fc.g, &fc.b, &fc.a );
 
@@ -269,6 +273,11 @@ int SDL_RenderDrawHistogram
 {
     if ( y0 == y1 )
         SDL_PlotGetYRange( values,nValues, &y0,&y1, title );
+    if ( x0 == x1 )
+    {
+        x0 = 0;
+        x1 = nValues-1;
+    }
     /* include the 0 centerline in the plot! */
     y0 = fmin( y0, 0.0f );
     y1 = fmax( y1, 0.0f );

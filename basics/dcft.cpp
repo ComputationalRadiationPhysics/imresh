@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include "sdlplot.h"
 #include <cmath>
 
 #ifndef M_PI
@@ -56,6 +55,10 @@ void dcft( F f, int rnCoefficients, float * rCoefficients )
     for ( int i = 0; i < rnCoefficients; ++i )
         rCoefficients[rnCoefficients+i] = trigScp( f, SinBase({i}) ) / M_PI;
 }
+
+
+
+#include "sdlplot.h"
 
 template<class F>
 void testDcftAndPrint
