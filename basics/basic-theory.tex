@@ -1,0 +1,30 @@
+\documentclass[a4paper]{article}
+\input{definitions.tex}
+\usepackage{tcolorbox}
+
+\begin{document}
+
+\section{Fourier Transformation}
+
+\subsubsection{Trigonometrische Reihen}
+
+\begin{tcolorbox}[colback=white,colframe=red!75!black,title=Lemma 1.1]
+Be $f$ continuous on $[a,b] \Rightarrow \forall \epsilon>0 \exists T$ trigonometric polynomial: $\underset{x\in[a,b]}{\mathrm{sup}} |f(x)-T(x)| < \epsilon$\\
+$T(x):=\frac{1}{2}a_0 + \sum_{k=1}^{\infty}\left( a_k \cos k x + b_k \sin k x \right)$ with $x,a_k,b_k\in\mathbb{R}$
+\end{tcolorbox}
+
+\begin{tcolorbox}[colback=white,colframe=red!75!black,title=Lemma 1.2]
+$\langle\cdot,\cdot\rangle:
+\mathrm{C}\left([-\pi,\pi]\right) \times \mathrm{C}\left([-\pi,\pi]\right) \rightarrow \mathbb{R}, 
+\langle f,g \rangle := \int\limits_{-\pi}^{\pi} f(x) g(x) \de x$\\
+$\forall m,n: \int\limits_{-\pi}^{\pi} \cos n x \sin m x \de x=0$ and \\
+$\int\limits_{-\pi}^{\pi} \cos n x \cos m x \de x = 
+\int\limits_{-\pi}^{\pi} \sin n x \sin m x \de x =
+\begin{cases} 0 & , n\neq m \\ \pi & , n=m\geq 1 \\ 2 \pi & , n=m=0 \end{cases}$ \\
+$\Rightarrow$ Euler-Fouriersche-Formeln to approximate $f$ with $T$:\\
+$a_m = \frac{1}{\pi} \langle f,\cos(m\cdot) \rangle$, $m\geq 0$ and
+$b_m = \frac{1}{\pi} \langle f,\sin(m\cdot) \rangle$, $m\geq 1$
+\end{tcolorbox}
+
+
+\end{document}
