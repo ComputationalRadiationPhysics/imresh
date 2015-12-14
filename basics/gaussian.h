@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cassert>
+#include <cstring>  // memcpy
 
 /**
  * Applies a kernel, i.e. convulation vector, i.e. weighted sum, to data.
@@ -33,6 +34,5 @@ void applyKernel
 
 template<class T_PREC>
 void gaussianBlur
-( T_PREC * rData, int rnData, float rSigma );
+( T_PREC * rData, int rnData, double rSigma );
 
-#include "gaussian.cpp"

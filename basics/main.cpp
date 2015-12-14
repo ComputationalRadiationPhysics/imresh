@@ -2,7 +2,7 @@
 file=main; rm $file.exe; g++ -g -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-parameter $file.cpp -o $file.exe $(sdl2-config --cflags --libs) -l SDL2_image -l SDL2_ttf; ./$file.exe
 */
 
-#include "dcft.cpp"
+#include "dcft.h"
 #include "sdlcommon.h"
 #include "sdlplot.h"
 
@@ -113,27 +113,12 @@ void testGaussian( SDL_Renderer * rpRenderer )
     char title[64];
     sprintf(title,"G(s=%.2f)",sigma);
 
+    /* a guassian with @f[ \mu_1, \sigma_1 @f] convoluted with a gaussian
+     * with @f[ \mu_1, \sigma_1 @f] results also in a gaussian with
+     * @f[ \mu = \mu_1+\mu_2, \sigma = \sqrt{ \sigma_1^2+\sigma_2^2 } @f] */
     testGaussianBlurVector( rpRenderer,rect,data2,nData2, sigma, title );
     rect.y += 100;
     }
-}
-
-void testGaussianConvergence( SDL_Renderer * rpRenderer )
-{
-    SDL_Rect rect = { 40,40,200,80 };
-
-    const int nData = 50;
-    float data[nData];
-
-    /* Delta Peak */
-    for ( int i = 0; i < nData; ++i )
-        data[i] = 0;
-    data[nData/2] = 1;
-
-    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "1" );
-    rect.y += 100;
-    testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "1" );
-    rect.y += 100;
 }
 
 

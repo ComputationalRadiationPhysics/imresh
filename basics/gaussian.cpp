@@ -1,3 +1,4 @@
+#include "gaussian.h"
 
 template<class T_PREC>
 void applyKernel
@@ -57,7 +58,7 @@ void applyKernel
 
 template<class T_PREC>
 void gaussianBlur
-( T_PREC * rData, int rnData, float rSigma )
+( T_PREC * rData, int rnData, double rSigma )
 {
     /**
      * We need to choose a size depending on the sigma, for which the kernel
@@ -116,3 +117,18 @@ void gaussianBlur
     delete[] weights;
 }
 
+
+
+
+
+/* Explicitely instantiate certain template arguments to make an object file */
+
+template void applyKernel<float>
+( float * rData, const int rnData,
+  const float * rWeights, const int rnWeights );
+template void applyKernel<double>
+( double * rData, const int rnData,
+  const double * rWeights, const int rnWeights );
+
+template void gaussianBlur<float >( float  * rData, int rnData, double rSigma );
+template void gaussianBlur<double>( double * rData, int rnData, double rSigma );
