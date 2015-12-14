@@ -12,7 +12,7 @@ void cacheIntegrationCoefficients(void)
 }
 
 template<typename T_PREC, typename T_VEC>
-T_PREC newtonCotes( const T_VEC & f, T_PREC h, int n = 0 )
+T_PREC newtonCotes( const T_VEC & f, T_PREC h, int n )
 {
     cacheIntegrationCoefficients();
 
