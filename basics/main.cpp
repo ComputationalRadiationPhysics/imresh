@@ -63,7 +63,7 @@ void testGaussianBlurVector
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
 
-    gaussianBlur( data, nData, 1 );
+    gaussianBlur( data, nData, sigma );
 
     char title2[128];
     sprintf( title2,"G(s=%0.1f)*%s",sigma,title );
@@ -84,8 +84,12 @@ void testGaussian( SDL_Renderer * rpRenderer )
         data[i] = 255*rand()/(double)RAND_MAX;
     testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "Random" );
     rect.y += 100;
+    for ( int i = 0; i < nData; ++i )
+        data[i] = 255*rand()/(double)RAND_MAX;
     testGaussianBlurVector( rpRenderer,rect,data,nData, 2.0, "Random" );
     rect.y += 100;
+    for ( int i = 0; i < nData; ++i )
+        data[i] = 255*rand()/(double)RAND_MAX;
     testGaussianBlurVector( rpRenderer,rect,data,nData, 4.0, "Random" );
     rect.y += 100;
 
@@ -93,21 +97,25 @@ void testGaussian( SDL_Renderer * rpRenderer )
         data[i] = i > nData/2 ? 1 : 0;
     testGaussianBlurVector( rpRenderer,rect,data,nData, 1.0, "Step" );
     rect.y += 100;
+    for ( int i = 0; i < nData; ++i )
+        data[i] = i > nData/2 ? 1 : 0;
     testGaussianBlurVector( rpRenderer,rect,data,nData, 4.0, "Step" );
     rect.y += 100;
 
-    /* @todo: what is gaussian convoluted with itself? wan't it also
-     * a gaussian? so is this correct or not? Where are my notes for that :S,
-     * I'm sure I already did this calculation ... */
-    const float sigma = 4.0;
-    const float a =  1.0/( sqrt(2.0*M_PI)*sigma );
-    const float b = -1.0/( 2.0*sigma*sigma );
-    for ( int i = 0; i < nData; ++i )
-        data[i] = a*exp( (i-nData/2)*(i-nData/2)*b );
+    {
+    const int nData2 = 100;
+    float data2[nData2];
+    float sigma = 8.0;
+    float a =  1.0/( sqrt(2.0*M_PI)*sigma );
+    float b = -1.0/( 2.0*sigma*sigma );
+    for ( int i = 0; i < nData2; ++i )
+        data2[i] = a*exp( (i-nData2/2)*(i-nData2/2)*b );
     char title[64];
     sprintf(title,"G(s=%.2f)",sigma);
-    testGaussianBlurVector( rpRenderer,rect,data,nData, sigma, title );
+
+    testGaussianBlurVector( rpRenderer,rect,data2,nData2, sigma, title );
     rect.y += 100;
+    }
 }
 
 void testGaussianConvergence( SDL_Renderer * rpRenderer )

@@ -169,7 +169,11 @@ void SDL_RenderDrawCircle
 void SDL_RenderDrawThickRect
 ( SDL_Renderer * rpRenderer, const SDL_Rect & rRect, const int rWidth )
 {
-    assert( rRect.w - 2*rWidth >= 0 );
+    /* It is allowed, that rRect.w < 2*rWidth, but in that case will result
+     * in a seemingly filled rectangle */
+    assert( rRect.w >= 0 );
+    assert( rRect.h >= 0 );
+
     int x=rRect.x, y=rRect.y, w=rRect.w, h=rRect.h;
 
     for ( int i = 0; i < rWidth; ++i )
@@ -192,6 +196,8 @@ void SDL_RenderDrawThickRect
         y += 1;
         w -= 2;
         h -= 2;
+        if ( w <= 0 or h <= 0 )
+            break;
     }
 }
 
