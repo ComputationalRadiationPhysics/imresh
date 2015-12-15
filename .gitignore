@@ -52,3 +52,6 @@
 *.mtc1
 *.out
 *.synctex.gz
+
+Geany
+*.geany
