@@ -57,8 +57,8 @@ void applyKernel
 
 
 template<class T_PREC>
-void gaussianBlur
-( T_PREC * rData, int rnData, double rSigma )
+int calcGaussianKernel
+( double rSigma, T_PREC * rWeights, const int rnWeights )
 {
     /**
      * We need to choose a size depending on the sigma, for which the kernel
@@ -97,9 +97,10 @@ void gaussianBlur
     const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
     const int nWeights   = 2*nNeighbors + 1;
     assert( nWeights > 0 );
+    if ( nWeights > rnWeights )
+        return nWeights;
 
-    T_PREC * weights = new T_PREC[nWeights];
-
+    double sumWeightings = 0;
     /* Calculate the weightings. I'm not sure, if this is correct.
      * I mean it could be, that the weights are the integrated gaussian
      * values over the pixel interval, but I guess that would force
@@ -110,11 +111,98 @@ void gaussianBlur
     const double a =  1.0/( sqrt(2.0*M_PI)*rSigma );
     const double b = -1.0/( 2.0*rSigma*rSigma );
     for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-        weights[nNeighbors+i] = T_PREC( a*exp( i*i*b ) );
+    {
+        const T_PREC weight = T_PREC( a*exp( i*i*b ) );
+        rWeights[nNeighbors+i] = weight;
+        sumWeightings += weight;
+    }
 
-    applyKernel( rData, rnData, weights, nWeights );
+    /* scale up or down the kernel, so that the sum of the weights will be 1 */
+    for ( int i = -nNeighbors; i <= nNeighbors; ++i )
+        rWeights[nNeighbors+i] /= sumWeightings;
 
-    delete[] weights;
+    return nWeights;
+}
+
+template<class T_PREC>
+void gaussianBlur
+( T_PREC * rData, int rnData, double rSigma )
+{
+    const int nKernelElements = 64;
+    T_PREC pKernel[64];
+    const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
+    assert( kernelSize <= nKernelElements );
+    applyKernel( rData, rnData, pKernel, kernelSize );
+}
+
+template<class T_PREC>
+void gaussianBlurHorizontal
+( T_PREC * rData, int rnDataX, int rnDataY, double rSigma )
+{
+    const int nKernelElements = 64;
+    T_PREC pKernel[64];
+    const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
+    assert( kernelSize <= nKernelElements );
+
+    T_PREC * curRow = rData;
+    for ( int iRow = 0; iRow < rnDataY; ++iRow, curRow += rnDataX )
+        applyKernel( curRow, rnDataX, pKernel, kernelSize );
+}
+
+template<class T_PREC>
+void gaussianBlurVertical
+( T_PREC * rData, int rnDataX, int rnDataY, double rSigma )
+{
+    const int nKernelElements = 64;
+    T_PREC pKernel[64];
+    const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
+    assert( kernelSize <= nKernelElements );
+
+    /* apply kernel vertical. Make use of cache lines / super words by
+     * calculating nRowsCacheLine in parallel. For a CUDA device a superword
+     * consists of 32 float values = 128 Byte, meaning we can calculate
+     * nRowsCacheLine = 32 in parallel for T_PREC = float. On the CPU the
+     * cache line is 64 Byte which would correspond to AVX512, if it was
+     * available, meaning nRowsCacheLine = 16 */
+    const int nRowsCacheLine = 32;
+
+    assert( kernelSize % 2 == 1 );
+    const int nKernelHalf = (kernelSize-1)/2;
+
+    const int bufferSize = 256*nRowsCacheLine;
+    T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
+    assert( rnDataY <= bufferSize/nRowsCacheLine );
+
+#if 1==0
+    /* go through all columns summing over them with the kernel */
+    T_PREC curCol = rData;
+    for ( int iCol = 0; iCol < rnDataX; ++iCol, curCol += nRowsCacheLine )
+    {
+        /* the buffer will contain the weighted sums */
+        memset( buffer,0,bufferSize*sizeof(buffer[0]) );
+
+        /* sum up over column */
+        T_PREC * curRow = curCol;
+        for ( int iRow = 0; iRow < rnDataY; ++iRow, curRow += rnDataX )
+        {
+            /* do this for all columns in buffer, except for the last case,
+             * where rnDataX % nRowsCacheLine may uneqal than 0 */
+            for ( int iBufferCol = 0; iBufferCol < nRowsCacheLine; ++iBufferCol )
+            {
+                buffer[iBufferCol] += rData[iData] * rWeights[iWeight];
+            }
+        }
+    }
+#endif
+}
+
+
+template<class T_PREC>
+void gaussianBlur
+( T_PREC * rData, int rnDataX, int rnDataY, double rSigma )
+{
+    gaussianBlurHorizontal( rData,rnDataX,rnDataY,rSigma );
+    gaussianBlurVertical  ( rData,rnDataX,rnDataY,rSigma );
 }
 
 
@@ -132,3 +220,9 @@ template void applyKernel<double>
 
 template void gaussianBlur<float >( float  * rData, int rnData, double rSigma );
 template void gaussianBlur<double>( double * rData, int rnData, double rSigma );
+template void gaussianBlur<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
+template void gaussianBlur<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+template void gaussianBlurHorizontal<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
+template void gaussianBlurHorizontal<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+template void gaussianBlurVertical<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
+template void gaussianBlurVertical<double>( double * rData, int rnDataX, int rnDataY, double rSigma );

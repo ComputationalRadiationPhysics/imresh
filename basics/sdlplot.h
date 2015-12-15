@@ -102,16 +102,57 @@ int SDL_RenderDrawAxes
 
 #include <cfloat>  // FLT_MAX, FLT_MIN
 
+/**
+ * Plot the function f over some interval [x0,x1] in the plot range [y0,y1]
+ *
+ * @param[in] rAxes rectangle/window in which the plot is drawn
+ **/
 template<class T_FUNC>
 int SDL_RenderDrawFunction
 ( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1, T_FUNC f, bool drawAxis = false );
 
+/**
+ * Draws a histogram using values for the bin heights
+ *
+ * @param[in] rAxes window in which we may draw the plot
+ * @param[in] x0,x1 x-axis limits. If x0=x1, then the x-range will be chose
+ *            to be [0,nValues-1].
+ * @param[in] y0,y1 y-axis limits. If y0==y1, then the y-range will be chosen
+ *            automatically to fit all the values.
+ * @param[in] values values of the bins in internal coordinates (not in pixel)
+ * @param[in] nValues length of values array
+ * @param[in] binWidth in pixels
+ * @param[in] fill fills bin rectangles or not
+ **/
 int SDL_RenderDrawHistogram
 ( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, int nValues,
+  float * values, const int nValues,
   int binWidth = 0,  bool fill = false,
+  bool drawAxis = false, const char * title = "" );
+
+/**
+ * Plots a 2D matrix as a pixelated "image"
+ *
+ * @param[in] rAxes window in which we may draw the plot
+ * @param[in] x0,x1 x-axis limits. If x0=x1, then the x-range will be chose
+ *            to be [0,nValuesX-1]
+ * @param[in] y0,y1 y-axis limits
+ * @param[in] values values of the pixels to draw. 2D array in the form
+ *            values[iy*nx+ix], meaning the first nx values correspond to
+ *            the first line of pixels at y=y0, meaning at the bottom of
+ *            the axis/plot. values must be in [0,1], where 0 are drawn black
+ *            and 1 are dran white. Higher and smaller values will be drawn red
+ * @param[in] nValuesX length of first and subsequent horizontal lines of values
+ * @param[in] nValuesY number of lines in values. values must be at least
+ *            nValuesX*nValuesY*sizeof(T_PREC) large
+ **/
+template<class T_PREC>
+int SDL_RenderDrawMatrix
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  T_PREC * values, const int nValuesX, const int nValuesY,
   bool drawAxis = false, const char * title = "" );
 
 

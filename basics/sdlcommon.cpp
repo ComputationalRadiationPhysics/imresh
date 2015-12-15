@@ -498,3 +498,24 @@ int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * rpR
     }
     return 0;
 }
+
+std::stack<SDL_Color> savedRenderingColors;
+
+int SDL_RenderPushColor(SDL_Renderer * rpRenderer)
+{
+    SDL_Color c;
+    const int error = SDL_GetRenderDrawColor( rpRenderer, &c.r, &c.g, &c.b, &c.a );
+    savedRenderingColors.push(c);
+    return error;
+}
+
+int SDL_RenderPopColor(SDL_Renderer * rpRenderer)
+{
+    /* test if stack is empty */
+    if ( savedRenderingColors.empty() )
+        return 1;
+    SDL_Color c = savedRenderingColors.top();
+    savedRenderingColors.pop();
+    return SDL_SetRenderDrawColor( rpRenderer, c.r, c.g, c.b, c.a );
+}
+

@@ -140,4 +140,15 @@ public:
     int operator()( SDL_Event const & event, SDL_Renderer * rpRenderer );
 };
 
+
+#include <stack>
+
+/* @todo: make these two work if different renderers are given! */
+/* saves the current rendering color of rpRenderer */
+int SDL_RenderPushColor(SDL_Renderer * rpRenderer);
+/* restore the last saved rendering color of rpRenderer */
+int SDL_RenderPophColor(SDL_Renderer * rpRenderer);
+
+
+
 #include "sdlcommon.cpp"

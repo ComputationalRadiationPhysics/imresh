@@ -268,7 +268,7 @@ int SDL_RenderDrawFunction
 int SDL_RenderDrawHistogram
 ( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, int nValues,
+  float * values, const int nValues,
   int binWidth,  bool fill, bool drawAxis, const char * title )
 {
     if ( y0 == y1 )
@@ -276,7 +276,7 @@ int SDL_RenderDrawHistogram
     if ( x0 == x1 )
     {
         x0 = 0;
-        x1 = nValues-1;
+        x1 = nValues;
     }
     /* include the 0 centerline in the plot! */
     y0 = fmin( y0, 0.0f );
@@ -335,3 +335,93 @@ int SDL_RenderDrawHistogram
 
     return 0;
 }
+
+
+template<class T_PREC>
+int SDL_RenderDrawMatrix
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  T_PREC * values, const int nValuesX, const int nValuesY,
+  bool drawAxis, const char * title )
+{
+    if ( y0 == y1 )
+        y0 = 0, y1 = nValuesY;
+    if ( x0 == x1 )
+        x0 = 0, x1 = nValuesX;
+
+    if (x0 >= x1) return 1;
+    if (y0 >= y1) return 1;
+
+    /* automatically choose a macro pixel size which fills the x. and y-range
+     * as best as possible. Note that only integer sizes are allowed, resulting
+     * in less than optimal fillings for some cases, see also
+     * SDL_RenderDrawHistogram comment. */
+    SDL_Rect macroPixel;
+    macroPixel.w = rAxes.w / nValuesX; /* integer floor division */
+    macroPixel.h = rAxes.h / nValuesY; /* integer floor division */
+    macroPixel.x = rAxes.x;
+    macroPixel.y = rAxes.y + rAxes.h - macroPixel.h;
+
+    /* if the macro pixels don't reach the end of the axis, then we need
+     * to adjust y1 to y1', so that y1 lies at the and of the macro pixels
+     * when drawing the axis [y0,y1']
+     * The macroPixel go up to nValuesY*macroPixel.h, meaning:
+     *   (y1-y0)/(y1'-y0) = macroPixel.h*nValuesY / rAxes.h
+     */
+    y1 = y0 + (y1-y0) * (float)rAxes.h/float( nValuesY*macroPixel.h );
+    x1 = x0 + (x1-x0) * (float)rAxes.w/float( nValuesX*macroPixel.w );
+
+
+    SDL_RenderPushColor(rpRenderer);
+
+    for ( int iy = 0; iy < nValuesY; ++iy, macroPixel.y -= macroPixel.h )
+    {
+        macroPixel.x = rAxes.x;
+        for ( int ix = 0; ix < nValuesX; ++ix, macroPixel.x += macroPixel.w )
+        {
+            int color = values[iy*nValuesX + ix] * 255;
+            int r=0,g=0,b=0;
+            if ( color >= 0 and color <= 255 )
+                r = g = b = color;
+            else
+                r = 200; // darker red
+
+            SDL_SetRenderDrawColor ( rpRenderer, r,g,b,255 );
+            SDL_RenderFillRect( rpRenderer, &macroPixel );
+        }
+    }
+
+    SDL_RenderPopColor(rpRenderer);
+
+    /* Draw axis */
+    int error = SDL_RenderDrawAxes( rpRenderer,rAxes, x0,x1,y0,y1 );
+    if ( error != 0 )
+        return error;
+
+    /* Draw title */
+    SDL_Rect titleLoc = { rAxes.x + rAxes.w/2, rAxes.y, 0,0 };
+    SDL_drawString( rpRenderer, SDL_PlotFonts::instance()->labelFont,
+        title, &titleLoc, 1 /*center*/, 2 /*bottom align*/ );
+
+    return 0;
+}
+
+
+/* Explicitely instantiate certain template arguments */
+/*
+template int SDL_RenderDrawMatrix<float>
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  float * values, const int nValuesX, const int nValuesY,
+  bool drawAxis, const char * title );
+template int SDL_RenderDrawMatrix<double>
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  double * values, const int nValuesX, const int nValuesY,
+  bool drawAxis, const char * title );
+template int SDL_RenderDrawMatrix<int>
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  int * values, const int nValuesX, const int nValuesY,
+  bool drawAxis, const char * title );
+*/

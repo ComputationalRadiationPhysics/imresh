@@ -122,6 +122,51 @@ void testGaussian( SDL_Renderer * rpRenderer )
 }
 
 
+void testGaussianBlur2d
+( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data,
+  int nDataX, int nDataY, const float sigma, const char * title )
+{
+    char title2[128];
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
+                          true/*drawAxis*/, title );
+
+    SDL_RenderDrawArrow( rpRenderer, rect.x+1.1*rect.w,rect.y+rect.h/2,
+                                     rect.x+1.3*rect.w,rect.y+rect.h/2 );
+    rect.x += 1.5*rect.w;
+    gaussianBlurHorizontal( data, nDataX, nDataY, sigma );
+    sprintf( title2,"G_h(s=%0.1f)*%s",sigma,title );
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
+                          true/*drawAxis*/, title2 );
+
+    SDL_RenderDrawArrow( rpRenderer, rect.x+1.1*rect.w,rect.y+rect.h/2,
+                                     rect.x+1.3*rect.w,rect.y+rect.h/2 );
+    rect.x += 1.5*rect.w;
+    gaussianBlurVertical( data, nDataX, nDataY, sigma );
+    sprintf( title2,"G_v o G_h(s=%0.1f)*%s",sigma,title );
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
+                          true/*drawAxis*/, title2 );
+}
+
+void testGaussian2d( SDL_Renderer * rpRenderer )
+{
+    srand(165158631);
+    SDL_Rect rect = { 40,40,100,100 };
+
+    const int nDataX = 20;
+    const int nDataY = 20;
+    float data[nDataX*nDataY];
+
+    /* Try different data sets */
+    for ( int i = 0; i < nDataX*nDataY; ++i )
+        data[i] = rand()/(double)RAND_MAX;
+    testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "Random" );
+    rect.y += 140;
+    for ( int i = 0; i < nDataX*nDataY; ++i )
+        data[i] = rand()/(double)RAND_MAX;
+    testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 2.0, "Random" );
+    rect.y += 140;
+}
+
 int main(void)
 {
     SDL_Window   * pWindow;
@@ -162,7 +207,8 @@ int main(void)
     /* Do and plot tests */
     SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
     //testDcft(pRenderer);
-    testGaussian(pRenderer);
+    //testGaussian(pRenderer);
+    testGaussian2d(pRenderer);
 
 
     //SDL_drawLineControl drawControl;
