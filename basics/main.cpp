@@ -157,6 +157,46 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     float data[nDataX*nDataY];
 
     /* Try different data sets */
+    /**
+     * +--------+        +--------+   # - black
+     * |        |        |     .  |   x - gray
+     * |     #  |        |p   .i. |   p - lighter gray
+     * |#       |   ->   |xo   .  |   o - very light gray
+     * |        |        |p   o   |   i - also light gray
+     * |    #   |        |   pxp  |   . - gray/white barely visible
+     * +--------+        +--------+     - white
+     * Note that the two dots at the borders must result in the exact same
+     * blurred value (only rotated by 90°). This is not obvious, because
+     * we apply gausian first horizontal, then vertical, but it works and
+     * makes the gaussian-N-dimensional algorithm much faster!
+     **/
+    for ( int i = 0; i < nDataX*nDataY; ++i )
+        data[i] = 1.0;
+    data[10]           = 0;
+    data[10*nDataX]    = 0;
+    data[12*nDataX+12] = 0;
+    testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "3-Points" );
+    rect.y += 140;
+    assert( data[9] != 1.0 );
+    assert( data[9] == data[11] );
+    assert( data[9*nDataX] == data[11*nDataX] );
+    assert( data[9] == data[11*nDataX] );
+    assert( data[nDataX+10] == data[10*nDataX+1] );
+
+    /* same as above in white on black */
+    for ( int i = 0; i < nDataX*nDataY; ++i )
+        data[i] = 0;
+    data[10]           = 1;
+    data[10*nDataX]    = 1;
+    data[12*nDataX+12] = 1;
+    testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "3-Points" );
+    rect.y += 140;
+    assert( data[9] != 0 );
+    assert( data[9] == data[11] );
+    assert( data[9*nDataX] == data[11*nDataX] );
+    assert( data[9] == data[11*nDataX] );
+    assert( data[nDataX+10] == data[10*nDataX+1] );
+
     for ( int i = 0; i < nDataX*nDataY; ++i )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "Random" );

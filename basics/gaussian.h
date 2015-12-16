@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <cmath>
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 #include <cassert>
 #include <cstring>  // memcpy
 #include <cstddef>  // NULL
@@ -64,9 +67,17 @@ void gaussianBlur
 ( T_PREC * rData, int rnData, double rSigma );
 
 /**
- * Blurs a 1D vector of elements using a gaussian kernel
+ * Blurs a 2D vector of elements using a gaussian kernel
  *
- *
+ * @f[ \forall i\in N_x,j\in N_y: x_{ij} = \sum\limits_{k=-n}^n
+ * \sum\limits_{l=-n}^n \frac{1}{2\pi\sigma^2} e^{-\frac{ r^2 }{ 2\sigma^2} }
+ * x_{kl} @f] mit @f[ r = \sqrt{ {\Delta x}^2 + {\Delta y}^2 } =
+ * \sqrt{ k^2+l^2 } \Rightarrow x_{ij} = \sum\limits_{k=-n}^n
+ *   \frac{1}{\sqrt{2\pi}\sigma} e^{-\frac{ k^2 }{ 2\sigma^2} }
+ * \sum\limits_{l=-n}^n
+ *   \frac{1}{\sqrt{2\pi}\sigma} e^{-\frac{ l^2 }{ 2\sigma^2} }
+ * @f] With this we have decomposed the 2D convolution in two consequent 1D
+ * convolutions! This makes the calculation of the kernel easier.
  *
  * @param[in]  rData vector to blur
  * @param[in]  rnDataX number of columns in matrix, i.e. line length
