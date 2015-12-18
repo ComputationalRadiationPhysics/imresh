@@ -2,13 +2,23 @@
 
 #include <iostream>
 #include <cassert>
+#include <cmath> // sqrt
+#include <stack>
 #include <SDL.h>
+#include <SDL_ttf.h>
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
+
+
+//namespace sdlcommon {
+
 
 void SDL_check(const void * errorCode, const char * file, int line );
 void SDL_check(int          errorCode, const char * file, int line );
 #define SDL_CHECK(X) SDL_check(X,__FILE__,__LINE__);
 
-#include <SDL_ttf.h>
 void checkTTFPtr(void const * ptr, const char * file, int line );
 #define CHECK_TTF_PTR(X) checkTTFPtr(X,__FILE__,__LINE__);
 
@@ -24,7 +34,6 @@ std::ostream & operator<<( std::ostream & out, SDL_Rect rect )
 int SDL_SaveRenderedToBmp
 ( SDL_Renderer * rRenderer, SDL_Window* rWindow, const char * rFilename );
 
-#include <cmath> // sqrt
 template<class T> struct Point2Dx
 {
     T x,y;
@@ -141,14 +150,14 @@ public:
 };
 
 
-#include <stack>
-
 /* @todo: make these two work if different renderers are given! */
 /* saves the current rendering color of rpRenderer */
 int SDL_RenderPushColor(SDL_Renderer * rpRenderer);
 /* restore the last saved rendering color of rpRenderer */
 int SDL_RenderPophColor(SDL_Renderer * rpRenderer);
 
+
+//} // namespace sdlcommon
 
 
 #include "sdlcommon.cpp"

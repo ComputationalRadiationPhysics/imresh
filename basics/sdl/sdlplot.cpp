@@ -1,4 +1,7 @@
 
+namespace sdlcommon {
+
+
 int SDL_drawString
 ( SDL_Renderer * rpRenderer, TTF_Font * rFont, const char * rString,
   SDL_Rect * rTarget, int rXAlign, int rYAlign )
@@ -425,3 +428,6 @@ template int SDL_RenderDrawMatrix<int>
   int * values, const int nValuesX, const int nValuesY,
   bool drawAxis, const char * title );
 */
+
+
+} // namespace sdlcommon

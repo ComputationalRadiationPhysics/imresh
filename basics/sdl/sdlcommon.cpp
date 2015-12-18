@@ -1,4 +1,7 @@
 
+//namespace sdlcommon {
+
+
 void SDL_check(int errorCode, const char * file, int line )
 {
     if ( errorCode != 0 )
@@ -519,3 +522,4 @@ int SDL_RenderPopColor(SDL_Renderer * rpRenderer)
     return SDL_SetRenderDrawColor( rpRenderer, c.r, c.g, c.b, c.a );
 }
 
+//} // namespace sdlcommon

@@ -9,6 +9,11 @@
 #include <cstring>  // memcpy
 #include <cstddef>  // NULL
 
+
+namespace imresh {
+namespace gaussianblur {
+
+
 /**
  * Applies a kernel, i.e. convolution vector, i.e. weighted sum, to data.
  *
@@ -97,3 +102,7 @@ void gaussianBlurHorizontal
 template<class T_PREC>
 void gaussianBlurVertical
 ( T_PREC * rData, int rnDataX, int rnDataY, double rSigma );
+
+
+} // namespace imresh
+} // namespace gaussianblur

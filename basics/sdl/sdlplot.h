@@ -7,6 +7,10 @@
 #include <cmath>    // log10
 #include <cstddef>  // NULL
 
+
+namespace sdlcommon {
+
+
 class SDL_PlotFonts {
 private:
     static SDL_PlotFonts * mInstance;
@@ -156,7 +160,7 @@ int SDL_RenderDrawMatrix
   bool drawAxis = false, const char * title = "" );
 
 
-
+} // namespace sdlcommon
 
 
 #include "sdlplot.cpp"

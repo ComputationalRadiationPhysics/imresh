@@ -1,5 +1,10 @@
 #include "gaussian.h"
 
+
+namespace imresh {
+namespace gaussianblur {
+
+
 #define DEBUG_GAUSSIAN_CPP 0
 
 
@@ -435,8 +440,6 @@ void gaussianBlur
 
 
 
-
-
 /* Explicitely instantiate certain template arguments to make an object file */
 
 template void applyKernel<float>
@@ -454,3 +457,7 @@ template void gaussianBlurHorizontal<float >( float  * rData, int rnDataX, int r
 template void gaussianBlurHorizontal<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
 template void gaussianBlurVertical<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
 template void gaussianBlurVertical<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+
+
+} // namespace imresh
+} // namespace gaussianblur

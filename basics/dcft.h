@@ -2,11 +2,15 @@
 
 #include <iostream>
 #include <cmath>
+#include "numeric/integrate.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 
+
+namespace imresh {
+namespace dcft {
 
 
 struct SinBase {
@@ -17,9 +21,6 @@ struct CosBase {
     int k;
     float operator()(float x) const { return std::cos(k*x); }
 };
-
-
-#include "numeric/integrate.h"
 
 template<class F, class G>
 float trigScp(const F & f, const G & g);
@@ -38,15 +39,8 @@ template<class F>
 void dcft( F f, int rnCoefficients, float * rCoefficients );
 
 
+} // namespace imresh
+} // namespace dcft
 
-#include "sdlplot.h"
-
-template<class F>
-void testDcftAndPrint
-( SDL_Renderer * rpRenderer, SDL_Rect rAxes, F f, const char* rFuncTitle );
-
-#include <SDL.h>
-
-void testDcft(SDL_Renderer * rpRenderer);
 
 #include "dcft.cpp"
