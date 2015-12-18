@@ -5,6 +5,11 @@
 #include <cstdio>  // sprintf
 #include <cmath>
 #include "sdlplot.h"
+#include "gaussian.h"
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
 
 using namespace sdlcommon;
@@ -12,13 +17,6 @@ using namespace sdlcommon;
 
 namespace imresh {
 namespace test {
-
-
-#include "gaussian.h"
-
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
 
 
 void testGaussianBlur2d
