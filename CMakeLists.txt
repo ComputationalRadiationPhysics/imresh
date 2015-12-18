@@ -12,8 +12,9 @@ find_package(CUDA QUIET REQUIRED)
 
 # Building/Linking
 # Maybe we'll need that in the future
-set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS})
+set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -gencode)
 
 include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
+cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
