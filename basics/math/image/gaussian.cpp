@@ -17,7 +17,7 @@ void applyKernel
     assert( rnWeights % 2 == 1 );
     const int N = (rnWeights-1)/2;
 
-    const int bufferSize = 256;
+    const int bufferSize = 1024;
     T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
     assert( rnData <= bufferSize );
 
@@ -199,7 +199,7 @@ void gaussianBlurVertical
      * completed! */
     const int bufferSize = nColsCacheLine*nColsCacheLine;
     T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
-    assert( rnDataY <= bufferSize/nColsCacheLine );
+    //assert( rnDataY <= bufferSize/nColsCacheLine );
 
     /**
      *                        (shared memory)
