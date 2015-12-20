@@ -11,7 +11,8 @@
 
 
 namespace imresh {
-namespace gaussianblur {
+namespace math {
+namespace image {
 
 
 /**
@@ -50,13 +51,17 @@ void applyKernel
  *             kernel size
  * @param[out] rWeights array the kernel will be written into
  * @param[in]  rnWeights maximum writable size of rWeights
+ * @param[in]  rMinAbsoluteError when using integers an absolute error of
+ *             0.5/255 should be targeted, so that for the maximum range
+ *             the absolute error never is bigger than 0.5
  * @return kernel size. If the returned kernel size > rnWeights, then rWeights
  *         wasn't changed. Normally you would want to check for that, allocate
  *         a larger array and call this function again.
  **/
 template<class T_PREC>
 int calcGaussianKernel
-( double rSigma, T_PREC * rWeights, const int rnWeights );
+( double rSigma, T_PREC * rWeights, const int rnWeights,
+  const double rMinAbsoluteError = 0.5/255 );
 
 /**
  * Blurs a 1D vector of elements using a gaussian kernel
@@ -104,5 +109,6 @@ void gaussianBlurVertical
 ( T_PREC * rData, int rnDataX, int rnDataY, double rSigma );
 
 
+} // namespace image
+} // namespace math
 } // namespace imresh
-} // namespace gaussianblur

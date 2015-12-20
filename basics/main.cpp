@@ -2,11 +2,12 @@
 file=main; rm $file.exe; g++ -g -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-parameter $file.cpp -o $file.exe $(sdl2-config --cflags --libs) -l SDL2_image -l SDL2_ttf; ./$file.exe
 */
 
-#include "dcft.h"
-#include "dft.h"
-#include "sdlcommon.h"
-#include "sdlplot.h"
+#include "math/fouriertransform/dcft.h"
+#include "math/fouriertransform/dft.h"
+#include "sdl/sdlcommon.h"
+#include "sdl/sdlplot.h"
 
+using namespace imresh::math::fouriertransform;
 
 /*
  - generate some kind of test data -> random, checkerboard, circle, ...
@@ -19,6 +20,7 @@ file=main; rm $file.exe; g++ -g -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-pa
 #include "tests/testFftw.cpp"
 #include "tests/testGaussian.cpp"
 #include "tests/testGaussian2d.cpp"
+#include "tests/testMatrixInvertGaussJacobi.cpp"
 
 int main(void)
 {
@@ -59,11 +61,13 @@ int main(void)
     /* Do and plot tests */
     SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
     //sdlcommon::test::testSdlPlot(pRenderer);
+    imresh::test::testMatrixInvertGaussJacobi();
     //imresh::test::testDcft(pRenderer);
     //imresh::test::testGaussian(pRenderer);
     //imresh::test::testGaussian2d(pRenderer);
-    //imresh::test::testDft(pRenderer);
-    imresh::test::testFftw(pRenderer);
+    imresh::test::testDft(pRenderer);
+    //imresh::test::testFftw(pRenderer);
+    //imresh::test::testFftw2d(pRenderer);
 
 
     //SDL_drawLineControl drawControl;

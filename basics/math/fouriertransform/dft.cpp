@@ -1,7 +1,8 @@
-#include "dcft.h"
+#include "dft.h"
 
 namespace imresh {
-namespace dft {
+namespace math {
+namespace fouriertransform {
 
 
 template<class T_PREC>
@@ -26,6 +27,10 @@ void dft
     delete[] result;
 }
 
+template void dft<float>( std::complex<float> * rData, const unsigned rnData, const bool rForward );
+template void dft<double>( std::complex<double> * rData, const unsigned rnData, const bool rForward );
+template void dft<long double>( std::complex<long double> * rData, const unsigned rnData, const bool rForward );
 
-} // namespace dft
+} // namespace fouriertransform
+} // namespace math
 } // namespace imresh

@@ -10,13 +10,14 @@
 #endif
 
 namespace imresh {
-namespace dft {
+namespace math {
+namespace fouriertransform {
 
 
 /**
  * Calculates the discrete Fourier transform
  *
- * @f[ \tilde{x}_k = \sum\limits{n=0}^{N-1} x_n \left[ \cos \left( 
+ * @f[ \tilde{x}_k = \sum\limits{n=0}^{N-1} x_n \left[ \cos \left(
        -2 \pi k \frac{n}{N} \right) + j \sin\left( -2 \pi k \frac{n}{N}
        \right) \right] ,\quad n\in\mathbb{Z} @f]
  *
@@ -27,11 +28,9 @@ namespace dft {
  * @param[out] rData will hold the transformed data (in-place)
  **/
 template<class T_PREC>
-void dft ( T_PREC * rData, const unsigned rnData, const bool rForward );
+void dft ( std::complex<T_PREC> * rData, const unsigned rnData, const bool rForward );
 
 
-} // namespace dft
+} // namespace fouriertransform
+} // namespace math
 } // namespace imresh
-
-
-#include "dft.cpp"

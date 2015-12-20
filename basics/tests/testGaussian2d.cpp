@@ -4,8 +4,8 @@
 #include <cassert>
 #include <cstdio>  // sprintf
 #include <cmath>
-#include "sdlplot.h"
-#include "gaussian.h"
+#include "sdl/sdlplot.h"
+#include "math/image/gaussian.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
@@ -13,6 +13,7 @@
 
 
 using namespace sdlcommon;
+using namespace imresh::math::image;
 
 
 namespace imresh {
@@ -23,8 +24,8 @@ void testGaussianBlur2d
 ( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data,
   int nDataX, int nDataY, const float sigma, const char * title )
 {
-    using imresh::gaussianblur::gaussianBlurHorizontal;
-    using imresh::gaussianblur::gaussianBlurVertical;
+    using namespace imresh::math::image;
+    using namespace imresh::math::image;
 
     char title2[128];
     SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,

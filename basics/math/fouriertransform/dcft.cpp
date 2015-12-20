@@ -2,7 +2,8 @@
 
 
 namespace imresh {
-namespace dcft {
+namespace math {
+namespace fouriertransform {
 
 
 template<class F, class G>
@@ -33,5 +34,6 @@ void dcft( F f, int rnCoefficients, float * rCoefficients )
 }
 
 
+} // namespace fouriertransform
+} // namespace math
 } // namespace imresh
-} // namespace dcft

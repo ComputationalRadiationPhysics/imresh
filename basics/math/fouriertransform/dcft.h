@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <cmath>
-#include "numeric/integrate.h"
+#include "math/numeric/integrate.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
@@ -10,7 +10,8 @@
 
 
 namespace imresh {
-namespace dcft {
+namespace math {
+namespace fouriertransform {
 
 
 struct SinBase {
@@ -39,8 +40,9 @@ template<class F>
 void dcft( F f, int rnCoefficients, float * rCoefficients );
 
 
+} // namespace fouriertransform
+} // namespace math
 } // namespace imresh
-} // namespace dcft
 
 
 #include "dcft.cpp"

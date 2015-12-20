@@ -1,6 +1,6 @@
 
 #include <SDL.h>
-#include "sdlplot.h"
+#include "sdl/sdlplot.h"
 
 
 namespace sdlcommon {

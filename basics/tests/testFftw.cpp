@@ -3,6 +3,7 @@
 #include <cstdio>  // sprintf
 #include <cmath>
 #include <complex>
+#include "sdl/sdlplot.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
@@ -31,6 +32,8 @@ void testFftwAndPrint
                                      FFTW_FORWARD, FFTW_ESTIMATE);
     planInverse  = fftw_plan_dft_1d( nCoefficients, xTransformed, xOriginal,
                                      FFTW_BACKWARD, FFTW_ESTIMATE);
+    /* Note that the inverse of the fft gives back a scaled result of the
+     * input data! http://www.fftw.org/faq/section3.html#whyscaled */
 
     float * xReal = new float[nCoefficients];
     float * xImag = new float[nCoefficients];

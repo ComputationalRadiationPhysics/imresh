@@ -1,13 +1,14 @@
 
 #include <cstdio>  // sprintf
 #include <cmath>
-#include "dcft.h"
+#include <SDL.h>   // SDL_Rect
+#include "sdl/sdlplot.h"
+#include "math/fouriertransform/dcft.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 
-using namespace sdlcommon;
 
 
 namespace imresh {
@@ -18,7 +19,8 @@ template<class F>
 void testDcftAndPrint
 ( SDL_Renderer * rpRenderer, SDL_Rect rAxes, F f, const char* rFuncTitle )
 {
-    using imresh::dcft::dcft;
+    using namespace sdlcommon;
+    using namespace math::fouriertransform;
 
     int nCoefficients = 10;
     float * g = new float[2*nCoefficients];

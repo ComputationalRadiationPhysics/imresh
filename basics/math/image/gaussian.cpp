@@ -2,7 +2,8 @@
 
 
 namespace imresh {
-namespace gaussianblur {
+namespace math {
+namespace image {
 
 
 #define DEBUG_GAUSSIAN_CPP 0
@@ -66,7 +67,8 @@ void applyKernel
 
 template<class T_PREC>
 int calcGaussianKernel
-( double rSigma, T_PREC * rWeights, const int rnWeights )
+( double rSigma, T_PREC * rWeights, const int rnWeights,
+  const double rMinAbsoluteError )
 {
     /**
      * We need to choose a size depending on the sigma, for which the kernel
@@ -93,7 +95,8 @@ int calcGaussianKernel
      * \mathrm{erfc}\left( -\frac{ x_\mathrm{cutoff} }{ \sqrt{2}\sigma } \right)
      * \overset{!}{=} 0.5
      * \Rightarrow x_\mathrm{cutoff} = -\sqrt{2}\sigma
-     *   \erfc^{-1}\left( \frac{1}{255} \right) = -2.884402748387961466 \sigma
+     *   \erfc^{-1}\left( \frac{1}{2 \cdot 255} \right)
+     *   = -2.884402748387961466 \sigma
      * @f]
      * This result means, that for @f[ \sigma=1 @f] the kernel size should
      * be 3 to the left and 3 to the right, meaning 7 weights large.
@@ -102,6 +105,15 @@ int calcGaussianKernel
      * very close to the 2.88440, but we should nevertheless include the
      * pixel at [-3.5,-2.5] to be correct.
      **/
+    /* @todo: inverfc, e.g. with minimax (port python version to C/C++)
+     *        the inverse erfc diverges at 0, this makes it hard to find a
+     *        a polynomial approximation there, but maybe I could rewrite
+     *        minimax algorithm to work with \sum a_n/x**n
+     *        Anyway, the divergence is also bad for the kernel Size. In order
+     *        to reach floating point single precision of 1e-7 absolute error
+     *        the kernel size would be: 3.854659 ok, it diverges much slower
+     *        than I though */
+    //const int nNeighbors = ceil( erfcinv( 2.0*rMinAbsoluteError ) - 0.5 );
     const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
     const int nWeights   = 2*nNeighbors + 1;
     assert( nWeights > 0 );
@@ -459,5 +471,6 @@ template void gaussianBlurVertical<float >( float  * rData, int rnDataX, int rnD
 template void gaussianBlurVertical<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
 
 
+} // namespace image
+} // namespace math
 } // namespace imresh
-} // namespace gaussianblur

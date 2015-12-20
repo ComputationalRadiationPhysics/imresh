@@ -1,14 +1,12 @@
 
 #include <cmath>
-#include <SDL.h>
-#include "sdlplot.h"
-#include "dft.h"
+#include <SDL.h>    // SDL_Rect
+#include "sdl/sdlplot.h"
+#include "math/fouriertransform/dft.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
-
-using namespace sdlcommon;
 
 
 namespace imresh {
@@ -19,7 +17,8 @@ template<class F>
 void testDftAndPrint
 ( SDL_Renderer * rpRenderer, SDL_Rect rAxes, F f, const char* rFuncTitle )
 {
-    using imresh::dft::dft;
+    using namespace sdlcommon;
+    using namespace imresh::math::fouriertransform;
     using complex = std::complex<float>;
 
     const int nCoefficients = 31;
