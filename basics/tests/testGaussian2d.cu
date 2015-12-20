@@ -1,50 +1,78 @@
 
-#include <SDL.h>
-#include <cstdlib> // srand, rand, RAND_MAX
-#include <cassert>
-#include <cstdio>  // sprintf
-#include <cmath>
-#include "sdl/sdlplot.h"
-#include "math/image/gaussian.h"
-
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
-
-
-using namespace sdlcommon;
-using namespace imresh::math::image;
+#include "testGaussian2d.h"
+#include "cudacommon.cu" // this should not be included in the header, because else compile errors will happen, wenn including cudacommon.cu from a .cpp file
 
 
 namespace imresh {
 namespace test {
 
 
+/**
+ * Plots original, horizontally and vertically blurred intermediary steps
+ *
+ * Also compares the result of the CPU blur with the CUDA blur
+ **/
 void testGaussianBlur2d
 ( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data,
   int nDataX, int nDataY, const float sigma, const char * title )
 {
     using namespace imresh::math::image;
 
+    /* do intermediary steps with CUDA */
+    const unsigned dataSize = sizeof(float)*nDataX*nDataY;
+    float * cudaHBlur = (float*) malloc( dataSize );
+    float * cudaBlur  = (float*) malloc( dataSize );
+    float * dpData;
+    CUDA_ERROR( cudaMalloc( (void**) &dpData, dataSize ) );
+
+    CUDA_ERROR( cudaMemcpy( dpData, data, dataSize, cudaMemcpyHostToDevice ) );
+    cudaGaussianBlurHorizontal( data, nDataX, nDataY, sigma );
+    CUDA_ERROR( cudaMemcpy( cudaHBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
+    cudaGaussianBlurVertical( data, nDataX, nDataY, sigma );
+    CUDA_ERROR( cudaMemcpy( cudaBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
+
+    /* do intermediary steps using the CPU */
+    float * cpuHBlur  = (float*) malloc( dataSize );
+    float * cpuBlur   = (float*) malloc( dataSize );
+    memcpy( cpuHBlur, data, dataSize );
+    gaussianBlurHorizontal( cpuHBlur, nDataX, nDataY, sigma );
+    memcpy( cpuBlur, cpuHBlur, dataSize );
+    gaussianBlurVertical( cpuBlur, nDataX, nDataY, sigma );
+
+    /* compare results from GPU with CPU */
+    using imresh::math::vector::vectorMaxAbsDiff;
+    float absMaxErrH = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
+    std::cout << "Maximum difference after horizontal blurring: " << absMaxErrH << "\n";
+    float absMaxErr = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
+    std::cout << "Maximum difference after blurring: " << absMaxErr << "\n";
+
+    /* plot original image */
     char title2[128];
     SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
                           true/*drawAxis*/, title );
 
+    /* plot horizontally blurred image */
     SDL_RenderDrawArrow( rpRenderer, rect.x+1.1*rect.w,rect.y+rect.h/2,
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
-    gaussianBlurHorizontal( data, nDataX, nDataY, sigma );
     sprintf( title2,"G_h(s=%0.1f)*%s",sigma,title );
-    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cpuHBlur,nDataX,nDataY,
                           true/*drawAxis*/, title2 );
 
+    /* plot horizontally blurred image */
     SDL_RenderDrawArrow( rpRenderer, rect.x+1.1*rect.w,rect.y+rect.h/2,
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
-    gaussianBlurVertical( data, nDataX, nDataY, sigma );
     sprintf( title2,"G_v o G_h(s=%0.1f)*%s",sigma,title );
-    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cpuBlur,nDataX,nDataY,
                           true/*drawAxis*/, title2 );
+
+    /* free everything */
+    CUDA_ERROR( cudaFree( dpData ) );
+    free( cpuBlur   );
+    free( cpuHBlur  );
+    free( cudaBlur  );
+    free( cudaHBlur );
 }
 
 void testGaussian2d( SDL_Renderer * rpRenderer )

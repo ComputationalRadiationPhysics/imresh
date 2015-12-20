@@ -2,8 +2,9 @@
 
 #include <iostream>
 #include <cassert>
-#include <cmath> // sqrt
+#include <cmath>  // sqrt
 #include <stack>
+#include <ctime>  // time, strftime
 #include <SDL.h>
 #include <SDL_ttf.h>
 
@@ -12,7 +13,7 @@
 #endif
 
 
-//namespace sdlcommon {
+namespace sdlcommon {
 
 
 void SDL_check(const void * errorCode, const char * file, int line );
@@ -23,12 +24,7 @@ void checkTTFPtr(void const * ptr, const char * file, int line );
 #define CHECK_TTF_PTR(X) checkTTFPtr(X,__FILE__,__LINE__);
 
 
-std::ostream & operator<<( std::ostream & out, SDL_Rect rect )
-{
-    out << "SDL_Rect = { x:"<<rect.x<<", y:"<<rect.y<<", w:"<<rect.w<<", h:"
-        << rect.h<<"}";
-    return out;
-}
+std::ostream & operator<<( std::ostream & out, SDL_Rect rect );
 
 
 int SDL_SaveRenderedToBmp
@@ -37,12 +33,12 @@ int SDL_SaveRenderedToBmp
 template<class T> struct Point2Dx
 {
     T x,y;
-    Point2Dx   operator- ( Point2Dx const & b ) const { return Point2Dx{ x-b.x, y-b.y }; }
-    Point2Dx   operator+ ( Point2Dx const & b ) const { return Point2Dx{ x+b.x, y+b.y }; }
-    Point2Dx   operator* ( T        const & b ) const { return Point2Dx{ x*b, y*b }; }
-    Point2Dx & operator/=( Point2Dx const & b ) { x/=b.x; y/=b.y; return *this; }
-    Point2Dx & operator/=( T        const & b ) { x/=b; y/=b; return *this; }
-    T norm(void) const { return std::sqrt(x*x+y*y); }
+    Point2Dx   operator- ( Point2Dx const & b ) const;
+    Point2Dx   operator+ ( Point2Dx const & b ) const;
+    Point2Dx   operator* ( T        const & b ) const;
+    Point2Dx & operator/=( Point2Dx const & b );
+    Point2Dx & operator/=( T        const & b );
+    T norm(void) const;
 };
 
 typedef Point2Dx<int  > Point2D;
@@ -51,10 +47,8 @@ typedef Point2Dx<float> Point2Df;
 typedef struct { Point2D  p[2]; } Line2D;
 typedef struct { Point2Df p[2]; } Line2Df;
 
-template<class T> std::ostream & operator<<( std::ostream & out, Point2Dx<T> p0 )
-{ out << "(" << p0.x << "," << p0.y << ")"; return out; }
-std::ostream & operator<<( std::ostream & out, Line2D l0 )
-{ out << l0.p[0] << "->" << l0.p[1]; return out; }
+template<class T> std::ostream & operator<<( std::ostream & out, Point2Dx<T> p0 );
+std::ostream & operator<<( std::ostream & out, Line2D l0 );
 
 void calcIntersectPoint2Lines
 ( Line2Df const & l0, Line2Df const & l1, Point2Df * intsct );
@@ -79,11 +73,10 @@ void SDL_RenderDrawCircle
  * to the border and 1 pixel which is empty
  **/
 void SDL_RenderDrawThickRect
-( SDL_Renderer * rpRenderer, const SDL_Rect & rRect, const int rWidth );
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rRect, const int rWidth );
 
 void SDL_RenderDrawThickRect
-( SDL_Renderer * rpRenderer, const SDL_Rect * rRect, const int rWidth )
-{ return SDL_RenderDrawThickRect(rpRenderer,*rRect,rWidth); }
+( SDL_Renderer * const rpRenderer, const SDL_Rect * rRect, const int rWidth );
 
 
 
@@ -112,24 +105,35 @@ int SDL_RenderDrawArrow
   float rHeadSize = 5, float rAngle=20 );
 
 /* TODO!!! */
-struct classSDL_RenderDrawThickLine
-{
-    /* This is the height of the line covering the pixel squares */
-    float f(float x, float a, float b);
-    /* f integrated therefor the area of the pixels covered by the line */
-    float F(float x, float a, float b);
-    void operator()
-    ( SDL_Renderer * rpRenderer, int x0, int y0, int x1, int y1, float width );
-} SDL_RenderDrawThickLine;
+void SDL_RenderDrawThickLine
+( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width );
 
 
 template <class T> int sgn(const T & x) { return ( T(0)<x) - (x<T(0) ); }
 
 void SDL_RenderDrawThickLine2
-( SDL_Renderer * rpRenderer, int x0, int y0, int x1, int y1, float width );
+( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width );
 
 
-int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * rpRenderer );
+int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * const rpRenderer );
+
+class SDL_drawLineControl {
+private:
+    Point2D p0;  // last point clicked at
+    Line2D  l0;  // last drawn line
+public:
+    SDL_drawLineControl(void) : p0( Point2D{-1,-1} ), l0( Line2D{p0,p0} ) {};
+    int operator()( SDL_Event const & event, SDL_Renderer * const rpRenderer );
+};
+
+/* @todo: make these two work if different renderers are given! */
+/* saves the current rendering color of rpRenderer */
+int SDL_RenderPushColor(SDL_Renderer * const rpRenderer);
+/* restore the last saved rendering color of rpRenderer */
+int SDL_RenderPopColor(SDL_Renderer * const rpRenderer);
+
+
+
 /**
  * Provides control for SDL, like pause/stop, make screenshot, next Frame, ...
  *
@@ -140,24 +144,8 @@ int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Rendere
 template<class T_ANIMATION>
 void basicAnimControl( SDL_Event const & event, T_ANIMATION & anim );
 
-class SDL_drawLineControl {
-private:
-    Point2D p0;  // last point clicked at
-    Line2D  l0;  // last drawn line
-public:
-    SDL_drawLineControl(void) : p0( Point2D{-1,-1} ), l0( Line2D{p0,p0} ) {};
-    int operator()( SDL_Event const & event, SDL_Renderer * rpRenderer );
-};
 
 
-/* @todo: make these two work if different renderers are given! */
-/* saves the current rendering color of rpRenderer */
-int SDL_RenderPushColor(SDL_Renderer * rpRenderer);
-/* restore the last saved rendering color of rpRenderer */
-int SDL_RenderPophColor(SDL_Renderer * rpRenderer);
+} // namespace sdlcommon
 
-
-//} // namespace sdlcommon
-
-
-#include "sdlcommon.cpp"
+#include "sdlcommon.tpp"

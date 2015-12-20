@@ -19,8 +19,9 @@ using namespace imresh::math::fouriertransform;
 #include "tests/testDft.cpp"
 #include "tests/testFftw.cpp"
 #include "tests/testGaussian.cpp"
-#include "tests/testGaussian2d.cpp"
+#include "tests/testGaussian2d.h"
 #include "tests/testMatrixInvertGaussJacobi.cpp"
+
 
 int main(void)
 {

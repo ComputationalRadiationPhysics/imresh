@@ -6,49 +6,11 @@
 #include "sdlcommon.h"
 #include <cmath>    // log10
 #include <cstddef>  // NULL
+#include <cfloat>   // FLT_MAX, FLT_MIN
 
 
 namespace sdlcommon {
 
-
-class SDL_PlotFonts {
-private:
-    static SDL_PlotFonts * mInstance;
-
-    /* comparing the output with
-     * https://github.com/chrissimpkins/Hack/raw/master/img/hack-waterfall.png
-     * it seems that fontsize 8pt corresponds to the value 9 inside SDL_ttf
-     * Bug ??? */
-    const int mTickFontSize  = 9;
-    const int mLabelFontSize = 10;
-
-public:
-    TTF_Font * tickFont;
-    TTF_Font * labelFont;
-
-    SDL_PlotFonts()
-    {
-        if ( not TTF_WasInit() )
-            TTF_Init();
-
-        tickFont = TTF_OpenFont( "Hack/Hack-Regular.ttf", mTickFontSize );
-        CHECK_TTF_PTR( tickFont );
-        labelFont = TTF_OpenFont( "Hack/Hack-Regular.ttf", mLabelFontSize );
-        CHECK_TTF_PTR( labelFont );
-    }
-    ~SDL_PlotFonts()
-    {
-        TTF_CloseFont(tickFont);
-        TTF_CloseFont(labelFont);
-    }
-    static SDL_PlotFonts * instance(void)
-    {
-        if ( mInstance == NULL )
-            mInstance = new SDL_PlotFonts();
-        return mInstance;
-    }
-};
-SDL_PlotFonts * SDL_PlotFonts::mInstance = 0;
 
 /**
  * Renders a text string to the given renderer
@@ -100,21 +62,7 @@ int SDL_RenderDrawAxes
  **/
 int SDL_RenderDrawAxes
 ( SDL_Renderer * rpRenderer, const SDL_Rect * rAxes,
-  float x0, float x1, float y0, float y1 )
-{ return SDL_RenderDrawAxes(rpRenderer,*rAxes,x0,x1,y0,y1); }
-
-
-#include <cfloat>  // FLT_MAX, FLT_MIN
-
-/**
- * Plot the function f over some interval [x0,x1] in the plot range [y0,y1]
- *
- * @param[in] rAxes rectangle/window in which the plot is drawn
- **/
-template<class T_FUNC>
-int SDL_RenderDrawFunction
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
-  float x0, float x1, float y0, float y1, T_FUNC f, bool drawAxis = false );
+  float x0, float x1, float y0, float y1 );
 
 /**
  * Draws a histogram using values for the bin heights
@@ -160,7 +108,22 @@ int SDL_RenderDrawMatrix
   bool drawAxis = false, const char * title = "" );
 
 
+
+/************************ definitions for sdlplot.tpp *************************/
+
+
+
+/**
+ * Plot the function f over some interval [x0,x1] in the plot range [y0,y1]
+ *
+ * @param[in] rAxes rectangle/window in which the plot is drawn
+ **/
+template<class T_FUNC>
+int SDL_RenderDrawFunction
+( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1, T_FUNC f, bool drawAxis = false );
+
 } // namespace sdlcommon
 
 
-#include "sdlplot.cpp"
+#include "sdlplot.tpp"
