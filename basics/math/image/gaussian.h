@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstring>  // memcpy
 #include <cstddef>  // NULL
+#include <cstdlib>  // malloc, free
 
 
 namespace imresh {
@@ -39,8 +40,9 @@ namespace image {
  **/
 template<class T_PREC>
 void applyKernel
-( T_PREC * rData, const int rnData,
-  const T_PREC * rWeights, const int rnWeights );
+( T_PREC * const rData, const unsigned rnData,
+  const T_PREC * const rWeights, const unsigned rnWeights,
+  const unsigned rnThreads = 128);
 
 /**
  * Calculates the weights for a gaussian kernel

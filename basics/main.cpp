@@ -48,7 +48,7 @@ int main(void)
 
     pWindow = SDL_CreateWindow( "Output",
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        900, 650, SDL_WINDOW_SHOWN );
+        1024, 640, SDL_WINDOW_SHOWN );
     SDL_CHECK( pWindow );
 
     pRenderer = SDL_CreateRenderer( pWindow, -1, SDL_RENDERER_ACCELERATED );
@@ -64,8 +64,8 @@ int main(void)
     imresh::test::testMatrixInvertGaussJacobi();
     //imresh::test::testDcft(pRenderer);
     //imresh::test::testGaussian(pRenderer);
-    //imresh::test::testGaussian2d(pRenderer);
-    imresh::test::testDft(pRenderer);
+    imresh::test::testGaussian2d(pRenderer);
+    //imresh::test::testDft(pRenderer);
     //imresh::test::testFftw(pRenderer);
     //imresh::test::testFftw2d(pRenderer);
 

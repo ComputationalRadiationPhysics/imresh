@@ -25,7 +25,6 @@ void testGaussianBlur2d
   int nDataX, int nDataY, const float sigma, const char * title )
 {
     using namespace imresh::math::image;
-    using namespace imresh::math::image;
 
     char title2[128];
     SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, data,nDataX,nDataY,
@@ -50,11 +49,12 @@ void testGaussianBlur2d
 
 void testGaussian2d( SDL_Renderer * rpRenderer )
 {
+    /* ideal window size for this test is 1024x640 px */
+{
     srand(165158631);
-    SDL_Rect rect = { 40,40,100,100 };
-
     const int nDataX = 20;
     const int nDataY = 20;
+    SDL_Rect rect = { 40,40,5*nDataX,5*nDataY };
     float data[nDataX*nDataY];
 
     /* Try different data sets */
@@ -98,6 +98,9 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     assert( data[9] == data[11*nDataX] );
     assert( data[nDataX+10] == data[10*nDataX+1] );
 
+    /* blur a random image (draw result to the right of above images) */
+    rect.x += (3*1.5+1)*(5*nDataX);
+    rect.y  = 20;
     for ( int i = 0; i < nDataX*nDataY; ++i )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "Random" );
@@ -106,6 +109,20 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 2.0, "Random" );
     rect.y += 140;
+}
+{
+    /* try with quite a large image! */
+    srand(165158631);
+    const int nDataX = 240;
+    const int nDataY = 240;
+    SDL_Rect rect = { 30,320,nDataX,nDataY };
+    float data[nDataX*nDataY];
+
+    /* fill with random data */
+    for ( int i = 0; i < nDataX*nDataY; ++i )
+        data[i] = rand()/(double)RAND_MAX;
+    testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 3.0, "Random" );
+}
 }
 
 

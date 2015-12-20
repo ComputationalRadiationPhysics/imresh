@@ -1,7 +1,7 @@
 
 CC=g++
 # Not exactly sure why, but sdl2-config only works with $$, not with $
-CFLAGS=-g -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-parameter $$(sdl2-config --cflags) -I. -I./sdl
+CFLAGS=-g -fopenmp -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-parameter $$(sdl2-config --cflags) -I. -I./sdl
 LIBS=$$(sdl2-config --libs) -l SDL2_image -l SDL2_ttf -lfftw3
 
 .PHONY: clean all

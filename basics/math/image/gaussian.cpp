@@ -11,57 +11,110 @@ namespace image {
 
 template<class T_PREC>
 void applyKernel
-( T_PREC * rData, const int rnData,
-  const T_PREC * rWeights, const int rnWeights )
+( T_PREC * const rData, const unsigned rnData,
+  const T_PREC * const rWeights, const unsigned rnWeights,
+  const unsigned rnThreads )
 {
+    assert( rnWeights > 0 );
     assert( rnWeights % 2 == 1 );
-    const int N = (rnWeights-1)/2;
+    assert( rnThreads > 0 );
+    /**
+     *      kernel
+     * +--+--+--+--+--+
+     * |  |  |  |  |  |
+     * +--+--+--+--+--+
+     * <-------------->
+     *   rnWeights = 5
+     * <----->  <----->
+     *   N=2      N=2
+     **/
+    const unsigned N = (rnWeights-1)/2;
 
-    const int bufferSize = 1024;
-    T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
-    assert( rnData <= bufferSize );
+    /**
+     * Choose the buffer size, so that in every step rnThreads data values
+     * can be saved back and newly loaded. As we need N neighbors left and
+     * right for the calculation of one value, especially at the borders,
+     * this means, the buffer size needs to be rnThreads + 2*N elements long:
+     *
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     * <-----><---------------------><----->
+     *   N=2       rnThreads = 8      N=2
+     *
+     * Elements marked with xx and yy can't be calculated, the other elements
+     * can be calculated in parallel.
+     *
+     * In the first step the elements marked with xx are copie filled with
+     * the value in the element right beside it, i.e. extended borders.
+     *
+     * In the step thereafter especially the elements marked yy need to be
+     * calculated (if the are not already on the border). To calculate those
+     * we need to move yy and N=2 elements to the left to the beginning of
+     * the buffer and fill the rest with new data from rData:
+     *
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     *                         <----------->
+     * <----------->                2*N=4
+     *       ^                        |
+     *       |________________________|
+     *
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     * |vv|vv|yy|yy|  |  |  |  |  |  |ww|ww|
+     * +--+--+--+--+--+--+--+--+--+--+--+--+
+     * <-----><---------------------><----->
+     *   N=2       rnThreads = 8      N=2
+     *
+     * All elements except those marked vv and ww can now be calculated
+     * in parallel. The elements marked yy are the old elements from the right
+     * border, which were only used readingly up till now. The move of the
+     * 2*N elements may be preventable by using a modulo address access, but
+     * a move in shared memory / cache is much faster than waiting for the
+     * rest of the array to be filled with new data from global i.e. uncached
+     * memory.
+     **/
+    const int bufferSize = rnThreads + 2*N;
+    T_PREC * buffer = (T_PREC*) malloc( sizeof(T_PREC)*bufferSize );
 
-    /* handle left edge. if N==0, then kernel is of size 1, meaning a simple
-     * element wise identity or scaling, which doesn't need to handle edeges.
-     * If N==1, then there is only the upper left pixel to handle which misses
-     * one neighbor.
-     * If N==2, then we need to handle 2 pixels, missing 1 and 2 neighbors
-     * respectively
-     */
-    for ( int i = 0; i < N; ++i )
+    /* In the first step initialize the left border to the same values (extend) */
+    const T_PREC leftBorderValue = rData[0];
+    #pragma omp parallel for
+    for ( unsigned iB = 0; iB < N; ++iB )
+        buffer[ bufferSize-2*N+iB ] = leftBorderValue;
+
+    /* Loop over buffers. If rnData == rnThreads then the buffer will
+     * exactly suffice, meaning the loop will only be run 1 time */
+    for ( T_PREC * dataPos = rData; dataPos < &rData[rnData]; dataPos += rnThreads )
     {
-        buffer[i] = 0;
-        /* i=0 needs to handle N missing neighbors */
-        for ( int k = 0; k < N-i; ++k )
-            buffer[i] += rData[0] * rWeights[k];
-        /* Now handle those kernel parts, where the neighboring pixels exist.
-         * For the last case: i=N-1 this will be */
-        for ( int k = N-i; k < rnWeights; ++k )
-            buffer[i] += rData[i+(k-N)] * rWeights[k];
-    }
+        /* move last N elements to the front of the buffer */
+        /* __syncthreads(); */
+        for ( unsigned iB = 0; iB < N; ++iB )
+            buffer[iB] = buffer[ bufferSize-2*N+iB ];
 
-    /* Handle inner points with enough neighbors on each side */
-    for ( int i = N; i < rnData-N; ++i )
-    {
-        buffer[i] = 0;
-        for ( int iWeight=0, iData=i-N; iWeight < rnWeights; ++iWeight, ++iData )
-            buffer[i] += rData[iData] * rWeights[iWeight];
-    }
+        /* Load rnThreads+N data elements into buffer. If data end reached,
+         * fill buffer with last data element */
+        /* __syncthreads(); */
+        #pragma omp parallel for
+        for ( unsigned iB = N; iB < rnThreads+2*N; ++iB )
+            buffer[iB] = dataPos[ std::min( iB-N, rnData-1 ) ];
+        /* __syncthreads() */
 
-    /* handle right edge */
-    for ( int i = rnData-N; i < rnData; ++i )
-    {
-        buffer[i]= 0;
-        /* weight neighbors which exist */
-        int iWeight=0, iData=i-N;
-        for ( ; iData < rnData; ++iWeight, ++iData )
-            buffer[i] += rData[iData] * rWeights[iWeight];
-        /* handle missing neighbors */
-        for ( ; iWeight < rnWeights; ++iWeight )
-            buffer[i] += rData[rnData-1] * rWeights[iWeight];
+        /* handle inner points with enough neighbors on each side */
+        #pragma omp parallel for
+        for ( unsigned iB = N; iB < rnThreads+N; ++iB )
+        {
+            if ( &dataPos[iB-N] > &rData[rnData-1] )
+                continue;
+            /* calculate weighted sum */
+            T_PREC sum = 0;
+            for ( unsigned iW=0, iVal=iB-N; iW < rnWeights; ++iW, ++iVal )
+                sum += buffer[iVal] * rWeights[iW];
+            /* write result back into memory (in-place) */
+            dataPos[iB-N] = sum;
+        }
     }
-
-    memcpy( rData, buffer, rnData*sizeof(T_PREC) );
 }
 
 
@@ -164,8 +217,8 @@ void gaussianBlurHorizontal
     const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
 
-    T_PREC * curRow = rData;
-    for ( int iRow = 0; iRow < rnDataY; ++iRow, curRow += rnDataX )
+
+    for ( T_PREC * curRow = rData; curRow < &rData[rnDataX*rnDataY]; curRow += rnDataX )
         applyKernel( curRow, rnDataX, pKernel, kernelSize );
 }
 
@@ -453,13 +506,8 @@ void gaussianBlur
 
 
 /* Explicitely instantiate certain template arguments to make an object file */
-
-template void applyKernel<float>
-( float * rData, const int rnData,
-  const float * rWeights, const int rnWeights );
-template void applyKernel<double>
-( double * rData, const int rnData,
-  const double * rWeights, const int rnWeights );
+template void applyKernel<float >( float  * const rData, const unsigned rnData, const float  * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
+template void applyKernel<double>( double * const rData, const unsigned rnData, const double * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
 
 template void gaussianBlur<float >( float  * rData, int rnData, double rSigma );
 template void gaussianBlur<double>( double * rData, int rnData, double rSigma );
