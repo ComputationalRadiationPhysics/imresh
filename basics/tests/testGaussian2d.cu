@@ -43,9 +43,13 @@ void testGaussianBlur2d
     using imresh::math::vector::vectorMaxAbsDiff;
     float absMaxErrH = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
     std::cout << "Maximum difference after horizontal blurring: " << absMaxErrH << "\n";
-    //assert( absMaxErrH < 10*FLT_EPSILON );
+    /*assert( absMaxErrH < 10*FLT_EPSILON );
     float absMaxErr = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
-    std::cout << "Maximum difference after blurring: " << absMaxErr << "\n";
+    std::cout << "Maximum difference after blurring: " << absMaxErr << "\n"; */
+
+    float * cpuError  = (float*) malloc( dataSize );
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
+        cpuError[i] = 0.5* fabs( cpuHBlur[i] - cudaHBlur[i] ) / FLT_EPSILON;
 
     /* plot original image */
     char title2[128];
@@ -65,7 +69,7 @@ void testGaussianBlur2d
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
     sprintf( title2,"G_v o G_h(s=%0.1f)*%s",sigma,title );
-    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cpuBlur,nDataX,nDataY,
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cudaBlur,nDataX,nDataY,
                           true/*drawAxis*/, title2 );
 
     /* free everything */
@@ -90,10 +94,10 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     /* Try different data sets */
     /**
      * +--------+        +--------+   # - black
-     * |        |        |     .  |   x - gray
+     * |  +    +|        |     .  |   x - gray
      * |     #  |        |p   .i. |   p - lighter gray
      * |#       |   ->   |xo   .  |   o - very light gray
-     * |        |        |p   o   |   i - also light gray
+     * |       +|        |p   o   |   i - also light gray
      * |    #   |        |   pxp  |   . - gray/white barely visible
      * +--------+        +--------+     - white
      * Note that the two dots at the borders must result in the exact same
@@ -106,6 +110,9 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     data[10]           = 0;
     data[10*nDataX]    = 0;
     data[12*nDataX+12] = 0;
+    data[nDataY*nDataX-1]  = 0;
+    data[nDataY*nDataX-12] = 0;
+    data[7*nDataX-1]       = 0;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "3-Points" );
     rect.y += 140;
     assert( data[9] != 1.0 );
@@ -120,6 +127,9 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     data[10]           = 1;
     data[10*nDataX]    = 1;
     data[12*nDataX+12] = 1;
+    data[nDataY*nDataX-1]  = 1;
+    data[nDataY*nDataX-12] = 1;
+    data[7*nDataX-1]       = 1;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "3-Points" );
     rect.y += 140;
     assert( data[9] != 0 );

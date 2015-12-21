@@ -97,7 +97,10 @@ void applyKernel
         /* __syncthreads(); */
         #pragma omp parallel for
         for ( unsigned iB = N; iB < rnThreads+2*N; ++iB )
-            buffer[iB] = dataPos[ std::min( iB-N, rnData-1 ) ];
+            if ( &dataPos[ iB-N ] < &rData[ rnData ] )
+                buffer[iB] = dataPos[ iB-N ];
+            else
+                buffer[iB] = rData[ rnData-1 ];
         /* __syncthreads() */
 
         /* handle inner points with enough neighbors on each side */

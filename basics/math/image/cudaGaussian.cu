@@ -115,7 +115,10 @@ __global__ void cudaKernelApplyKernel
          * border */
         if ( threadIdx.x == 0 )
             for ( unsigned iB = N+nThreads; iB < nThreads+2*N; ++iB )
-                smBuffer[iB] = dataPos[ min( iB-N, rnData-1 ) ];
+                if ( &dataPos[ iB-N ] < &data[ rnData ] )
+                    smBuffer[iB] = dataPos[ iB-N ];
+                else
+                    smBuffer[iB] = data[ rnData-1 ];
         __syncthreads();
 
         /* calculated weighted sum on inner points in buffer, but only if
