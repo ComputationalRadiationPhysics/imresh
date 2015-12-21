@@ -7,7 +7,7 @@ namespace sdlcommon {
 namespace test {
 
 
-int testSdlPlot( SDL_Renderer * rpRenderer )
+int testSdlPlot( SDL_Renderer * const rpRenderer )
 {
     SDL_SetRenderDrawColor( rpRenderer, 0,0,0,255 );
     const int nAxis = 5;

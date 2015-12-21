@@ -11,22 +11,23 @@ namespace imresh {
 namespace test {
 
 
-float testInverseUnity( const float * const A, const float * const B, const int N )
+float testInverseUnity
+( const float * const A, const float * const B, const unsigned N )
 {
     /* matrix multiply to test if result is unit matrix */
     float absErr = 0;
-    for ( int iCol = 0; iCol < N; ++iCol )
-        for ( int iRow = 0; iRow < N; ++iRow )
+    for ( unsigned iCol = 0; iCol < N; ++iCol )
+        for ( unsigned iRow = 0; iRow < N; ++iRow )
         {
             float sum = 0;
-            for ( int k = 0; k < N; k++ )  // dot product
+            for ( unsigned k = 0; k < N; k++ )  // dot product
                sum += A[iRow*N+k] * B[k*N+iCol];
             absErr += std::abs( ( iRow == iCol ? 1 : 0 ) - sum );
         }
     return absErr;
 }
 
-void testMatrixInvertGaussJacobi(void)
+void testMatrixInvertGaussJacobi( void )
 {
     using namespace imresh::math::matrix;
 

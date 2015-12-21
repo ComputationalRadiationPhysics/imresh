@@ -13,8 +13,11 @@ namespace test {
  * Also compares the result of the CPU blur with the CUDA blur
  **/
 void testGaussianBlur2d
-( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data,
-  int nDataX, int nDataY, const float sigma, const char * title )
+(
+  SDL_Renderer * const rpRenderer, SDL_Rect rect, float * const data,
+  const unsigned nDataX, const unsigned nDataY, const float sigma,
+  const char * const title
+)
 {
     using namespace imresh::math::image;
 
@@ -28,7 +31,7 @@ void testGaussianBlur2d
     CUDA_ERROR( cudaMemcpy( dpData, data, dataSize, cudaMemcpyHostToDevice ) );
     cudaGaussianBlurHorizontal( dpData, nDataX, nDataY, sigma );
     CUDA_ERROR( cudaMemcpy( cudaHBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
-    //cudaGaussianBlurVertical( dpData, nDataX, nDataY, sigma );
+    cudaGaussianBlurVertical( dpData, nDataX, nDataY, sigma );
     CUDA_ERROR( cudaMemcpy( cudaBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
 
     /* do intermediary steps using the CPU */
@@ -81,13 +84,13 @@ void testGaussianBlur2d
     free( cudaHBlur );
 }
 
-void testGaussian2d( SDL_Renderer * rpRenderer )
+void testGaussian2d( SDL_Renderer * const rpRenderer )
 {
     /* ideal window size for this test is 1024x640 px */
 {
     srand(165158631);
-    const int nDataX = 20;
-    const int nDataY = 20;
+    const unsigned nDataX = 20;
+    const unsigned nDataY = 20;
     SDL_Rect rect = { 40,40,5*nDataX,5*nDataY };
     float data[nDataX*nDataY];
 
@@ -105,7 +108,7 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
      * we apply gausian first horizontal, then vertical, but it works and
      * makes the gaussian-N-dimensional algorithm much faster!
      **/
-    for ( int i = 0; i < nDataX*nDataY; ++i )
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
         data[i] = 1.0;
     data[10]           = 0;
     data[10*nDataX]    = 0;
@@ -122,7 +125,7 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     assert( data[nDataX+10] == data[10*nDataX+1] );
 
     /* same as above in white on black */
-    for ( int i = 0; i < nDataX*nDataY; ++i )
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
         data[i] = 0;
     data[10]           = 1;
     data[10*nDataX]    = 1;
@@ -141,11 +144,11 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
     /* blur a random image (draw result to the right of above images) */
     rect.x += (3*1.5+1)*(5*nDataX);
     rect.y  = 20;
-    for ( int i = 0; i < nDataX*nDataY; ++i )
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 1.0, "Random" );
     rect.y += 140;
-    for ( int i = 0; i < nDataX*nDataY; ++i )
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 2.0, "Random" );
     rect.y += 140;
@@ -153,13 +156,13 @@ void testGaussian2d( SDL_Renderer * rpRenderer )
 {
     /* try with quite a large image! */
     srand(165158631);
-    const int nDataX = 240;
-    const int nDataY = 240;
+    const unsigned nDataX = 240;
+    const unsigned nDataY = 240;
     SDL_Rect rect = { 30,320,nDataX,nDataY };
     float data[nDataX*nDataY];
 
     /* fill with random data */
-    for ( int i = 0; i < nDataX*nDataY; ++i )
+    for ( unsigned i = 0; i < nDataX*nDataY; ++i )
         data[i] = rand()/(double)RAND_MAX;
     testGaussianBlur2d( rpRenderer,rect, data,nDataX,nDataY, 3.0, "Random" );
 }

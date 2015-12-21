@@ -1,18 +1,5 @@
 
-#include <SDL.h>
-#include <cstdlib> // srand, rand, RAND_MAX
-#include <cassert>
-#include <cstdio>  // sprintf
-#include <cmath>
-#include "sdl/sdlplot.h"
-#include "math/image/gaussian.h"
-
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
-
-using namespace sdlcommon;
-using namespace imresh::math::image;
+#include "testGaussian.h"
 
 
 namespace imresh {
@@ -20,9 +7,11 @@ namespace test {
 
 
 void testGaussianBlurVector
-( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data, int nData,
-  const float sigma, const char * title )
+( SDL_Renderer * const rpRenderer, SDL_Rect rect,
+  float * const data, const unsigned nData,
+  const float sigma, const char * const title )
 {
+    using namespace sdlcommon;
     using imresh::math::image::gaussianBlur;
 
     SDL_RenderDrawHistogram(rpRenderer, rect, 0,0,0,0,
@@ -39,7 +28,7 @@ void testGaussianBlurVector
         data,nData, 0/*binWidth*/,false/*fill*/, true/*drawAxis*/, title2 );
 }
 
-void testGaussian( SDL_Renderer * rpRenderer )
+void testGaussian( SDL_Renderer * const rpRenderer )
 {
     srand(165158631);
     SDL_Rect rect = { 40,40,200,80 };

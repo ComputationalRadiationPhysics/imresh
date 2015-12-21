@@ -32,10 +32,11 @@ namespace test {
  * Also compares the result of the CPU blur with the CUDA blur
  **/
 void testGaussianBlur2d
-( SDL_Renderer * rpRenderer, SDL_Rect rect, float * data,
-  int nDataX, int nDataY, const float sigma, const char * title );
+( SDL_Renderer * const rpRenderer, SDL_Rect rect, float * const data,
+  const unsigned nDataX, const unsigned nDataY, const float sigma,
+  const char * const title );
 
-void testGaussian2d( SDL_Renderer * rpRenderer );
+void testGaussian2d( SDL_Renderer * const rpRenderer );
 
 
 } // namespace imresh

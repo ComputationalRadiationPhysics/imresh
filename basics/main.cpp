@@ -1,24 +1,10 @@
-/*
-file=main; rm $file.exe; g++ -g -std=c++11 -Wall -Wextra -Wshadow -Wno-unused-parameter $file.cpp -o $file.exe $(sdl2-config --cflags --libs) -l SDL2_image -l SDL2_ttf; ./$file.exe
-*/
 
-#include "math/fouriertransform/dcft.h"
-#include "math/fouriertransform/dft.h"
 #include "sdl/sdlcommon.h"
-#include "sdl/sdlplot.h"
-
-using namespace imresh::math::fouriertransform;
-
-/*
- - generate some kind of test data -> random, checkerboard, circle, ...
- - bonus: try it with real image :3 -> see C++ program from back then, which display iriya no sora, ufo no natsu bmp :333, or was that pascal :X
-*/
-
 #include "tests/testSdlPlot.cpp"
 #include "tests/testDcft.cpp"
-#include "tests/testDft.cpp"
-#include "tests/testFftw.cpp"
-#include "tests/testGaussian.cpp"
+#include "tests/testDft.h"
+#include "tests/testFftw.h"
+#include "tests/testGaussian.h"
 #include "tests/testGaussian2d.h"
 #include "tests/testMatrixInvertGaussJacobi.cpp"
 

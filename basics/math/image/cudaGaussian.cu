@@ -205,8 +205,12 @@ void cudaGaussianBlurHorizontal
 
 template<class T_PREC>
 void cudaGaussianBlurVertical
-( T_PREC * rData, int rnDataX, int rnDataY, double rSigma )
+( T_PREC * rdpData, int rnDataX, int rnDataY, double rSigma )
 {
+    T_PREC * const rData = rdpData;
+
+    std::cout << "[cudaGaussianBlurVertical] Please implement me!\n";
+    return;
 
     /* calculate Gaussian kernel */
     const int nKernelElements = 64;
