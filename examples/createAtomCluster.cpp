@@ -29,7 +29,7 @@ namespace examples {
 
 
 
-float * createAtomCluster( const int Nx, const int Ny )
+float * createAtomCluster( const unsigned Nx, const unsigned Ny )
 {
     using namespace imresh::math::image;
 
@@ -38,11 +38,11 @@ float * createAtomCluster( const int Nx, const int Ny )
     /* Add random background noise and blur it, so that it isn't pixelwise */
     srand(4628941);
     const float noiseAmplitude = 0.3;
-    for ( int i = 0; i < Nx*Ny; ++i )
+    for ( unsigned i = 0; i < Nx*Ny; ++i )
         data[i] = 0.7*noiseAmplitude * rand() / (float) RAND_MAX;
     gaussianBlur( data, Nx, Ny, 1.5 /*sigma in pixels*/ );
     /* add more fine grained noise in a second step */
-    for ( int i = 0; i < Nx*Ny; ++i )
+    for ( unsigned i = 0; i < Nx*Ny; ++i )
         data[i] += 0.3*noiseAmplitude * rand() / (float) RAND_MAX;
 
     /* choose a radious, so that the atom cluster will fit into the image and
@@ -102,10 +102,10 @@ float * createAtomCluster( const int Nx, const int Ny )
         x += r[0] * 2*atomRadius;
         y += r[1] * 2*atomRadius;
 
-        int ix0 = std::max( 0   , (int) floor(x-atomRadius)-1 );
-        int ix1 = std::min( Nx-1, (int) ceil (x+atomRadius)+1 );
-        int iy0 = std::max( 0   , (int) floor(y-atomRadius)-1 );
-        int iy1 = std::min( Ny-1, (int) ceil (y+atomRadius)+1 );
+        int ix0 = std::max( (int) 0   , (int) floor(x-atomRadius)-1 );
+        int ix1 = std::min( (int) Nx-1, (int) ceil (x+atomRadius)+1 );
+        int iy0 = std::max( (int) 0   , (int) floor(y-atomRadius)-1 );
+        int iy1 = std::min( (int) Ny-1, (int) ceil (y+atomRadius)+1 );
 
         for ( int ix = ix0; ix < ix1; ++ix )
         for ( int iy = iy0; iy < iy1; ++iy )

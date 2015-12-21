@@ -2,6 +2,7 @@
 #include "sdl/sdlplot.h"
 #include "examples/createAtomCluster.cpp"
 
+
 void testAtomCluster( SDL_Renderer * rpRenderer )
 {
     using namespace imresh::examples;

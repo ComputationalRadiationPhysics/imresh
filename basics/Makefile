@@ -12,7 +12,7 @@ CFLAGS=-g -fopenmp -std=c++11 $$(sdl2-config --cflags) $(INC) $(WARNINGS)
 
 .PHONY: clean all
 
-all: main.exe
+all: mainTestAll.exe mainUnderstandShrinkWrap.exe
 
 clean:
 	rm -f main.exe *.o
@@ -53,7 +53,7 @@ testDft.o: tests/testDft.cpp tests/testDft.h sdl/sdlcommon.h
 testFftw.o: tests/testFftw.cpp tests/testFftw.h sdl/sdlcommon.h
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -lfftw3 -o $@
 
-main.exe: main.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGaussian.o \
+mainTestAll.exe: mainTestAll.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGaussian.o \
 	      testGaussian2d.o sdlplot.o sdlcommon.o cudacommon.o \
 		  math/fouriertransform/dcft.h math/fouriertransform/dcft.cpp \
 		  tests/testDcft.cpp testDft.o testFftw.o \
@@ -62,3 +62,8 @@ main.exe: main.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGaussian.o \
 	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o dft.o matrix.o vectorReduce.o \
 	testGaussian.o testDft.o testFftw.o \
 	testGaussian2d.o cudaGaussian.o sdlplot.o sdlcommon.o cudacommon.o -o $@
+
+mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
+		gaussian.o sdlplot.o sdlcommon.o cudacommon.o
+	rm -f $@
+	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o sdlplot.o sdlcommon.o cudacommon.o -o $@

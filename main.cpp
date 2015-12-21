@@ -3,8 +3,11 @@
 
 #include "tests/testAtomCluster.cpp"
 
+
 int main(void)
 {
+    using namespace sdlcommon;
+
     SDL_Window   * pWindow;
     SDL_Renderer * pRenderer;
 
