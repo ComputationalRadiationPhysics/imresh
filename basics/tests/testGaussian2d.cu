@@ -1,6 +1,6 @@
 
 #include "testGaussian2d.h"
-#include "cudacommon.cu" // this should not be included in the header, because else compile errors will happen, wenn including cudacommon.cu from a .cpp file
+#include "cudacommon.h" // this should not be included in the header, because else compile errors will happen, wenn including cudacommon.cu from a .cpp file
 
 
 namespace imresh {
@@ -26,9 +26,9 @@ void testGaussianBlur2d
     CUDA_ERROR( cudaMalloc( (void**) &dpData, dataSize ) );
 
     CUDA_ERROR( cudaMemcpy( dpData, data, dataSize, cudaMemcpyHostToDevice ) );
-    cudaGaussianBlurHorizontal( data, nDataX, nDataY, sigma );
+    cudaGaussianBlurHorizontal( dpData, nDataX, nDataY, sigma );
     CUDA_ERROR( cudaMemcpy( cudaHBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
-    cudaGaussianBlurVertical( data, nDataX, nDataY, sigma );
+    //cudaGaussianBlurVertical( dpData, nDataX, nDataY, sigma );
     CUDA_ERROR( cudaMemcpy( cudaBlur, dpData, dataSize, cudaMemcpyDeviceToHost ) );
 
     /* do intermediary steps using the CPU */
@@ -43,6 +43,7 @@ void testGaussianBlur2d
     using imresh::math::vector::vectorMaxAbsDiff;
     float absMaxErrH = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
     std::cout << "Maximum difference after horizontal blurring: " << absMaxErrH << "\n";
+    //assert( absMaxErrH < 10*FLT_EPSILON );
     float absMaxErr = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
     std::cout << "Maximum difference after blurring: " << absMaxErr << "\n";
 
@@ -56,7 +57,7 @@ void testGaussianBlur2d
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
     sprintf( title2,"G_h(s=%0.1f)*%s",sigma,title );
-    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cpuHBlur,nDataX,nDataY,
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cudaHBlur,nDataX,nDataY,
                           true/*drawAxis*/, title2 );
 
     /* plot horizontally blurred image */
@@ -68,6 +69,7 @@ void testGaussianBlur2d
                           true/*drawAxis*/, title2 );
 
     /* free everything */
+    memcpy( data, cpuBlur, dataSize );
     CUDA_ERROR( cudaFree( dpData ) );
     free( cpuBlur   );
     free( cpuHBlur  );

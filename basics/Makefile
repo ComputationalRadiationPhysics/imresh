@@ -25,7 +25,10 @@ sdlcommon.o: sdl/sdlcommon.cpp sdl/sdlcommon.h sdl/sdlcommon.tpp
 sdlplot.o: sdl/sdlplot.cpp sdl/sdlplot.h sdl/sdlplot.tpp
 	$(CC) -c $(CFLAGS) $< $(LIBS) -o $@
 
-cudaGaussian.o: math/image/cudaGaussian.cu math/image/cudaGaussian.h
+cudacommon.o: cudacommon.cu cudacommon.h
+	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
+
+cudaGaussian.o: math/image/cudaGaussian.cu math/image/cudaGaussian.h cudacommon.cu
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 
 dft.o: math/fouriertransform/dft.cpp math/fouriertransform/dft.h
@@ -37,15 +40,15 @@ matrix.o: math/matrix/matrixInvertGaussJacobi.cpp math/matrix/matrixInvertGaussJ
 vectorReduce.o: math/vector/vectorReduce.cpp math/vector/vectorReduce.h
 	$(CC) -c $(CFLAGS) $< $(LIBS) -o $@
 
-testGaussian2d.o: tests/testGaussian2d.cu tests/testGaussian2d.h
+testGaussian2d.o: tests/testGaussian2d.cu tests/testGaussian2d.h cudacommon.cu
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 
 main.exe: main.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGaussian.o \
-	      testGaussian2d.o sdlplot.o sdlcommon.o \
+	      testGaussian2d.o sdlplot.o sdlcommon.o cudacommon.o \
 	      sdl/sdlplot.h sdl/sdlplot.cpp sdl/sdlcommon.h \
 		  math/fouriertransform/dcft.h math/fouriertransform/dcft.cpp \
 		  tests/testDcft.cpp tests/testDft.cpp tests/testFftw.cpp \
 		  tests/testGaussian.cpp tests/testSdlPlot.cpp
 	rm -f $@
 	nvcc $(NVCCFLAGS) $< $(LIBS) gaussian.o dft.o matrix.o vectorReduce.o \
-	testGaussian2d.o cudaGaussian.o sdlplot.o sdlcommon.o -o $@
+	testGaussian2d.o cudaGaussian.o sdlplot.o sdlcommon.o cudacommon.o -o $@

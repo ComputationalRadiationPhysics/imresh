@@ -6,6 +6,7 @@
 #include <cstring> // memcpy
 #include <cstdio>  // sprintf
 #include <cmath>
+#include <cfloat>  // FLT_EPSILON
 #include "sdl/sdlplot.h"
 #include "math/image/gaussian.h"
 #include "math/image/cudaGaussian.h"

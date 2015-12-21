@@ -6,6 +6,7 @@
 #include <cstring>     // memcpy
 #include <cstddef>     // NULL
 #include <cstdlib>     // malloc, free
+#include <cstdio>     // malloc, free
 #include <cuda.h>
 #include "gaussian.h"  // calcGaussianKernel
 

@@ -1,5 +1,6 @@
-#include "cudaGaussian.h"
 
+#include "cudaGaussian.h"
+#include "cudacommon.h"
 
 namespace imresh {
 namespace math {
@@ -9,114 +10,150 @@ namespace image {
 #define DEBUG_GAUSSIAN_CPP 0
 
 
+/**
+ * Choose the buffer size, so that in every step rnThreads data values
+ * can be saved back and newly loaded. As we need N neighbors left and
+ * right for the calculation of one value, especially at the borders,
+ * this means, the buffer size needs to be rnThreads + 2*N elements long:
+ *                                                   kernel
+ * +--+--+--+--+--+--+--+--+--+--+--+--+        +--+--+--+--+--+
+ * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|        |  |  |  |  |  |
+ * +--+--+--+--+--+--+--+--+--+--+--+--+        +--+--+--+--+--+
+ * <-----><---------------------><----->        <-------------->
+ *   N=2       rnThreads = 8      N=2             rnWeights = 5
+ *                                              <----->  <----->
+ *                                                N=2      N=2
+ * Elements marked with xx and yy can't be calculated, the other elements
+ * can be calculated in parallel.
+ *
+ * In the first step the elements marked with xx are copie filled with
+ * the value in the element right beside it, i.e. extended borders.
+ *
+ * In the step thereafter especially the elements marked yy need to be
+ * calculated (if the are not already on the border). To calculate those
+ * we need to move yy and N=2 elements to the left to the beginning of
+ * the buffer and fill the rest with new data from rData:
+ *
+ * +--+--+--+--+--+--+--+--+--+--+--+--+
+ * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
+ * +--+--+--+--+--+--+--+--+--+--+--+--+
+ *                         <----------->
+ * <----------->                2*N=4
+ *       ^                        |
+ *       |________________________|
+ *
+ * +--+--+--+--+--+--+--+--+--+--+--+--+
+ * |vv|vv|yy|yy|  |  |  |  |  |  |ww|ww|
+ * +--+--+--+--+--+--+--+--+--+--+--+--+
+ * <-----><---------------------><----->
+ *   N=2       rnThreads = 8      N=2
+ *
+ * All elements except those marked vv and ww can now be calculated
+ * in parallel. The elements marked yy are the old elements from the right
+ * border, which were only used readingly up till now. The move of the
+ * 2*N elements may be preventable by using a modulo address access, but
+ * a move in shared memory / cache is much faster than waiting for the
+ * rest of the array to be filled with new data from global i.e. uncached
+ * memory.
+ **/
+template<class T_PREC>
+__global__ void cudaKernelApplyKernel
+(
+  T_PREC * const rdpData, const unsigned rnData,
+  T_PREC const * const rdpWeights, const unsigned N
+)
+{
+    assert( N > 0 );
+    assert( blockDim.y == 1 and blockDim.z == 1 );
+    assert(  gridDim.y == 1 and  gridDim.z == 1 );
+
+    /* If more than 1 block, then each block works on a separate line.
+     * Each line borders will be extended. So mutliple blocks can't be used
+     * to blur one very very long line even faster! */
+    const int & nThreads = blockDim.x;
+    T_PREC * const data = &rdpData[ blockIdx.x * rnData ];
+
+    /* manage dynamically allocated shared memory */
+    extern __shared__ T_PREC smBlock[];
+    const int nWeights = 2*N+1;
+    const int bufferSize = nThreads + 2*N;
+    T_PREC * const smWeights = smBlock;
+    T_PREC * const smBuffer  = &smBlock[ nWeights ];
+    __syncthreads();
+    /* cache the weights to shared memory @todo: more efficient possible ??? */
+    if ( threadIdx.x == 0 )
+        memcpy( smWeights, rdpWeights, sizeof(T_PREC)*nWeights );
+
+    /* In the first step initialize the left border to the same values (extend)
+     * It's problematic to use threads for this for loop, because it is not
+     * guaranteed, that blockDim.x >= N */
+    const T_PREC leftBorderValue = data[0];
+    if ( threadIdx.x == 0 )
+        for ( unsigned iB = 0; iB < N; ++iB )
+            smBuffer[ bufferSize-2*N+iB ] = leftBorderValue;
+
+    /* Loop over buffers. If rnData == rnThreads then the buffer will
+     * exactly suffice, meaning the loop will only be run 1 time.
+     * The for loop break condition is the same for all threads, so it is
+     * safe to use __syncthreads() inside */
+    for ( T_PREC * dataPos = data; dataPos < &data[rnData]; dataPos += nThreads )
+    {
+        /* move last N elements to the front of the buffer */
+        __syncthreads();
+        if ( threadIdx.x == 0 )
+            memcpy( smBuffer, &smBuffer[ bufferSize-2*N ], N*sizeof(T_PREC) );
+
+        /* Load rnThreads+N data elements into buffer. If data end reached,
+         * fill buffer with last data element */
+        __syncthreads();
+        const unsigned iBuf = N + threadIdx.x;
+        const unsigned iVal = min( iBuf-N, rnData-1 );
+        smBuffer[ iBuf ] = dataPos[ iVal ];
+        /* again this is hard to parallelize if we don't have as many threads
+         * as the kernel is wide. Furthermore we can't use memcpy, because
+         * it may be, that we need to extend a value, because we reached the
+         * border */
+        if ( threadIdx.x == 0 )
+            for ( unsigned iB = N+nThreads; iB < nThreads+2*N; ++iB )
+                smBuffer[iB] = dataPos[ min( iB-N, rnData-1 ) ];
+        __syncthreads();
+
+        /* calculated weighted sum on inner points in buffer, but only if
+         * the value we are at is actually needed: */
+        if ( &dataPos[iBuf-N] < &data[rnData] )
+        {
+            T_PREC sum = 0;
+            /* this for loop is done by each thread and should for large
+             * enough kernel sizes sufficiently utilize raw computing power */
+            for ( T_PREC * w = smWeights, * x = &smBuffer[iBuf-N];
+                  w < &smWeights[nWeights]; ++w, ++x )
+                sum += (*w) * (*x);
+            /* write result back into memory (in-place). No need to wait for
+             * all threads to finish, because we write into global memory, to
+             * values we already buffered into shared memory! */
+            dataPos[iBuf-N] = sum;
+        }
+    }
+}
+
 template<class T_PREC>
 void cudaApplyKernel
-( T_PREC * const rData, const unsigned rnData,
-  const T_PREC * const rWeights, const unsigned rnWeights,
+( T_PREC * const rdpData, const unsigned rnData,
+  const T_PREC * const rdpWeights, const unsigned rnWeights,
   const unsigned rnThreads )
 {
     assert( rnWeights > 0 );
     assert( rnWeights % 2 == 1 );
     assert( rnThreads > 0 );
-    /**
-     *      kernel
-     * +--+--+--+--+--+
-     * |  |  |  |  |  |
-     * +--+--+--+--+--+
-     * <-------------->
-     *   rnWeights = 5
-     * <----->  <----->
-     *   N=2      N=2
-     **/
+
     const unsigned N = (rnWeights-1)/2;
+    const unsigned bufferSize = rnThreads + 2*N;
 
-    /**
-     * Choose the buffer size, so that in every step rnThreads data values
-     * can be saved back and newly loaded. As we need N neighbors left and
-     * right for the calculation of one value, especially at the borders,
-     * this means, the buffer size needs to be rnThreads + 2*N elements long:
-     *
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     * <-----><---------------------><----->
-     *   N=2       rnThreads = 8      N=2
-     *
-     * Elements marked with xx and yy can't be calculated, the other elements
-     * can be calculated in parallel.
-     *
-     * In the first step the elements marked with xx are copie filled with
-     * the value in the element right beside it, i.e. extended borders.
-     *
-     * In the step thereafter especially the elements marked yy need to be
-     * calculated (if the are not already on the border). To calculate those
-     * we need to move yy and N=2 elements to the left to the beginning of
-     * the buffer and fill the rest with new data from rData:
-     *
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     *                         <----------->
-     * <----------->                2*N=4
-     *       ^                        |
-     *       |________________________|
-     *
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     * |vv|vv|yy|yy|  |  |  |  |  |  |ww|ww|
-     * +--+--+--+--+--+--+--+--+--+--+--+--+
-     * <-----><---------------------><----->
-     *   N=2       rnThreads = 8      N=2
-     *
-     * All elements except those marked vv and ww can now be calculated
-     * in parallel. The elements marked yy are the old elements from the right
-     * border, which were only used readingly up till now. The move of the
-     * 2*N elements may be preventable by using a modulo address access, but
-     * a move in shared memory / cache is much faster than waiting for the
-     * rest of the array to be filled with new data from global i.e. uncached
-     * memory.
-     **/
-    const int bufferSize = rnThreads + 2*N;
-    T_PREC * buffer = (T_PREC*) malloc( sizeof(T_PREC)*bufferSize );
-
-    /* In the first step initialize the left border to the same values (extend) */
-    const T_PREC leftBorderValue = rData[0];
-    #pragma omp parallel for
-    for ( unsigned iB = 0; iB < N; ++iB )
-        buffer[ bufferSize-2*N+iB ] = leftBorderValue;
-
-    /* Loop over buffers. If rnData == rnThreads then the buffer will
-     * exactly suffice, meaning the loop will only be run 1 time */
-    for ( T_PREC * dataPos = rData; dataPos < &rData[rnData]; dataPos += rnThreads )
-    {
-        /* move last N elements to the front of the buffer */
-        /* __syncthreads(); */
-        for ( unsigned iB = 0; iB < N; ++iB )
-            buffer[iB] = buffer[ bufferSize-2*N+iB ];
-
-        /* Load rnThreads+N data elements into buffer. If data end reached,
-         * fill buffer with last data element */
-        /* __syncthreads(); */
-        #pragma omp parallel for
-        for ( unsigned iB = N; iB < rnThreads+2*N; ++iB )
-            buffer[iB] = dataPos[ std::min( iB-N, rnData-1 ) ];
-        /* __syncthreads() */
-
-        /* handle inner points with enough neighbors on each side */
-        #pragma omp parallel for
-        for ( unsigned iB = N; iB < rnThreads+N; ++iB )
-        {
-            if ( &dataPos[iB-N] > &rData[rnData-1] )
-                continue;
-            /* calculate weighted sum */
-            T_PREC sum = 0;
-            for ( unsigned iW=0, iVal=iB-N; iW < rnWeights; ++iW, ++iVal )
-                sum += buffer[iVal] * rWeights[iW];
-            /* write result back into memory (in-place) */
-            dataPos[iB-N] = sum;
-        }
-    }
+    cudaKernelApplyKernel<<<
+        1,rnThreads,
+        sizeof(T_PREC)*( rnWeights + bufferSize )
+    >>>( rdpData, rnData, rdpWeights, N );
 }
-
 
 
 template<class T_PREC>
@@ -132,16 +169,35 @@ void cudaGaussianBlur
 
 template<class T_PREC>
 void cudaGaussianBlurHorizontal
-( T_PREC * rData, int rnDataX, int rnDataY, double rSigma )
+( T_PREC * rdpData, int rnDataX, int rnDataY, double rSigma )
 {
     const int nKernelElements = 64;
     T_PREC pKernel[64];
     const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
 
+    /* upload kernel to GPU */
+    T_PREC * dpKernel;
+    CUDA_ERROR( cudaMalloc( &dpKernel, sizeof(T_PREC)*kernelSize ) );
+    CUDA_ERROR( cudaMemcpy(  dpKernel, pKernel, sizeof(T_PREC)*kernelSize, cudaMemcpyHostToDevice ) );
 
-    for ( T_PREC * curRow = rData; curRow < &rData[rnDataX*rnDataY]; curRow += rnDataX )
-        cudaApplyKernel( curRow, rnDataX, pKernel, kernelSize );
+    /* the image must be at least nThreads threads wide, else many threads
+     * will only sleep. The number of blocks is equal to the image height.
+     * Every block works on 1 image line. The number of Threads is limited
+     * by the hardware to be e.g. 512 or 1024. The reason for this is the
+     * limited shared memory size! */
+    const unsigned nThreads = 256;
+    const unsigned nBlocks  = rnDataY;
+    const unsigned N = (kernelSize-1)/2;
+    const unsigned bufferSize = nThreads + 2*N;
+
+    cudaKernelApplyKernel<<<
+        nBlocks,nThreads,
+        sizeof(T_PREC)*( kernelSize + bufferSize )
+    >>>( rdpData, rnDataX, dpKernel, N );
+    CUDA_ERROR( cudaDeviceSynchronize() );
+
+    CUDA_ERROR( cudaFree( dpKernel ) );
 }
 
 template<class T_PREC>
@@ -281,7 +337,7 @@ void cudaGaussianBlurVertical
     assert( bufferSize >= nColsCacheLine*nKernelHalf );
 
     /* cache the row which we extend over the border */
-    memcpy( cachedRowA, a, nColsCacheLine*sizeof(a[0]) );
+    memcpy( cachedRowA, a, nColsCacheLine*sizeof(T_PREC) );
     for ( int iRowA = 0; iRowA < nKernelHalf; ++iRowA )
     {
         T_PREC * bRow = b + iRowA*nColsCacheLine;
@@ -428,18 +484,20 @@ void cudaGaussianBlur
 
 
 /* Explicitely instantiate certain template arguments to make an object file */
-template void cudaApplyKernel<float >( float  * const rData, const unsigned rnData, const float  * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
-template void cudaApplyKernel<double>( double * const rData, const unsigned rnData, const double * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
-
-template void cudaGaussianBlur<float >( float  * rData, int rnData, double rSigma );
-template void cudaGaussianBlur<double>( double * rData, int rnData, double rSigma );
-template void cudaGaussianBlur<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
-template void cudaGaussianBlur<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+template void cudaApplyKernel<float>( float * const rData, const unsigned rnData, const float * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
+template void cudaGaussianBlur<float>( float * rData, int rnData, double rSigma );
+template void cudaGaussianBlur<float>( float * rData, int rnDataX, int rnDataY, double rSigma );
 template void cudaGaussianBlurHorizontal<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
-template void cudaGaussianBlurHorizontal<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
 template void cudaGaussianBlurVertical<float >( float  * rData, int rnDataX, int rnDataY, double rSigma );
-template void cudaGaussianBlurVertical<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
 
+/* @todo: multiple instantations doesn't work, because of extern __shared__ !!!!!! */
+/*
+template void cudaApplyKernel<double>( double * const rData, const unsigned rnData, const double * const rWeights, const unsigned rnWeights, const unsigned rnThreads );
+template void cudaGaussianBlur<double>( double * rData, int rnData, double rSigma );
+template void cudaGaussianBlur<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+template void cudaGaussianBlurHorizontal<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+template void cudaGaussianBlurVertical<double>( double * rData, int rnDataX, int rnDataY, double rSigma );
+*/
 
 } // namespace image
 } // namespace math

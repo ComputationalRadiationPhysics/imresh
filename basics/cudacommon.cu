@@ -1,61 +1,13 @@
-#pragma once
-
-#include <chrono>
-#include <string>
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#include "cudacommon.h"
 
 
-//#define sleep(DELTAT) std::this_thread::sleep_for(std::chrono::milliseconds(DELTAT))
-
-
-__device__ inline uint64_t getLinearThreadId(void)
-{
-    return threadIdx.x +
-           threadIdx.y * blockDim.x +
-           threadIdx.z * blockDim.x * blockDim.y;
-}
-
-__device__ inline uint64_t getLinearId(void)
-{
-    uint64_t linId = threadIdx.x;
-    uint64_t maxSize = blockDim.x;
-    linId += maxSize*threadIdx.y;
-    maxSize *= blockDim.y;
-    linId += maxSize*threadIdx.z;
-    maxSize *= blockDim.z;
-    linId += maxSize*blockIdx.x;
-    maxSize *= gridDim.x;
-    linId += maxSize*blockIdx.y;
-    maxSize *= gridDim.y;
-    linId += maxSize*blockIdx.z;
-    // maxSize *= gridDim.z;
-    return linId;
-}
-
-__device__ inline uint64_t getDim3Product( const dim3 & rVec )
-{ return (uint64_t)rVec.x * rVec.y * rVec.z; }
-
-__device__ inline uint64_t getBlockSize( void )
-{ return getDim3Product(blockDim); }
-
-__device__ inline uint64_t getGridSize( void )
-{ return getDim3Product(gridDim); }
-
-void checkCudaError(const cudaError_t rValue, const char * file, int line )
+void checkCudaError
+( const cudaError_t rValue, const char * file, int line )
 {
     if ( (rValue) != cudaSuccess )
-    std::cout << "CUDA error in " << file
-              << " line:" << line << " : "
-              << cudaGetErrorString(rValue) << "\n";
+    printf( "CUDA error in %s line:%i : %s\n",
+            file, line, cudaGetErrorString(rValue) );
 }
-#define CUDA_ERROR(X) checkCudaError(X,__FILE__,__LINE__);
-/* not not impossible, but also not beautiful implementing this    *
- * as a pure macro, because we need to temporarily save the return *
- * value, else the function would be evaluated twice, once for     *
- * checking, and the second time for printing!                     */
-
-
 
 
 /**
@@ -63,7 +15,8 @@ void checkCudaError(const cudaError_t rValue, const char * file, int line )
  *             the user will need to free (C-style) this data on program exit!
  * @param[out] rnDevices - will hold number of cuda devices
  **/
-void getCudaDeviceProperties( cudaDeviceProp** rpDeviceProperties, int * rnDevices, bool rPrintInfo = false )
+void getCudaDeviceProperties
+( cudaDeviceProp** rpDeviceProperties, int * rnDevices, bool rPrintInfo )
 {
     printf("Getting Device Informations. As this is the first command, "
            "it can take ca.30s, because the GPU must be initialized.\n");

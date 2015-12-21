@@ -80,7 +80,6 @@ void applyKernel
 
     /* In the first step initialize the left border to the same values (extend) */
     const T_PREC leftBorderValue = rData[0];
-    #pragma omp parallel for
     for ( unsigned iB = 0; iB < N; ++iB )
         buffer[ bufferSize-2*N+iB ] = leftBorderValue;
 
@@ -104,9 +103,8 @@ void applyKernel
         /* handle inner points with enough neighbors on each side */
         #pragma omp parallel for
         for ( unsigned iB = N; iB < rnThreads+N; ++iB )
+        if ( &dataPos[iB-N] < &rData[rnData] )
         {
-            if ( &dataPos[iB-N] > &rData[rnData-1] )
-                continue;
             /* calculate weighted sum */
             T_PREC sum = 0;
             for ( unsigned iW=0, iVal=iB-N; iW < rnWeights; ++iW, ++iVal )
