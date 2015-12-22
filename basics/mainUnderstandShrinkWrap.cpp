@@ -10,179 +10,13 @@
 #include "../examples/createAtomCluster.cpp"
 #include "../examples/createSlit.cpp"
 #include "math/vector/vectorReduce.h"
+#include "colors/conversions.h"
+#include "tests/testColors.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 
-
-/**
- * Maps hue(H), saturation(S), value(V) to red, green, blue
- *
- * @verbatim
- *                                                  ^
- *                                               V _|         _______
- *                                       ^          |        /       \
- *                                     S |          |       /         \
- *                                       v  V(1-S) _|______/   Blue    \
- *                                ^                 |
- *                             V _|   ______        +------------------> Hue
- *                                |  /      \       0  1  2  3  4  5  6  * Pi/3
- *                                | /        \
- *          ^             V(1-S) _|/   Green  \______
- *       V _|___            ___   |
- *          |   \   Red    /      +------------------> Hue
- *          |    \        /       0  1  2  3  4  5  6  * Pi/3
- *  V(1-S) _|     \______/
- *          |
- *          +------------------> Hue
- *          0  1  2  3  4  5  6  * Pi/3
- * @endverbatim
- *
- * @param[in] hue assumed to be in [0,2*Pi]. 0: red, 2*Pi/3: green, 4*Pi/4: blue
- *            The hue cycles through all colors.
- * @param[in] saturation assumed to be in [0,1]. This value affects the range
- *            of possible colors (when varying the other 2 parameters).
- *            If 0, then only black will be returned.
- *            If 1, then the full color spectrum can be assumend.
- * @param[in] value assumed to be in [0,1]. For fixed hue and saturation this
- *            basically determines the how many white/light colors we are able
- *            to reach. It's like a top offset. For v=0 everything is black,
- *            but for v=1 we can get the full spectrum, including pure white.
- * @param[out] red will be in [0,1]
- * @param[out] green will be in [0,1]
- * @param[out] blue will be in [0,1]
- **/
-void hsvToRgb
-( const float hue, const float saturation, const float value,
-  float * red, float * green, float * blue )
-{
-    /**
-     * This is the trapeze function of the green channel. The other channel
-     * functions can be derived by calling this function with a shift.
-     **/
-    struct { float operator()( float rHue, float rSat, float rVal )
-    {
-        /* rHue will be in [0,6]. Note that fmod(-5.1,3.0) = -2.1 */
-        rHue = fmod( rHue, 6 );
-        if ( rHue < 0 )
-            rHue += 6.0;
-        /*        _____              __             __        *
-         *       /            -  ___/        =     /  \__     */
-        float hue = fmin( 1,rHue ) - fmax( 0, fmin( 1,rHue-3 ) );
-        return rVal*( (1-rSat) + rSat*hue );
-    } } trapeze;
-
-    *red   = trapeze( hue / (M_PI/3) + 2, saturation, value );
-    *green = trapeze( hue / (M_PI/3)    , saturation, value );
-    *blue  = trapeze( hue / (M_PI/3) + 4, saturation, value );
-}
-
-/**
- * Maps hue, saturation and lightes not red, green, blue
- *
- * The main advantage in contrast to HSV is, that the luminosity will
- * go from black/dark (0) to white/bright (1) instead of the value which
- * goes from black/dark (0) to maximally colorful (1) which would
- * correspond to luminosity = 0.5
- *
- * @param[in] hue assumed to be in [0,2*Pi]. 0: red, 2*Pi/3: green, 4*Pi/4: blue
- *            The hue cycles through all colors.
- * @param[in] saturation assumed to be in [0,1]. This value affects the range
- *            of possible colors (when varying the other 2 parameters).
- *            If 0, then only black will be returned.
- *            If 1, then the full color spectrum can be assumed.
- * @param[in] luminosity assumed to be in [0,1]
- * @param[out] red will be in [0,1]
- * @param[out] green will be in [0,1]
- * @param[out] blue will be in [0,1]
- **/
-void hslToRgb
-( const float hue, const float saturation, const float luminosity,
-  float * red, float * green, float * blue )
-{
-    /**
-     * This mapping from HSL to HSV coordinates is derived, seeing that the
-     * formulae for HSV and HSL are very similar especially the hue:
-     * @see https://en.wikipedia.org/w/index.php?title=HSL_and_HSV&oldid=687890438#Converting_to_RGB
-     * Equating the intermediary values we get:
-     *          H ... hue                  H ... hue
-     *          S ... HSV-saturation       T ... HSL-saturation
-     *          V ... value                L ... luminosity
-     *   C = (1-|2L-1|) T = V S      (1)
-     *   m = L - C/2      = V - C    (2)
-     * Solving this system of equations for V(L,T) and S(L,T) we get:
-     *   (1) => S(L,T) = C(L,T) T / V
-     *   (2) => V(L,T) = C(L,T) T + L
-     *
-     *        chroma
-     *          ^_____ saturation
-     *          | /\
-     *          |/  \
-     *          +----> luminosity
-     *          0    1
-     *
-     * Note that the HSL-formula maps to a hexcone instead of a circular cone,
-     * like it also can be read in literature!
-     * This should not be the standard behavior, but it is easier.
-     **/
-    const float chroma = ( 1-fabs(2*luminosity-1) )*saturation;
-    const float value  = chroma/2 + luminosity;
-    const float hsvSat = chroma/value;
-    hsvToRgb( hue, hsvSat, value, red, green, blue );
-}
-
-void testHsv( SDL_Renderer * rpRenderer )
-{
-    using namespace sdlcommon;
-
-    SDL_Rect rect = { 40,40, 100, 100 };
-    for ( float saturation = 0.4; saturation <= 1.0; saturation += 0.2 )
-    {
-        SDL_SetRenderDrawColor( rpRenderer, 0,0,0,1 );
-        int w = 3;
-        SDL_Rect boundingBox = SDL_Rect{ rect.x-w, rect.y-w, rect.w+2*w, rect.h+2*w };
-        SDL_RenderDrawThickRect( rpRenderer, &boundingBox, w );
-
-        for ( int ix = 0; ix < rect.w; ++ix )
-        for ( int iy = 0; iy < rect.h; ++iy )
-        {
-            float r,g,b;
-            hsvToRgb( (float)ix/rect.w * 2*M_PI, saturation, (float)iy/rect.h,
-                      &r,&g,&b );
-            SDL_SetRenderDrawColor( rpRenderer, 255*r,255*g,255*b, /*a*/ 1 );
-            //std::cout << "r="<<r<<", g="<<g<<", b="<<b<<"\n";
-            SDL_RenderDrawPoint( rpRenderer, rect.x+ix, rect.y+(rect.h-1)-iy );
-        }
-        rect.x += 40 + rect.w;
-    }
-}
-
-void testHsl( SDL_Renderer * rpRenderer )
-{
-    using namespace sdlcommon;
-
-    SDL_Rect rect = { 40,180, 100, 100 };
-    for ( float saturation = 0.4; saturation <= 1.0; saturation += 0.2 )
-    {
-        SDL_SetRenderDrawColor( rpRenderer, 0,0,0,1 );
-        int w = 3;
-        SDL_Rect boundingBox = SDL_Rect{ rect.x-w, rect.y-w, rect.w+2*w, rect.h+2*w };
-        SDL_RenderDrawThickRect( rpRenderer, &boundingBox, w );
-
-        for ( int ix = 0; ix < rect.w; ++ix )
-        for ( int iy = 0; iy < rect.h; ++iy )
-        {
-            float r,g,b;
-            hslToRgb( (float)ix/rect.w * 2*M_PI, saturation, (float)iy/rect.h,
-                      &r,&g,&b );
-            SDL_SetRenderDrawColor( rpRenderer, 255*r,255*g,255*b, /*a*/ 1 );
-            //std::cout << "r="<<r<<", g="<<g<<", b="<<b<<"\n";
-            SDL_RenderDrawPoint( rpRenderer, rect.x+ix, rect.y+rect.h-iy );
-        }
-        rect.x += 40 + rect.w;
-    }
-}
 
 /**
  * Uses domain coloring to plot a complex valued matrix
@@ -275,6 +109,7 @@ void SDL_RenderDrawComplexMatrix
             magnitude = log( 1+std::abs(z) ) / log( 1+maxMagnitude );
 
         /* convert magnitude and phase to color */
+        using namespace imresh::colors;
         float & r = toPlot[ ( iy*nValuesX + ix )*3 + 0 ];
         float & g = toPlot[ ( iy*nValuesX + ix )*3 + 1 ];
         float & b = toPlot[ ( iy*nValuesX + ix )*3 + 2 ];
@@ -536,10 +371,10 @@ int main(void)
     SDL_RenderClear( pRenderer );
     SDL_RenderPresent( pRenderer );
 
-    /*
+    using namespace imresh::test;
     testHsv( pRenderer );
     testHsl( pRenderer );
-    */
+
 
     using namespace imresh::examples;
 
@@ -559,7 +394,7 @@ int main(void)
     animateShrinkWrap.step();
     animateShrinkWrap.step();
     SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-    animateShrinkWrap.render(pRenderer);
+    //animateShrinkWrap.render(pRenderer);
 
 
     /* Wait for key to quit */
