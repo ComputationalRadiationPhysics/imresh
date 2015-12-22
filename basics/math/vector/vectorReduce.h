@@ -16,6 +16,12 @@ namespace vector {
 template<class T>
 T vectorMaxAbsDiff( T * const rData1, T * const rData2, const unsigned rnData );
 
+template<class T>
+T vectorMax( T * const rData, const unsigned rnData );
+
+template<class T>
+T vectorMin( T * const rData, const unsigned rnData );
+
 
 } // namespace vector
 } // namespace math

@@ -254,11 +254,13 @@ void SDL_RenderDrawThickRect
     assert( rRect.w >= 0 );
     assert( rRect.h >= 0 );
 
-    int x=rRect.x, y=rRect.y, w=rRect.w, h=rRect.h;
+    /* writable copy of argument and short-hand aliases */
+    SDL_Rect rect = rRect;
+    int &x = rect.x, &y = rect.y, &w = rect.w, &h = rect.h;
 
     for ( int i = 0; i < rWidth; ++i )
     {
-        SDL_RenderDrawRect ( rpRenderer, &rRect );
+        SDL_RenderDrawRect ( rpRenderer, &rect );
 
         /* @see https://bugzilla.libsdl.org/show_bug.cgi?id=3182 */
         SDL_Point points[4];

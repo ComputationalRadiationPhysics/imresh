@@ -344,10 +344,12 @@ int SDL_RenderDrawHistogram
 
 template<class T_PREC>
 int SDL_RenderDrawMatrix
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+(
+  SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  T_PREC * values, const int nValuesX, const int nValuesY,
-  bool drawAxis, const char * title )
+  T_PREC * const values, const unsigned nValuesX, const unsigned nValuesY,
+  const bool drawAxis, const char * const title, const bool useColors
+)
 {
     if ( y0 == y1 )
         y0 = 0, y1 = nValuesY;
@@ -364,8 +366,11 @@ int SDL_RenderDrawMatrix
     SDL_Rect macroPixel;
     macroPixel.w = rAxes.w / nValuesX; /* integer floor division */
     macroPixel.h = rAxes.h / nValuesY; /* integer floor division */
-    macroPixel.x = rAxes.x;
-    macroPixel.y = rAxes.y + rAxes.h - macroPixel.h;
+    /* leave 1 px for the axis! Especially important if macroPixel width is 1
+     * pixel. Becaus then the axis would be drawn over the bottom and left row!
+     */
+    macroPixel.x = 1 + rAxes.x;
+    macroPixel.y = rAxes.y + (rAxes.h-1) - (macroPixel.h-1);
 
     /* if the macro pixels don't reach the end of the axis, then we need
      * to adjust y1 to y1', so that y1 lies at the and of the macro pixels
@@ -379,17 +384,27 @@ int SDL_RenderDrawMatrix
 
     SDL_RenderPushColor(rpRenderer);
 
-    for ( int iy = 0; iy < nValuesY; ++iy, macroPixel.y -= macroPixel.h )
+    for ( unsigned iy = 0; iy < nValuesY; ++iy, macroPixel.y -= macroPixel.h )
     {
-        macroPixel.x = rAxes.x;
-        for ( int ix = 0; ix < nValuesX; ++ix, macroPixel.x += macroPixel.w )
+        macroPixel.x = rAxes.x+1;
+        for ( unsigned ix = 0; ix < nValuesX; ++ix, macroPixel.x += macroPixel.w )
         {
-            int color = values[iy*nValuesX + ix] * 255;
             int r=0,g=0,b=0;
-            if ( color >= 0 and color <= 255 )
-                r = g = b = color;
+
+            if ( useColors == true )
+            {
+                r = values[ (iy*nValuesX + ix)*3 + 0 ] * 255;
+                g = values[ (iy*nValuesX + ix)*3 + 1 ] * 255;
+                b = values[ (iy*nValuesX + ix)*3 + 2 ] * 255;
+            }
             else
-                r = 200; // darker red
+            {
+                int color = values[iy*nValuesX + ix] * 255;
+                if ( color >= 0 and color <= 255 )
+                    r = g = b = color;
+                else
+                    r = 200; // darker red
+            }
 
             SDL_SetRenderDrawColor ( rpRenderer, r,g,b,255 );
             SDL_RenderFillRect( rpRenderer, &macroPixel );
@@ -399,9 +414,12 @@ int SDL_RenderDrawMatrix
     SDL_RenderPopColor(rpRenderer);
 
     /* Draw axis */
-    int error = SDL_RenderDrawAxes( rpRenderer,rAxes, x0,x1,y0,y1 );
-    if ( error != 0 )
-        return error;
+    if ( drawAxis )
+    {
+        int error = SDL_RenderDrawAxes( rpRenderer,rAxes, x0,x1,y0,y1 );
+        if ( error != 0 )
+            return error;
+    }
 
     /* Draw title */
     SDL_Rect titleLoc = { rAxes.x + rAxes.w/2, rAxes.y, 0,0 };
@@ -414,20 +432,30 @@ int SDL_RenderDrawMatrix
 
 /* Explicitely instantiate certain template arguments */
 template int SDL_RenderDrawMatrix<float>
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, const int nValuesX, const int nValuesY,
-  bool drawAxis, const char * title );
+  float * const values, const unsigned nValuesX, const unsigned nValuesY,
+  bool drawAxis, const char * title, const bool useColors );
 template int SDL_RenderDrawMatrix<double>
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  double * values, const int nValuesX, const int nValuesY,
-  bool drawAxis, const char * title );
+  double * const values, const unsigned nValuesX, const unsigned nValuesY,
+  bool drawAxis, const char * title, const bool useColors );
+/* @todo: integer types not working, because function scales value up by
+ * 255, assuming the value is in [0,1] ... would need to check if it is
+ * integer or what the max value is or give it another bool flag ... :( */
+/*
 template int SDL_RenderDrawMatrix<int>
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  int * values, const int nValuesX, const int nValuesY,
-  bool drawAxis, const char * title );
+  int * const values, const unsigned nValuesX, const unsigned nValuesY,
+  bool drawAxis, const char * title, const bool useColors );
+template int SDL_RenderDrawMatrix<unsigned char>
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
+  float x0, float x1, float y0, float y1,
+  unsigned char * const values, const unsigned nValuesX, const unsigned nValuesY,
+  bool drawAxis, const char * title, const bool useColors );
+*/
 
 
 

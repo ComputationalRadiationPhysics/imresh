@@ -102,10 +102,11 @@ int SDL_RenderDrawHistogram
  **/
 template<class T_PREC>
 int SDL_RenderDrawMatrix
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  T_PREC * values, const int nValuesX, const int nValuesY,
-  bool drawAxis = false, const char * title = "" );
+  T_PREC * const values, const unsigned nValuesX, const unsigned nValuesY,
+  const bool drawAxis = false, const char * title = "",
+  const bool useColors = false );
 
 
 

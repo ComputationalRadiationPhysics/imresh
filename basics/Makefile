@@ -41,16 +41,16 @@ matrix.o: math/matrix/matrixInvertGaussJacobi.cpp math/matrix/matrixInvertGaussJ
 vectorReduce.o: math/vector/vectorReduce.cpp math/vector/vectorReduce.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-testGaussian.o: tests/testGaussian.cpp tests/testGaussian.h sdl/sdlcommon.h
+testGaussian.o: tests/testGaussian.cpp tests/testGaussian.h sdlplot.o
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
 
-testGaussian2d.o: tests/testGaussian2d.cu tests/testGaussian2d.h cudacommon.h sdl/sdlcommon.h
+testGaussian2d.o: tests/testGaussian2d.cu tests/testGaussian2d.h cudacommon.h sdlplot.o
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 
-testDft.o: tests/testDft.cpp tests/testDft.h sdl/sdlcommon.h
+testDft.o: tests/testDft.cpp tests/testDft.h sdlplot.o
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
 
-testFftw.o: tests/testFftw.cpp tests/testFftw.h sdl/sdlcommon.h
+testFftw.o: tests/testFftw.cpp tests/testFftw.h sdlplot.o
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -lfftw3 -o $@
 
 mainTestAll.exe: mainTestAll.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGaussian.o \
@@ -64,6 +64,8 @@ mainTestAll.exe: mainTestAll.cpp gaussian.o dft.o matrix.o vectorReduce.o cudaGa
 	testGaussian2d.o cudaGaussian.o sdlplot.o sdlcommon.o cudacommon.o -o $@
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
-		gaussian.o sdlplot.o sdlcommon.o cudacommon.o
+		gaussian.o sdlplot.o sdlcommon.o cudacommon.o vectorReduce.o \
+		../examples/createAtomCluster.cpp ../examples/createSlit.cpp
 	rm -f $@
-	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o sdlplot.o sdlcommon.o cudacommon.o -o $@
+	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o sdlplot.o sdlcommon.o \
+	cudacommon.o vectorReduce.o -o $@
