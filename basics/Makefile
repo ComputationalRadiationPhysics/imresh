@@ -52,11 +52,11 @@ vectorReduce.o: math/vector/vectorReduce.cpp math/vector/vectorReduce.h
 
 
 cudaBasics.a: cudaGaussian.o cudacommon.o
-	nvcc $(NVCCFLAGS) $(SDLLIBS) --lib $? -o $@
+	nvcc $(NVCCFLAGS) $(SDLLIBS) -lib $^ -o $@
 
 basics.a: colors/colors.a gaussian.o sdlcommon.o sdlplot.o  \
  dft.o matrix.o vectorReduce.o
-	ar rcsT $@ $?
+	ar rcsT $@ $^
 
 
 
@@ -83,7 +83,7 @@ mainTestAll.exe: mainTestAll.cpp basics.a cudaBasics.a \
 		  testDft.o testFftw.o testGaussian.o testGaussian2d.o
 	rm -f $@
 	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 \
-	testGaussian.o testDft.o testFftw.o testGaussian2d.o basics.a -dlink cudaBasics.a -o $@
+	testGaussian.o testDft.o testFftw.o testGaussian2d.o cudaBasics.a basics.a -o $@
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
 		gaussian.o sdlplot.o sdlcommon.o cudacommon.o vectorReduce.o \

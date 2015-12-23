@@ -46,9 +46,10 @@ void testGaussianBlur2d
     using imresh::math::vector::vectorMaxAbsDiff;
     float absMaxErrH = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
     std::cout << "Maximum difference after horizontal blurring: " << absMaxErrH << "\n";
-    /*assert( absMaxErrH < 10*FLT_EPSILON );
-    float absMaxErr = vectorMaxAbsDiff( cudaHBlur, cpuHBlur, nDataX*nDataY );
-    std::cout << "Maximum difference after blurring: " << absMaxErr << "\n"; */
+    assert( absMaxErrH < 10*FLT_EPSILON );
+    float absMaxErr = vectorMaxAbsDiff( cudaBlur, cpuBlur, nDataX*nDataY );
+    std::cout << "Maximum difference after blurring: " << absMaxErr << "\n";
+    /*assert( absMaxErr < 10*FLT_EPSILON ); */
 
     float * cpuError  = (float*) malloc( dataSize );
     for ( unsigned i = 0; i < nDataX*nDataY; ++i )
@@ -64,7 +65,7 @@ void testGaussianBlur2d
                                      rect.x+1.3*rect.w,rect.y+rect.h/2 );
     rect.x += 1.5*rect.w;
     sprintf( title2,"G_h(s=%0.1f)*%s",sigma,title );
-    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cudaHBlur,nDataX,nDataY,
+    SDL_RenderDrawMatrix( rpRenderer, rect, 0,0,0,0, cpuBlur,nDataX,nDataY,
                           true/*drawAxis*/, title2 );
 
     /* plot horizontally blurred image */

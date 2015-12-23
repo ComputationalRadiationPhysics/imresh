@@ -256,6 +256,7 @@ void gaussianBlurVertical
     //assert( rnDataY <= bufferSize/nColsCacheLine );
 
     /**
+     * @verbatim
      *                        (shared memory)
      *                         kernel (size 3)
      *                      +------+-----+-----+
@@ -281,17 +282,17 @@ void gaussianBlurVertical
      *        b_1x = w_-1*a_2x + w_0*a_3x + w_1*a_4x
      *        b_1x = w_-1*a_3x + w_0*a_4x + w_1*a_5x
      *        b_1x = w_-1*a_3x + w_0*a_4x + w_1*a_5x
-     *
+     * @endverbatim
      * In order to reduce global memory accesses, we can reorder the
      * calculation of b_ij so that we can cache one row of a_ij and basically
      * broadcast ist to b_ij:
-     *
+     * @verbatim
      *  a) cache a_1x  ->  b_0x += w_-1*a_1x
      *  b) cache a_2x  ->  b_0x += w_0*a_2x, b_1x += w_-1*a_2x
      *  c) cache a_3x  ->  b_0x += w_1*a_3x, b_1x += w_0*a_3x, b_2x += w_-1*a_3x
      *  d) cache a_4x  ->                    b_1x += w_1*a_1x, b_2x += w_0*a_4x
      *  e) cache a_5x  ->                                      b_2x += w_1*a_5x
-     *
+     * @endverbatim
      * the longer the result buffer is, the more often we can reuse a row of
      * a over the full kernel size, but shared memory is limited -> need to
      * find a good tuning parameter for this.
@@ -403,32 +404,9 @@ void gaussianBlurVertical
      * where in the illustrated case nRowsCacheLine = kernelSize = 3
      */
 
-#   if DEBUG_GAUSSIAN_CPP == 1
-    std::cout
-    << "Vertical Gaussian, Paramters:\n"
-    << " . kernelSize     = " << kernelSize     << "\n"
-    << " . nKernelHalf    = " << nKernelHalf    << "\n"
-    << " . rnDataX        = " << rnDataX        << "\n"
-    << " . rnDataY        = " << rnDataY        << "\n"
-    << " . nRowsCacheLine = " << nRowsCacheLine << "\n"
-    << " . nColsCacheLine = " << nColsCacheLine << "\n"
-    << " . pKernelInt     = {";
-    for ( int i=0; i <= nKernelHalf; ++i ) std::cout << pKernelInt[i] << " ";
-    std::cout << "}\n";
-    std::cout << " . pKernel        = {";
-    for ( int i=0; i < kernelSize; ++i ) std::cout << pKernel[i] << " ";
-    std::cout << "}\n";
-    std::cout
-    << " . a              = " << (void*)a << "\n"
-    << " . b              = " << (void*)b << "\n";
-#   endif
-
     /* iterate over the rows of a (the data to convolve) in global memory */
     for ( int iRowA = 0; iRowA < rnDataY; ++iRowA )
     {
-#       if DEBUG_GAUSSIAN_CPP == 1
-            std::cout << "Loop over a_"<<iRowA<<"x:\n";
-#       endif
         /* cache row of a */
         memcpy( cachedRowA, a+iRowA*rnDataX, nColsCacheLine*sizeof(a[0]) );
         /* add the row weighted with different coefficients to the
@@ -443,10 +421,6 @@ void gaussianBlurVertical
             /* calculate index for buffer */
             T_PREC * bRow = b + iRowB*nColsCacheLine;
             const T_PREC weight = w[iW];
-
-#           if DEBUG_GAUSSIAN_CPP == 1
-                std::cout << "  b_"<<iRowB<<"x += w_"<<iW<<" * a_"<<iRowA<<"x (w="<<w[iW]<<")\n";
-#           endif
 
             /* do scalar multiply-add vector \vec{b} += w_iW * \vec{a} */
             for ( int iCol = 0; iCol < nColsCacheLine; ++iCol )
@@ -464,11 +438,6 @@ void gaussianBlurVertical
             T_PREC * const rowA = a + iRowAWriteBack * rnDataX;
             /* @todo: make it work for rnDataX > nRowsCacheLine */
             assert( nColsCacheLine == rnDataX );
-
-#           if DEBUG_GAUSSIAN_CPP == 1
-                std::cout << "Write back b_"<<iRowB<<"x to a_"<<iRowAWriteBack<<"x"
-                          << ", i.e. "<<(void*)rowB<<" -> "<<(void*)rowA<<"\n";
-#           endif
 
             memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
             /* could and should be done at a later point, so that we don't

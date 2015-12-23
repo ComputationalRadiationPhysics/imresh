@@ -10,11 +10,18 @@ namespace image {
 #define DEBUG_GAUSSIAN_CPP 0
 
 
+template<class T>
+__device__ inline T * ptrMin ( T * const a, T * const b )
+{
+    return a < b ? a : b;
+}
+
 /**
  * Choose the buffer size, so that in every step rnThreads data values
  * can be saved back and newly loaded. As we need N neighbors left and
  * right for the calculation of one value, especially at the borders,
  * this means, the buffer size needs to be rnThreads + 2*N elements long:
+ * @verbatim
  *                                                   kernel
  * +--+--+--+--+--+--+--+--+--+--+--+--+        +--+--+--+--+--+
  * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|        |  |  |  |  |  |
@@ -23,6 +30,7 @@ namespace image {
  *   N=2       rnThreads = 8      N=2             rnWeights = 5
  *                                              <----->  <----->
  *                                                N=2      N=2
+ * @endverbatim
  * Elements marked with xx and yy can't be calculated, the other elements
  * can be calculated in parallel.
  *
@@ -33,7 +41,10 @@ namespace image {
  * calculated (if the are not already on the border). To calculate those
  * we need to move yy and N=2 elements to the left to the beginning of
  * the buffer and fill the rest with new data from rData:
- *
+ * @verbatim
+ *               ((bufferSize-1)-(2*N-1)
+ *                           |
+ * <------------ bufferSize -v--------->
  * +--+--+--+--+--+--+--+--+--+--+--+--+
  * |xx|xx|  |  |  |  |  |  |  |  |yy|yy|
  * +--+--+--+--+--+--+--+--+--+--+--+--+
@@ -47,7 +58,7 @@ namespace image {
  * +--+--+--+--+--+--+--+--+--+--+--+--+
  * <-----><---------------------><----->
  *   N=2       rnThreads = 8      N=2
- *
+ * @endverbatim
  * All elements except those marked vv and ww can now be calculated
  * in parallel. The elements marked yy are the old elements from the right
  * border, which were only used readingly up till now. The move of the
@@ -59,7 +70,7 @@ namespace image {
 template<class T_PREC>
 __global__ void cudaKernelApplyKernel
 (
-  T_PREC * const rdpData, const unsigned rnData,
+  T_PREC * const rdpData, const unsigned rImageWidth,
   T_PREC const * const rdpWeights, const unsigned N
 )
 {
@@ -71,7 +82,7 @@ __global__ void cudaKernelApplyKernel
      * Each line borders will be extended. So mutliple blocks can't be used
      * to blur one very very long line even faster! */
     const int & nThreads = blockDim.x;
-    T_PREC * const data = &rdpData[ blockIdx.x * rnData ];
+    T_PREC * const data = &rdpData[ blockIdx.x * rImageWidth ];
 
     /* manage dynamically allocated shared memory */
     extern __shared__ T_PREC smBlock[];
@@ -96,7 +107,7 @@ __global__ void cudaKernelApplyKernel
      * exactly suffice, meaning the loop will only be run 1 time.
      * The for loop break condition is the same for all threads, so it is
      * safe to use __syncthreads() inside */
-    for ( T_PREC * dataPos = data; dataPos < &data[rnData]; dataPos += nThreads )
+    for ( T_PREC * curDataRow = data; curDataRow < &data[rImageWidth]; curDataRow += nThreads )
     {
         /* move last N elements to the front of the buffer */
         __syncthreads();
@@ -107,25 +118,29 @@ __global__ void cudaKernelApplyKernel
          * fill buffer with last data element */
         __syncthreads();
         const unsigned iBuf = N + threadIdx.x;
-        const unsigned iVal = min( iBuf-N, rnData-1 );
-        smBuffer[ iBuf ] = dataPos[ iVal ];
+        T_PREC * const datum = ptrMin( &curDataRow[ threadIdx.x ],
+                                       &data[ rImageWidth-1 ] );
+        smBuffer[ iBuf ] = *datum;
         /* again this is hard to parallelize if we don't have as many threads
          * as the kernel is wide. Furthermore we can't use memcpy, because
          * it may be, that we need to extend a value, because we reached the
          * border */
         if ( threadIdx.x == 0 )
+        {
             for ( unsigned iB = N+nThreads; iB < nThreads+2*N; ++iB )
-                if ( &dataPos[ iB-N ] < &data[ rnData ] )
-                    smBuffer[iB] = dataPos[ iB-N ];
-                else
-                    smBuffer[iB] = data[ rnData-1 ];
+            {
+                T_PREC * const datum = ptrMin( &curDataRow[ iB-N ],
+                                               &data[ rImageWidth-1 ] );
+                smBuffer[iB] = *datum;
+            }
+        }
         __syncthreads();
 
         /* calculated weighted sum on inner points in buffer, but only if
          * the value we are at is actually needed: */
-        if ( &dataPos[iBuf-N] < &data[rnData] )
+        if ( &curDataRow[iBuf-N] < &data[rImageWidth] )
         {
-            T_PREC sum = 0;
+            T_PREC sum = T_PREC(0);
             /* this for loop is done by each thread and should for large
              * enough kernel sizes sufficiently utilize raw computing power */
             for ( T_PREC * w = smWeights, * x = &smBuffer[iBuf-N];
@@ -134,7 +149,7 @@ __global__ void cudaKernelApplyKernel
             /* write result back into memory (in-place). No need to wait for
              * all threads to finish, because we write into global memory, to
              * values we already buffered into shared memory! */
-            dataPos[iBuf-N] = sum;
+            curDataRow[iBuf-N] = sum;
         }
     }
 }
@@ -203,43 +218,74 @@ void cudaGaussianBlurHorizontal
     CUDA_ERROR( cudaFree( dpKernel ) );
 }
 
+
+/**
+ * Calculates the weighted sum vertically i.e. over the rows.
+ *
+ * In order to make use of Cache Lines blockDim.x columns are always
+ * calculated in parallel. Furthermore to increase parallelism blockIdx.y
+ * threads can calculate the values for 1 column in parallel:
+ * @verbatim
+ *                gridDim.x=3
+ *               <---------->
+ *               blockDim.x=4
+ *                    <-->
+ *            I  #### #### ## ^
+ *            m  #### #### ## | blockDim.y
+ *            a  #### #### ## v    = 3
+ *            g  #### #### ## ^
+ *            e  #### #### ## | blockDim.y
+ *                            v    = 3
+ *               <---------->
+ *               imageWidth=10
+ * @endverbatim
+ * The blockIdx.y threads act as a sliding window. Meaning in the above
+ * example y-thread 0 and 1 need to calculate 2 values per kernel run,
+ * y-thread 2 only needs to calculate 1 calue, because the image height
+ * is not a multiplie of blockIdx.y
+ *
+ * Every block uses a shared memory buffer which holds roughly
+ * blockDim.x*blockDim.y elements. In order to work on wider images the
+ * kernel can be called with blockDim.x != 0
+ *
+ * @see cudaKernelApplyKernel @see gaussianBlurVertical
+ **/
 template<class T_PREC>
-void cudaGaussianBlurVertical
-( T_PREC * rdpData, int rnDataX, int rnDataY, double rSigma )
+__global__ void cudaKernelApplyKernelVertically
+(
+  T_PREC * const rdpData, const unsigned rnDataX, const unsigned rnDataY,
+  T_PREC const * const rdpWeights, const unsigned N
+)
 {
-    T_PREC * const rData = rdpData;
+    assert( N > 0 );
+    assert( blockDim.z == 1 );
+    assert( gridDim.y == 1 and  gridDim.z == 1 );
 
-    std::cout << "[cudaGaussianBlurVertical] Please implement me!\n";
-    return;
+    /* the shared memory buffer dimensions */
+    const unsigned nColsCacheLine = blockDim.x;
+    const unsigned nRowsCacheLine = blockDim.y + 2*N;
 
-    /* calculate Gaussian kernel */
-    const int nKernelElements = 64;
-    T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
-    assert( kernelSize <= nKernelElements );
-    assert( kernelSize % 2 == 1 );
-    const int nKernelHalf = (kernelSize-1)/2;
+    /* Each block works on a separate group of columns */
+    T_PREC * const data = &rdpData[ blockIdx.x * blockDim.x ];
+    /* the rightmost block might not be full. In that case we need to mask
+     * those threads working on the columns right of the image border */
+    const bool iAmSleeping = blockIdx.x * blockDim.x + threadIdx.x >= rnDataX;
 
-    /* apply kernel vertical. Make use of cache lines / super words by
-     * calculating nColsCacheLine in parallel. For a CUDA device a super
-     * word consists of 32 float values = 128 Byte, meaning we can calculate
-     * nColsCacheLine = 32 in parallel for T_PREC = float. On the CPU the
-     * cache line is 64 Byte which would correspond to AVX512, if it was
-     * available, meaning nColsCacheLine = 16
-     * @todo: make it work if nColsCacheLine != rnDataX! */
-    const int nColsCacheLine = rnDataX;
-    /* must be at least kernelSize rows! */
-    const int nRowsCacheLine = kernelSize;
+    /* The dynamically allocated shared memory buffer will fit the weights and
+     * the values to calculate + the 2*N neighbors needed to calculate them */
+    extern __shared__ T_PREC smBlock[];
+    const unsigned nWeights   = 2*N+1;
+    const unsigned bufferSize = nColsCacheLine * nRowsCacheLine;
+    T_PREC * const smWeights  = smBlock;
+    T_PREC * const smBuffer  = &smBlock[ nWeights ];
+    __syncthreads();
 
-    /* allocate cache buffer used for shared memory caching of the results.
-     * Therefore needs to be at least kernelSize*nColsCacheLine large, else
-     * we would have to write-back the buffer before the weighted sum
-     * completed! */
-    const int bufferSize = nColsCacheLine*nColsCacheLine;
-    T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
-    //assert( rnDataY <= bufferSize/nColsCacheLine );
+    /* cache the weights to shared memory */
+    if ( threadIdx.x == 0 )
+        memcpy( smWeights, rdpWeights, sizeof(rdpWeights[0])*nWeights );
 
     /**
+     * @verbatim
      *                        (shared memory)
      *                         kernel (size 3)
      *                      +------+-----+-----+
@@ -265,7 +311,7 @@ void cudaGaussianBlurVertical
      *        b_1x = w_-1*a_2x + w_0*a_3x + w_1*a_4x
      *        b_1x = w_-1*a_3x + w_0*a_4x + w_1*a_5x
      *        b_1x = w_-1*a_3x + w_0*a_4x + w_1*a_5x
-     *
+     * @endverbatim
      * In order to reduce global memory accesses, we can reorder the
      * calculation of b_ij so that we can cache one row of a_ij and basically
      * broadcast ist to b_ij:
@@ -275,15 +321,6 @@ void cudaGaussianBlurVertical
      *  c) cache a_3x  ->  b_0x += w_1*a_3x, b_1x += w_0*a_3x, b_2x += w_-1*a_3x
      *  d) cache a_4x  ->                    b_1x += w_1*a_1x, b_2x += w_0*a_4x
      *  e) cache a_5x  ->                                      b_2x += w_1*a_5x
-     *
-     * the longer the result buffer is, the more often we can reuse a row of
-     * a over the full kernel size, but shared memory is limited -> need to
-     * find a good tuning parameter for this.
-     * In the case were the row is only used one time, it may be advantageous
-     * to not buffer it, thereby saving one access to shared memory (~3 cycles)
-     * by directly accessing global memory, but that would make the code
-     * less readable, larger (kernel code size also is limited!) and may
-     * introduce thread divergence! I don't think it would be better.
      *
      * The buffer size needs at least kernelSize rows. If it's equal to kernel
      * size rows, then in every step one row will be completed calculating,
@@ -295,190 +332,137 @@ void cudaGaussianBlurVertical
      *     write to b_1x. This is the case
      *   - the last operation in d would then be an addition to b_3x == b_0x
      *     (use i % 3)
-     *   - we also need to zero the buffer we have written-back. that shouldn't
-     *     be done directly after the write-back, because that takes several
-     *     hundred cycles. Meaning the zeroing always happens on the last
-     *     addition.
-     *   - the longer the buffer is the more time we have to wait for the
-     *     write-back command to end.
-     *   - all this waiting because of global memory access may not be all that
-     *     important, because we have warps, which already over-occupy the
-     *     GPU to lessen these wait times. So the buffer may not have to be
-     *     100 rows long, to wait ~400 cycles. It may also suffice to make it
-     *     only 100/32(warps)~5 large, this is given anyway for most common
-     *     kernel sizes! (Gaussian kernel size for sigma=1 is 7)
-     *
-     * About threading / GPU:
-     *   - every column can be calculated in parallel
-     *   - the vectorsum/broadcastmultiplication over one row can be
-     *     parallelized over the size of the buffer. Every thread would
      **/
-    T_PREC * a = rData;
-    T_PREC * b = buffer;
-    T_PREC * w = pKernel+nKernelHalf; /* now we can use w[-1],... */
-    T_PREC cachedRowA[nColsCacheLine];
-    /**
-     * use extension to calculate the first nKernelHalf rows:
-     *   - the first row will have no upper rows as neighbors, meaning
-     *     we only add up nKernelHalf*a_0x to b_0x
-     *   - 2nd row will use the extension (nKernelHalf-1) times and so on
-     *   - actually these partial sums could be precomputed like I did
-     *     in newtonCotes
-     **/
-    /* will contain the antiderivative of pKernel */
-    T_PREC pKernelInt[nKernelHalf];
-    T_PREC sum = T_PREC(0);
-    for ( int iW=-nKernelHalf, iRowA=nKernelHalf-1; iRowA >= 0; ++iW, --iRowA )
-    {
-        sum += w[iW];
-        pKernelInt[iRowA] = sum;
-    }
-    /* now calculate that part of the buffer that uses the extended values
-     * for kernelSize=1 -> nKernelHalf=0 we don't need to do such things, but
-     * we can to save one operation for the next loop, so that we have fully
-     * used a_0x (for that you would have to use '<=' instead of '<'
-     * nKernelHalf, furthermore in above pKernelInt calculation would have
-     * to be adjusted, to not include w_0 */
-    assert( bufferSize >= nKernelHalf );
-    assert( nKernelHalf <= rnDataY );
-    assert( bufferSize >= nColsCacheLine*nKernelHalf );
 
-    /* cache the row which we extend over the border */
-    memcpy( cachedRowA, a, nColsCacheLine*sizeof(T_PREC) );
-    for ( int iRowA = 0; iRowA < nKernelHalf; ++iRowA )
+    /* In the first step extend upper border. Write them into the N elements
+     * before the lower border-N, beacause in the first step in the loop
+     * these elements will be moved to the upper border, see below. */
+    T_PREC * const smTargetRow = &smBuffer[ bufferSize - 2*N*nColsCacheLine ];
+    if ( threadIdx.y == 0 and not iAmSleeping )
     {
-        T_PREC * bRow = b + iRowA*nColsCacheLine;
-        const auto weight = pKernelInt[iRowA];
-        /* scalar * rowvector a_0x, could try to write a class to hide this(!)*/
-        for ( int iColA = 0; iColA < nColsCacheLine; ++iColA )
-            bRow[iColA] = weight * cachedRowA[iColA];
+        const T_PREC upperBorderValue = data[ threadIdx.x ];
+        for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
+            smTargetRow[ iB+threadIdx.x ] = upperBorderValue;
     }
 
-    /* set the rest of the buffer to 0 */
-    for ( int iRowB = nKernelHalf; iRowB < nRowsCacheLine; ++iRowB )
+
+    /* Loop over and calculate the rows. If rnDataY == blockDim.y, then the
+     * buffer will exactly suffice, meaning the loop will only be run 1 time */
+    for ( T_PREC * curDataRow = data; curDataRow < &data[rnDataX*rnDataY];
+          curDataRow += blockDim.y * rnDataX )
     {
-        T_PREC * bRow = b + iRowB*nColsCacheLine;
-        for ( int iColA = 0; iColA < nColsCacheLine; ++iColA )
-            bRow[iColA] = 0;
-    }
-
-    /* The state now is:
-     *   b_0x = a_0x * sum_{i=-nKernelHalf}^{ 0} w_i
-     *   b_1x = a_0x * sum_{i=-nKernelHalf}^{-1} w_i
-     *   ...
-     * The main loop now can begin by broadcasting a_1x weighted to the buffer
-     *   b_0x += w_0  * a_0x
-     *   b_1x += w_-1 * a_0x
-     * Note that iRowB + iW = iRowA.
-     * The next loop:
-     *   b_0x += w_1  * a_1x
-     *   b_1x += w_0  * a_1x
-     *   b_2x += w_-1 * a_1x
-     * In the 2nd loop, the indexes of the buffer can be calculated
-     * from iRowB = iRowA - iW. The problem now is the round-robin.
-     * In the next step we would want to begin with b_1x
-     * (because b_0x must be written back):
-     *   b_1x += w_1  * a_2x
-     *   b_2x += w_0  * a_2x
-     *   b_0x += w_-1 * a_2x
-     * meaning we could still iterate over iW and iRowA and calculate iRowB
-     * from those two, if we use a modulo operation:
-     *   iRowB = ( iRowA-iW )%( nRowsCacheLine )
-     * where in the illustrated case nRowsCacheLine = kernelSize = 3
-     */
-
-#   if DEBUG_GAUSSIAN_CPP == 1
-    std::cout
-    << "Vertical Gaussian, Paramters:\n"
-    << " . kernelSize     = " << kernelSize     << "\n"
-    << " . nKernelHalf    = " << nKernelHalf    << "\n"
-    << " . rnDataX        = " << rnDataX        << "\n"
-    << " . rnDataY        = " << rnDataY        << "\n"
-    << " . nRowsCacheLine = " << nRowsCacheLine << "\n"
-    << " . nColsCacheLine = " << nColsCacheLine << "\n"
-    << " . pKernelInt     = {";
-    for ( int i=0; i <= nKernelHalf; ++i ) std::cout << pKernelInt[i] << " ";
-    std::cout << "}\n";
-    std::cout << " . pKernel        = {";
-    for ( int i=0; i < kernelSize; ++i ) std::cout << pKernel[i] << " ";
-    std::cout << "}\n";
-    std::cout
-    << " . a              = " << (void*)a << "\n"
-    << " . b              = " << (void*)b << "\n";
-#   endif
-
-    /* iterate over the rows of a (the data to convolve) in global memory */
-    for ( int iRowA = 0; iRowA < rnDataY; ++iRowA )
-    {
-#       if DEBUG_GAUSSIAN_CPP == 1
-            std::cout << "Loop over a_"<<iRowA<<"x:\n";
-#       endif
-        /* cache row of a */
-        memcpy( cachedRowA, a+iRowA*rnDataX, nColsCacheLine*sizeof(a[0]) );
-        /* add the row weighted with different coefficients to the
-         * respective rows in the buffer b. Iterate over the weights / buffer
-         * rows */
-        for ( int iW = nKernelHalf; iW >= -nKernelHalf; --iW )
+        /* move last N rows to the front of the buffer */
+        __syncthreads();
+        /* @todo: memcpy doesnt respect iAmSleeping yet!
+        assert( smTargetRow + N*nColsCacheLine < smBuffer[ bufferSize ] );
+        if ( threadIdx.y == 0 and threadIdx.x == 0 )
+            memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) );
+        */
+        /* memcpy version above parallelized. @todo: benchmark what is faster! */
+        if ( threadIdx.y == 0 and not iAmSleeping )
         {
-            int iRowB = iRowA-iW;
-            if ( iRowB < 0 or iRowB >= rnDataY )
-                continue;
-            iRowB %= nRowsCacheLine;
-            /* calculate index for buffer */
-            T_PREC * bRow = b + iRowB*nColsCacheLine;
-            const T_PREC weight = w[iW];
-
-#           if DEBUG_GAUSSIAN_CPP == 1
-                std::cout << "  b_"<<iRowB<<"x += w_"<<iW<<" * a_"<<iRowA<<"x (w="<<w[iW]<<")\n";
-#           endif
-
-            /* do scalar multiply-add vector \vec{b} += w_iW * \vec{a} */
-            for ( int iCol = 0; iCol < nColsCacheLine; ++iCol )
-                bRow[iCol] += weight * cachedRowA[iCol];
+            for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
+                smBuffer[ iB+threadIdx.x ] = smTargetRow[ iB+threadIdx.x ];
         }
-        /* write the line of the buffer, which completed calculating
-         * back to global memory */
-        const int iRowAWriteBack = iRowA - nKernelHalf;
-        if ( iRowAWriteBack < 0 or iRowAWriteBack >= rnDataY )
-            continue;
-        else
+
+        /* Load blockDim.y + N rows into buffer.
+         * If data end reached, fill buffer rows with last row
+         *   a) Load blockDim.y rows in parallel */
+        T_PREC * const pLastData = &data[ (rnDataY-0)*rnDataX ];
+        const unsigned iBuf = /*skip first N rows*/ N * nColsCacheLine
+                            + threadIdx.y * nColsCacheLine + threadIdx.x;
+        __syncthreads();
+        if ( not iAmSleeping )
         {
-            const int iRowB = iRowAWriteBack % nRowsCacheLine;
-            T_PREC * const rowB = b + iRowB * nColsCacheLine;
-            T_PREC * const rowA = a + iRowAWriteBack * rnDataX;
-            /* @todo: make it work for rnDataX > nRowsCacheLine */
-            assert( nColsCacheLine == rnDataX );
-
-#           if DEBUG_GAUSSIAN_CPP == 1
-                std::cout << "Write back b_"<<iRowB<<"x to a_"<<iRowAWriteBack<<"x"
-                          << ", i.e. "<<(void*)rowB<<" -> "<<(void*)rowA<<"\n";
-#           endif
-
-            memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
-            /* could and should be done at a later point, so that we don't
-             * need to wait for the writ-back to finish */
-            memset( rowB, 0, nColsCacheLine*sizeof(b[0]) );
+            T_PREC * const datum = ptrMin(
+                &curDataRow[ threadIdx.y * rnDataX + threadIdx.x ],
+                pLastData
+            );
+            smBuffer[iBuf] = *datum;
         }
-    }
+        /*   b) Load N rows by master threads, because nThreads >= N is not
+         *      guaranteed. */
+        if ( not iAmSleeping and threadIdx.y == 0 )
+        {
+            for ( unsigned iBufRow = N+blockDim.y; iBufRow < nRowsCacheLine; ++iBufRow )
+            {
+                T_PREC * const datum = ptrMin(
+                    &curDataRow[ (iBufRow-N) * rnDataX + threadIdx.x ],
+                    pLastData
+                );
+                smBuffer[ iBufRow*nColsCacheLine + threadIdx.x ] = *datum;
+            }
+        }
+        __syncthreads();
 
-    /* cache the the last row which we extend over the border */
-    memcpy( cachedRowA, a+rnDataX*(rnDataY-1), nColsCacheLine*sizeof(a[0]) );
-    for ( int iRowA = rnDataY; iRowA < rnDataY+nKernelHalf; ++iRowA )
-    {
-        const int iRowAWriteBack = iRowA - nKernelHalf;
-        const int iRowB = iRowAWriteBack % nRowsCacheLine;
-        T_PREC * const rowA = a + iRowAWriteBack * rnDataX;
-        T_PREC * const rowB = b + iRowB*nColsCacheLine;
-
-        const auto weight = pKernelInt[(nKernelHalf-1)-(iRowA-rnDataY)];
-        /* scalar * rowvector a_0x, could try to write a class to hide this(!)*/
-        for ( int iColA = 0; iColA < nColsCacheLine; ++iColA )
-            rowB[iColA] += weight * cachedRowA[iColA];
-
-        memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
+        /* calculated weighted sum on inner rows in buffer, but only if
+         * the value we are at is inside the image */
+        if ( ( not iAmSleeping )
+             and &curDataRow[ threadIdx.y*rnDataX ] < &rdpData[ rnDataX*rnDataY ] )
+        {
+            T_PREC sum = T_PREC(0);
+            /* this for loop is done by each thread and should for large
+             * enough kernel sizes sufficiently utilize raw computing power */
+            T_PREC * w = smWeights;
+            T_PREC * x = &smBuffer[ threadIdx.y * nColsCacheLine + threadIdx.x ];
+            for ( ; w < &smWeights[nWeights]; ++w, x += nColsCacheLine )
+                sum += (*w) * (*x);
+            /* write result back into memory (in-place). No need to wait for
+             * all threads to finish, because we write into global memory, to
+             * values we already buffered into shared memory! */
+            curDataRow[ threadIdx.y * rnDataX + threadIdx.x ] = sum;
+        }
     }
 
 }
+
+
+
+template<class T_PREC>
+void cudaGaussianBlurVertical
+( T_PREC * rdpData, int rnDataX, int rnDataY, double rSigma )
+{
+
+    /* calculate Gaussian kernel */
+    const int nKernelElements = 64;
+    T_PREC pKernel[64];
+    const int kernelSize = calcGaussianKernel( rSigma, pKernel, nKernelElements );
+    assert( kernelSize <= nKernelElements );
+    assert( kernelSize % 2 == 1 );
+
+    /* upload kernel to GPU */
+    T_PREC * dpKernel;
+    CUDA_ERROR( cudaMalloc( &dpKernel, sizeof(T_PREC)*kernelSize ) );
+    CUDA_ERROR( cudaMemcpy(  dpKernel, pKernel, sizeof(T_PREC)*kernelSize, cudaMemcpyHostToDevice ) );
+
+    /**
+     * the image must be at least nThreadsX threads wide, else many threads
+     * will only sleep. The number of blocks is ceil( image height / nThreadsX )
+     * Every block works on nThreadsX image columns.
+     * Those columns use nThreadsY threads to parallelize the calculation per
+     * column.
+     * The number of Threads is limited by the hardware to be e.g. 512 or 1024.
+     * The reason for this is the limited shared memory size!
+     * nThreadsX should be a multiple of a cache line / superword = 32 warps *
+     * 1 float per warp = 128 Byte => nThreadsX = 32. For double 16 would also
+     * suffice.
+     */
+    dim3 nThreads( 32, 256/32, 1 );
+    dim3 nBlocks ( 1, 1, 1 );
+    nBlocks.x = (unsigned) ceilf( (float) rnDataX / nThreads.x );
+    const unsigned kernelHalfSize = (kernelSize-1)/2;
+    const unsigned bufferSize     = nThreads.x*( nThreads.y + 2*kernelHalfSize );
+
+    cudaKernelApplyKernelVertically<<<
+        nBlocks,nThreads,
+        sizeof( dpKernel[0] ) * ( kernelSize + bufferSize )
+    >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
+    CUDA_ERROR( cudaDeviceSynchronize() );
+
+    CUDA_ERROR( cudaFree( dpKernel ) );
+}
+
+
 
 template<class T_PREC>
 void cudaGaussianBlur
