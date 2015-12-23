@@ -368,7 +368,7 @@ __global__ void cudaKernelApplyKernelVertically
         /* Load blockDim.y + N rows into buffer.
          * If data end reached, fill buffer rows with last row
          *   a) Load blockDim.y rows in parallel */
-        T_PREC * const pLastData = &data[ (rnDataY-0)*rnDataX ];
+        T_PREC * const pLastData = &data[ (rnDataY-1)*rnDataX + threadIdx.x ];
         const unsigned iBuf = /*skip first N rows*/ N * nColsCacheLine
                             + threadIdx.y * nColsCacheLine + threadIdx.x;
         __syncthreads();
