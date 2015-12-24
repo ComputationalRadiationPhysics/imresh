@@ -1,7 +1,9 @@
-#pragma once
 
-#include <iostream>
+#include <cstdio>  // sprintf
 #include <cmath>
+#include <SDL.h>   // SDL_Rect
+#include "sdl/sdlplot.h"
+#include "math/fouriertransform/dcft.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
@@ -9,61 +11,17 @@
 
 
 
-struct SinBase {
-    int k;
-    float operator()(float x) const { return std::sin(k*x); }
-};
-struct CosBase {
-    int k;
-    float operator()(float x) const { return std::cos(k*x); }
-};
+namespace imresh {
+namespace test {
 
-#include "numeric/integrate.h"
-template<class F, class G>
-float trigScp(const F & f, const G & g)
-{
-    const float a  = -M_PI;
-    const float b  =  M_PI;
-    const float N  = 1e5;
-    const float dx = (b-a) / N;
-
-    struct Integrand {
-        const F & f; const G & g;
-        int N; float a; float dx;
-        int size(void) const { return N; }
-        float operator[]( int i ) const { return f(a+i*dx)*g(a+i*dx); }
-    } integrand({ f,g,(int)N,a,dx });
-
-    return numeric::integrate::trapezoid( integrand, dx ) / M_PI;
-}
-
-/**
- * Calculates fourier coefficients a_k and b_k up for k=1 to k=rnCoefficients
- *
- * @param[in]  f continuous function to transform
- * @param[in]  rnCoefficients number of complex(!) coefficients to calculate,
- *             the returned float array will contain 2*rnCoefficients elements!
- * @param[out] rCoefficients pointer to allocated float array which will
- *             rnCoefficients cosine, i.e. real, fourier coefficients, followed
- *             by nCoefficients sine, i.e. imaginary, fourier coefficeints
- **/
-template<class F>
-void dcft( F f, int rnCoefficients, float * rCoefficients )
-{
-    for ( int i = 0; i < rnCoefficients; ++i )
-        rCoefficients[i] = trigScp( f, CosBase({i}) ) / M_PI;
-    for ( int i = 0; i < rnCoefficients; ++i )
-        rCoefficients[rnCoefficients+i] = trigScp( f, SinBase({i}) ) / M_PI;
-}
-
-
-
-#include "sdlplot.h"
 
 template<class F>
 void testDcftAndPrint
 ( SDL_Renderer * rpRenderer, SDL_Rect rAxes, F f, const char* rFuncTitle )
 {
+    using namespace sdlcommon;
+    using namespace math::fouriertransform;
+
     int nCoefficients = 10;
     float * g = new float[2*nCoefficients];
     dcft( f,nCoefficients,g );
@@ -122,3 +80,7 @@ void testDcft(SDL_Renderer * rpRenderer)
     testDcftAndPrint( rpRenderer,axes, [](float x){return std::abs(x);  }, "|x|"     ); axes.y += 110;
     testDcftAndPrint( rpRenderer,axes, [](float x){return x>0?1:0;      }, "Theta(x)" );
 }
+
+
+} // namespace imresh
+} // namespace test

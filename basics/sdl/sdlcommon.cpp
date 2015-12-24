@@ -1,4 +1,10 @@
 
+#include "sdlcommon.h"
+
+
+namespace sdlcommon {
+
+
 void SDL_check(int errorCode, const char * file, int line )
 {
     if ( errorCode != 0 )
@@ -12,8 +18,6 @@ void SDL_check(int errorCode, const char * file, int line )
 void SDL_check(const void * ptr, const char * file, int line )
 { if ( ptr == NULL ) SDL_check(1,file,line); }
 
-
-
 void checkTTFPtr(void const * ptr, const char * file, int line )
 {
     if ( ptr == NULL )
@@ -25,6 +29,12 @@ void checkTTFPtr(void const * ptr, const char * file, int line )
     }
 }
 
+std::ostream & operator<<( std::ostream & out, SDL_Rect rect )
+{
+    out << "SDL_Rect = { x:"<<rect.x<<", y:"<<rect.y<<", w:"<<rect.w<<", h:"
+        << rect.h<<"}";
+    return out;
+}
 
 int SDL_SaveRenderedToBmp
 ( SDL_Renderer * rRenderer, SDL_Window* rpWindow, const char * rFilename )
@@ -41,6 +51,76 @@ int SDL_SaveRenderedToBmp
 
     return errorCode;
 }
+
+template<class T>
+Point2Dx<T> Point2Dx<T>::operator-
+( Point2Dx const & b ) const
+{
+    return Point2Dx{ x-b.x, y-b.y };
+}
+
+template<class T>
+Point2Dx<T> Point2Dx<T>::operator+
+( Point2Dx const & b ) const
+{
+    return Point2Dx{ x+b.x, y+b.y };
+}
+
+template<class T>
+Point2Dx<T> Point2Dx<T>::operator*
+( T const & b ) const
+{
+    return Point2Dx{ x*b, y*b };
+}
+
+template<class T>
+Point2Dx<T> & Point2Dx<T>::operator/=
+( Point2Dx const & b )
+{
+    x/=b.x; y/=b.y; return *this;
+}
+
+template<class T>
+Point2Dx<T> & Point2Dx<T>::operator/=
+( T const & b )
+{
+    x/=b; y/=b; return *this;
+}
+
+template<class T>
+T Point2Dx<T>::norm( void ) const
+{
+    return std::sqrt(x*x+y*y);
+}
+
+template<class T>
+std::ostream & operator<<( std::ostream & out, Point2Dx<T> p0 )
+{
+    out << "(" << p0.x << "," << p0.y << ")";
+    return out;
+}
+
+std::ostream & operator<<( std::ostream & out, Line2D l0 )
+{
+    out << l0.p[0] << "->" << l0.p[1];
+    return out;
+}
+
+
+/* explicitely instantiating operator<< for the Point2Dx<T> automatically
+ * instantiates Point2Dx and all it's methods for those template parameters,
+ * thereby saving quite some text to type */
+template std::ostream & operator<< <float>( std::ostream & out, Point2Dx<float> p0 );
+template std::ostream & operator<< <double>( std::ostream & out, Point2Dx<double> p0 );
+template std::ostream & operator<< <int>( std::ostream & out, Point2Dx<int> p0 );
+/*
+Point2Dx<T>   Point2Dx<T>::operator-( Point2Dx const & b ) const;
+Point2Dx<T>   Point2Dx<T>::operator+( Point2Dx const & b ) const;
+Point2Dx<T>   Point2Dx<T>::operator*( T        const & b ) const;
+Point2Dx<T> & Point2Dx<T>::operator/=( Point2Dx const & b );
+Point2Dx<T> & Point2Dx<T>::operator/=( T        const & b );
+T Point2Dx<T>::norm(void) const;
+*/
 
 void calcIntersectPoint2Lines
 ( Line2Df const & l0, Line2Df const & l1, Point2Df * intsct )
@@ -96,7 +176,7 @@ float circleIntegral(float x)
 /* draws filled circle. cx and cy are in the center of the specified pixel,
  * meaning r<=0.5 will result in only 1px set */
 void SDL_RenderDrawCircle
-( SDL_Renderer * rpRenderer, const float & cx, const float & cy,
+( SDL_Renderer * const rpRenderer, const float & cx, const float & cy,
   const float & R, bool fill = true )
 {
     if (R <= 0.5) return;
@@ -167,18 +247,20 @@ void SDL_RenderDrawCircle
 #endif
 
 void SDL_RenderDrawThickRect
-( SDL_Renderer * rpRenderer, const SDL_Rect & rRect, const int rWidth )
+( SDL_Renderer * const rpRenderer, const SDL_Rect & rRect, const int rWidth )
 {
     /* It is allowed, that rRect.w < 2*rWidth, but in that case will result
      * in a seemingly filled rectangle */
     assert( rRect.w >= 0 );
     assert( rRect.h >= 0 );
 
-    int x=rRect.x, y=rRect.y, w=rRect.w, h=rRect.h;
+    /* writable copy of argument and short-hand aliases */
+    SDL_Rect rect = rRect;
+    int &x = rect.x, &y = rect.y, &w = rect.w, &h = rect.h;
 
     for ( int i = 0; i < rWidth; ++i )
     {
-        SDL_RenderDrawRect ( rpRenderer, &rRect );
+        SDL_RenderDrawRect ( rpRenderer, &rect );
 
         /* @see https://bugzilla.libsdl.org/show_bug.cgi?id=3182 */
         SDL_Point points[4];
@@ -199,6 +281,12 @@ void SDL_RenderDrawThickRect
         if ( w <= 0 or h <= 0 )
             break;
     }
+}
+
+void SDL_RenderDrawThickRect
+( SDL_Renderer * const rpRenderer, const SDL_Rect * rRect, const int rWidth )
+{
+    return SDL_RenderDrawThickRect(rpRenderer,*rRect,rWidth);
 }
 
 int SDL_RenderDrawArrow
@@ -245,28 +333,33 @@ int SDL_RenderDrawArrow
 }
 
 
-float classSDL_RenderDrawThickLine::f(float x, float a, float b)
+namespace drawthickline
 {
-    assert( a >= 0 and b >= 0 );
-    if      ( x < -(a/2+b) ) return 0;
-    else if ( x < - a/2    ) return ( x+(a/2+b) )/b;
-    else if ( x < + a/2    ) return 1;
-    else if ( x < +(a/2+b) ) return ( x-(a/2+b) )/b;
-    else                     return 0;
+
+    float f(float x, float a, float b)
+    {
+        assert( a >= 0 and b >= 0 );
+        if      ( x < -(a/2+b) ) return 0;
+        else if ( x < - a/2    ) return ( x+(a/2+b) )/b;
+        else if ( x < + a/2    ) return 1;
+        else if ( x < +(a/2+b) ) return ( x-(a/2+b) )/b;
+        else                     return 0;
+    }
+
+    float F(float x, float a, float b)
+    {
+        assert( a >= 0 and b >= 0 );
+        if      ( x < -(a/2+b) ) return 0;
+        else if ( x < - a/2    ) return  pow( x+(a/2+b) ,2 )/( 2*b );
+        else if ( x < + a/2    ) return (a+b)/2+x;
+        else if ( x < +(a/2+b) ) return -pow(-x+(a/2+b) ,2 )/( 2*b ) + a+b;
+        else                     return a+b;
+    }
+
 }
 
-float classSDL_RenderDrawThickLine::F(float x, float a, float b)
-{
-    assert( a >= 0 and b >= 0 );
-    if      ( x < -(a/2+b) ) return 0;
-    else if ( x < - a/2    ) return  pow( x+(a/2+b) ,2 )/( 2*b );
-    else if ( x < + a/2    ) return (a+b)/2+x;
-    else if ( x < +(a/2+b) ) return -pow(-x+(a/2+b) ,2 )/( 2*b ) + a+b;
-    else                     return a+b;
-}
-
-void classSDL_RenderDrawThickLine::operator()
-( SDL_Renderer * rpRenderer, int x0, int y0, int x1, int y1, float width )
+void SDL_RenderDrawThickLine
+( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width )
 {
     /* point 0 is supposed to be to the left for some optimizations */
     if ( x1 < x0 )
@@ -321,6 +414,8 @@ void classSDL_RenderDrawThickLine::operator()
         const float xline = x0 + (float)(y-std::min(y0,y1))/(y1-y0) * (x1-x0);
         for ( int x = xmin; x <= xmax; ++x )
         {
+            using drawthickline::F;
+
             float area = F(x-xline+0.5,a,b) - F(x-xline-0.5,a,b);
             printf("[x=%i,y=%i => x'=%f] area=%f\n",x,y,x-xline+0.5,area);
             if ( area == 0 and didDraw ) break;
@@ -340,7 +435,7 @@ void classSDL_RenderDrawThickLine::operator()
 }
 
 void SDL_RenderDrawThickLine2
-( SDL_Renderer * rpRenderer, int x0, int y0, int x1, int y1, float width )
+( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width )
 {
     /* Temporarily save blendmode, set to transpaency and save calling colors */
     SDL_BlendMode oldBlendMode;
@@ -384,7 +479,6 @@ void SDL_RenderDrawThickLine2
     SDL_SetRenderDrawBlendMode( rpRenderer,oldBlendMode );
 }
 
-#include <ctime>
 const char * getTimeString( void )
 {
     time_t date;
@@ -399,13 +493,12 @@ const char * getTimeString( void )
     return buffer;
 }
 
-int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * rpRenderer )
+int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * const rpRenderer )
 {
     switch ( event.type )
     {
         case SDL_QUIT:
             return 1;
-            break;
         case SDL_KEYDOWN:
             switch ( event.key.keysym.sym )
             {
@@ -431,37 +524,7 @@ int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Rendere
     return 0;
 }
 
-template<class T_ANIMATION>
-int SDL_animControl( SDL_Event const & event, T_ANIMATION & anim )
-{
-    switch ( event.type )
-    {
-        case SDL_KEYDOWN:
-            switch ( event.key.keysym.sym )
-            {
-                case SDLK_s:
-                    anim.step();
-                    break;
-                case SDLK_PLUS:
-                    anim.getRenderFrameDelay() /= 2;
-                    break;
-                case SDLK_MINUS:
-                    anim.getRenderFrameDelay() *= 2;
-                    if ( anim.getRenderFrameDelay() <= 0 )
-                        anim.getRenderFrameDelay() = 1;
-                    break;
-                case SDLK_SPACE:
-                    anim.togglePause();
-                    break;
-                default: break;
-            }
-            break;
-        default: break;
-    }
-    return 0;
-}
-
-int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * rpRenderer )
+int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * const rpRenderer )
 {
     if ( event.type == SDL_MOUSEBUTTONDOWN )
     {
@@ -498,3 +561,27 @@ int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * rpR
     }
     return 0;
 }
+
+
+std::stack<SDL_Color> savedRenderingColors;
+
+int SDL_RenderPushColor(SDL_Renderer * const rpRenderer)
+{
+    SDL_Color c;
+    const int error = SDL_GetRenderDrawColor( rpRenderer, &c.r, &c.g, &c.b, &c.a );
+    savedRenderingColors.push(c);
+    return error;
+}
+
+int SDL_RenderPopColor(SDL_Renderer * const rpRenderer)
+{
+    /* test if stack is empty */
+    if ( savedRenderingColors.empty() )
+        return 1;
+    SDL_Color c = savedRenderingColors.top();
+    savedRenderingColors.pop();
+    return SDL_SetRenderDrawColor( rpRenderer, c.r, c.g, c.b, c.a );
+}
+
+
+} // namespace sdlcommon
