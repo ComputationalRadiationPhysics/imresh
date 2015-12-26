@@ -458,5 +458,4 @@ template int SDL_RenderDrawMatrix<unsigned char>
 */
 
 
-
 } // namespace sdlcommon

@@ -372,8 +372,8 @@ int main(void)
     SDL_RenderPresent( pRenderer );
 
     using namespace imresh::test;
-    testHsv( pRenderer );
-    testHsl( pRenderer );
+    //testHsv( pRenderer );
+    //testHsl( pRenderer );
 
 
     using namespace imresh::examples;
@@ -394,7 +394,7 @@ int main(void)
     animateShrinkWrap.step();
     animateShrinkWrap.step();
     SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-    //animateShrinkWrap.render(pRenderer);
+    animateShrinkWrap.render(pRenderer);
 
 
     /* Wait for key to quit */

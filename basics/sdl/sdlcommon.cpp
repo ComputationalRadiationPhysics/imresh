@@ -524,6 +524,52 @@ int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Rendere
     return 0;
 }
 
+
+int SDL_animControl( SDL_Event const & event )
+{
+    static bool animPaused = true;
+    static uint32_t timeLastFrame = 0;  // milliseconds
+    static const int renderFPS = 1;  // frames per second
+    static uint32_t renderFrameDelay = 1000 / renderFPS; // milliseconds
+
+    switch ( event.type )
+    {
+        case SDL_KEYDOWN:
+            switch ( event.key.keysym.sym )
+            {
+                case SDLK_s:
+                    return 1;
+                    break;
+                case SDLK_PLUS:
+                    renderFrameDelay /= 2;
+                    break;
+                case SDLK_MINUS:
+                    renderFrameDelay *= 2;
+                    if ( renderFrameDelay <= 0 )
+                        renderFrameDelay = 1;
+                    break;
+                case SDLK_SPACE:
+                    animPaused = not animPaused;
+                    break;
+                default: break;
+            }
+            break;
+        default: break;
+    }
+
+    /* Render next frame if enough time bygone and not paused */
+    if ( not animPaused and
+         ( SDL_GetTicks() - timeLastFrame ) > renderFrameDelay )
+    {
+        std::cout << "animation running\n";
+        timeLastFrame = SDL_GetTicks();
+        return 1; // render touched
+    }
+
+    return 0; // render not touched
+}
+
+
 int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * const rpRenderer )
 {
     if ( event.type == SDL_MOUSEBUTTONDOWN )
