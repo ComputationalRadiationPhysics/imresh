@@ -17,6 +17,9 @@ template<class T>
 T vectorMaxAbsDiff( T * const rData1, T * const rData2, const unsigned rnData );
 
 template<class T>
+T vectorMaxAbs( T * const rData1, const unsigned rnData );
+
+template<class T>
 T vectorMax( T * const rData, const unsigned rnData );
 
 template<class T>

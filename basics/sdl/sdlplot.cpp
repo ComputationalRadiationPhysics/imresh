@@ -307,7 +307,7 @@ int SDL_RenderDrawHistogram
     if ( binWidth <= 0 )
         binWidth = rAxes.w / nValues; /* integer floor division */
 
-    for ( int i = 0; i < nValues; ++i )
+    for ( unsigned i = 0; i < nValues; ++i )
     {
         /* convert function value back to pixel by shifting and scaling */
         const int height = ( values[i]-0.0f )/( y1-y0 )*rAxes.h;

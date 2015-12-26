@@ -18,6 +18,12 @@
 #endif
 
 
+#define ERROR_REDUCTION     0
+#define HYBRID_INPUT_OUTPUT 1
+#define SHRINK_WRAP         2
+
+#define ALGORITHM SHRINK_WRAP
+
 
 /**
  *                error
@@ -264,7 +270,7 @@ public:
             SDL_RenderDrawHistogram( rpRenderer, mPlotPositions[10],
                 0,0,0,0, data, size,
                 0 /*binWidth*/, false /*fill*/, true /*drawAxis*/,
-                "Log[ Sum_\gamma |g'|**2 / N**2 ]" );
+                "Log[ Sum_\\gamma |g'|**2 / N**2 ]" );
         }
     }
 
@@ -403,11 +409,7 @@ public:
                 gamma[i] = mask[i][0] == 0 or gPrime[i][0] < 0 ? 1 : 0;
 
             /* apply domain constraints to g' to get g */
-            #define ERROR_REDUCTION 0
-            #define HYBRID_INPUT_OUTPUT 1
-
-            #define ALGO 1
-            #if ALGO == ERROR_REDUCTION
+            #if ALGORITHM == ERROR_REDUCTION
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
                 {
                     if ( gamma[i] == 0 )
@@ -422,7 +424,7 @@ public:
                     }
                 }
 
-            #elif ALGO == HYBRID_INPUT_OUTPUT
+            #elif ALGORITHM == HYBRID_INPUT_OUTPUT or ALGORITHM == SHRINK_WRAP
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
                 {
                     if ( gamma[i] == 0 )
@@ -479,7 +481,7 @@ public:
             unsigned nSummands = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
             {
-                #if ALGO == HYBRID_INPUT_OUTPUT
+                #if ALGORITHM == HYBRID_INPUT_OUTPUT or ALGORITHM == SHRINK_WRAP
                     const auto & re = gPrime[i][0];
                     const auto & im = gPrime[i][1];
                     if ( mask[i][0] == 0 )

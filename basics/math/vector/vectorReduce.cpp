@@ -18,6 +18,16 @@ T vectorMaxAbsDiff( T * const rData1, T * const rData2, const unsigned rnData )
 }
 
 template<class T>
+T vectorMaxAbs( T * const rData, const unsigned rnData )
+{
+    T maximum = T(0);
+    #pragma omp parallel for reduction( max : maximum )
+    for ( unsigned i = 0; i < rnData; ++i )
+        maximum = std::max( maximum, std::abs( rData[i] ) );
+    return maximum;
+}
+
+template<class T>
 T vectorMax( T * const rData, const unsigned rnData )
 {
     T maximum = T(0);
@@ -38,14 +48,16 @@ T vectorMin( T * const rData, const unsigned rnData )
 }
 
 
-
 /* explicitely instantiate needed data types */
-template float vectorMaxAbsDiff<float>( float * const rData1, float * const rData2, const unsigned rnData );
-template double vectorMaxAbsDiff<double>( double * const rData1, double * const rData2, const unsigned rnData );
-template float vectorMax( float * const rData, const unsigned rnData );
-template double vectorMax( double * const rData, const unsigned rnData );
-template float vectorMin( float * const rData, const unsigned rnData );
-template double vectorMin( double * const rData, const unsigned rnData );
+template<class T> void dummyFunction( void )
+{
+    vectorMaxAbsDiff<T>( NULL, NULL, 0 );
+    vectorMaxAbs<T>( NULL, 0 );
+    vectorMax<T>( NULL, 0 );
+    vectorMin<T>( NULL, 0 );
+}
+template void dummyFunction<float>();
+template void dummyFunction<double>();
 
 
 } // namespace vector

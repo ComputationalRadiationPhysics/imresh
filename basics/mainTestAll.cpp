@@ -45,23 +45,9 @@ int main(void)
     SDL_RenderClear( pRenderer );
     SDL_RenderPresent( pRenderer );
 
-    /* Do and plot tests */
-    SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-    //sdlcommon::test::testSdlPlot(pRenderer);
-    imresh::test::testMatrixInvertGaussJacobi();
-    //imresh::test::testDcft(pRenderer);
-    //imresh::test::testGaussian(pRenderer);
-    imresh::test::testGaussian2d(pRenderer);
-    //imresh::test::testDft(pRenderer);
-    //imresh::test::testFftw(pRenderer);
-    //imresh::test::testFftw2d(pRenderer);
-
-
-    //SDL_drawLineControl drawControl;
-
     /* Wait for key to quit */
     int mainProgrammRunning = 1;
-    int renderTouched = 1;
+    int currentFrame = 0;
     while (mainProgrammRunning)
     {
         /* Handle Keyboard and Mouse events */
@@ -70,13 +56,31 @@ int main(void)
         {
             mainProgrammRunning &= not SDL_basicControl(event,pWindow,pRenderer);
             SDL_SetRenderDrawColor( pRenderer, 128,0,0,255 );
-            //renderTouched |= drawControl(event, pRenderer);
+            bool drawNext = animControl( event );
+            if ( drawNext )
+            {
+                SDL_SetRenderDrawColor( pRenderer, 255,255,255,255 );
+                SDL_RenderClear( pRenderer );
+
+                SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
+                switch ( currentFrame % 7 )
+                {
+                    case 0: sdlcommon::test::testSdlPlot(pRenderer); break;
+                    case 1: imresh::test::testDcft(pRenderer);       break;
+                    case 2: imresh::test::testGaussian(pRenderer);   break;
+                    case 3: imresh::test::testGaussian2d(pRenderer); break;
+                    case 4: imresh::test::testDft(pRenderer);        break;
+                    case 5: imresh::test::testFftw(pRenderer);       break;
+                    case 6: imresh::test::testFftw2d(pRenderer);     break;
+                    default: break;
+                }
+                SDL_RenderPresent( pRenderer );
+            }
         }
 
         if ( renderTouched )
         {
             renderTouched = 0;
-            SDL_RenderPresent( pRenderer );
         }
         SDL_Delay(50 /*ms*/);
     }

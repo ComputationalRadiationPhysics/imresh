@@ -86,15 +86,14 @@ mainTestAll.exe: mainTestAll.cpp basics.a cudaBasics.a \
 		  testDft.o testFftw.o testGaussian.o testGaussian2d.o
 	rm -f $@
 	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 \
-	testGaussian.o testDft.o testFftw.o testGaussian2d.o cudaBasics.a basics.a -o $@
+	testGaussian.o testDft.o testFftw.o testGaussian2d.o testColors.o cudaBasics.a basics.a -o $@
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
-		gaussian.o sdlplot.o sdlcommon.o vectorReduce.o \
+		gaussian.o sdlplot.o sdlcommon.o \
 		../examples/createAtomCluster.cpp ../examples/createSlit.cpp \
-		colors/colors.a testColors.o complexPlot.o
+		basics.a
 	rm -f $@
-	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o sdlplot.o sdlcommon.o \
-	vectorReduce.o testColors.o colors/colors.a -o $@
+	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 basics.a -o $@
 
 mainUnderstandHybridInputOutput.exe: mainUnderstandHybridInputOutput.cpp \
 		../examples/createAtomCluster.cpp ../examples/createSlit.cpp basics.a
