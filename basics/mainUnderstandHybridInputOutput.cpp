@@ -264,7 +264,7 @@ public:
             SDL_RenderDrawHistogram( rpRenderer, mPlotPositions[10],
                 0,0,0,0, data, size,
                 0 /*binWidth*/, false /*fill*/, true /*drawAxis*/,
-                "Sum [|G|-|F|]**2 / N**2" );
+                "Log[ Sum_\gamma |g'|**2 / N**2 ]" );
         }
     }
 
@@ -451,7 +451,6 @@ public:
         else if ( (mCurrentFrame-6) % 4 == 2 )
         {
             /* Replace absolute of G' with measured absolute |F|, keep phase */
-            float avgAbsDiff = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
             {
                 const auto & re = G[i][0];
@@ -459,10 +458,46 @@ public:
                 const float norm = sqrtf(re*re+im*im);
                 GPrime[i][0] = absF[i][0] * G[i][0] / norm;
                 GPrime[i][1] = absF[i][0] * G[i][1] / norm;
-                avgAbsDiff += pow( norm-absF[i][0], 2 );
             }
-            mReconstructedErrors.push_back( sqrtf( avgAbsDiff / ( Nx*Ny ) ) );
-            std::cout << "Current error = " << mReconstructedErrors.back() << "\n";
+            /**
+             * "For the input-output algorithms the error E_F is
+             *  usually meaningless since the input g_k(X) is no longer
+             *  an estimate of the object. Then the meaningful error
+             *  is the object-domain error E_0 given by Eq. (15)."
+             *                                      (Fienup82)
+             * Eq.15:
+             * @f[ E_{0k}^2 = \sum\limits_{x\in\gamma} |g_k'(x)^2|^2 @f]
+             * where \gamma is the domain at which the constraints are
+             * not met. SO this is the sum over the domain which should
+             * be 0.
+             *
+             * Eq.16:
+             * @f[ E_{Fk}^2 = \sum\limits_{u} |G_k(u) - G_k'(u)|^2 / N^2
+                            = \sum_x |g_k(x) - g_k'(x)|^2 @f]
+             **/
+            float avgAbsDiff = 0;
+            unsigned nSummands = 0;
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                #if ALGO == HYBRID_INPUT_OUTPUT
+                    const auto & re = gPrime[i][0];
+                    const auto & im = gPrime[i][1];
+                    if ( mask[i][0] == 0 )
+                    {
+                        avgAbsDiff += re*re+im*im;
+                        nSummands += 1;
+                    }
+                #else
+                    const auto & re = G[i][0];
+                    const auto & im = G[i][1];
+                    const float norm = sqrtf(re*re+im*im);
+                    avgAbsDiff += pow( norm-absF[i][0], 2 );
+                    nSummands = Nx*Ny;
+                #endif
+            }
+            /* delete enclosing log(...) if no log-plot wanted */
+            mReconstructedErrors.push_back( log( sqrtf( avgAbsDiff ) / nSummands ) );
+            //std::cout << "Current error = " << mReconstructedErrors.back() << "\n";
         }
         else if ( (mCurrentFrame-6) % 4 == 3 )
         {

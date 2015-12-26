@@ -249,15 +249,18 @@ int SDL_RenderDrawAxes
 
 
 void SDL_PlotGetYRange
-( float * values, int nValues, float * rY0, float * rY1,
-  const char * rTitle = "" )
+(
+  const float * const values, const unsigned nValues,
+  float * const rY0, float * const rY1,
+  const char * const rTitle = ""
+)
 {
     float &y0 = *rY0, &y1 = *rY1;
 
     /* find minimum and maximum function value for plot range */
     y0 = FLT_MAX;
     y1 = FLT_MIN;
-    for ( int i = 0; i < nValues; ++i )
+    for ( unsigned i = 0; i < nValues; ++i )
     {
         y0 = fmin( y0, values[i] );
         y1 = fmax( y1, values[i] );
@@ -271,10 +274,17 @@ void SDL_PlotGetYRange
 }
 
 int SDL_RenderDrawHistogram
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+(
+  SDL_Renderer * const rpRenderer,
+  const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, const int nValues,
-  int binWidth,  bool fill, bool drawAxis, const char * title )
+  const float * const values,
+  const unsigned nValues,
+  unsigned binWidth,
+  const bool fill,
+  const bool drawAxis,
+  const char * const title
+)
 {
     if ( y0 == y1 )
         SDL_PlotGetYRange( values,nValues, &y0,&y1, title );

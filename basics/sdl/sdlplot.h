@@ -78,11 +78,17 @@ int SDL_RenderDrawAxes
  * @param[in] fill fills bin rectangles or not
  **/
 int SDL_RenderDrawHistogram
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+(
+  SDL_Renderer * const rpRenderer,
+  const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, const int nValues,
-  int binWidth = 0,  bool fill = false,
-  bool drawAxis = false, const char * title = "" );
+  const float * const values,
+  const unsigned nValues,
+  unsigned binWidth = 0,
+  const bool fill = false,
+  const bool drawAxis = false,
+  const char * const title = ""
+);
 
 /**
  * Plots a 2D matrix as a pixelated "image"
