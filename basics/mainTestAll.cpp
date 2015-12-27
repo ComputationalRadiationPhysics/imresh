@@ -56,14 +56,14 @@ int main(void)
         {
             mainProgrammRunning &= not SDL_basicControl(event,pWindow,pRenderer);
             SDL_SetRenderDrawColor( pRenderer, 128,0,0,255 );
-            bool drawNext = animControl( event );
+            bool drawNext = SDL_animControl( event );
             if ( drawNext )
             {
                 SDL_SetRenderDrawColor( pRenderer, 255,255,255,255 );
                 SDL_RenderClear( pRenderer );
 
                 SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-                switch ( currentFrame % 7 )
+                switch ( currentFrame % 6 )
                 {
                     case 0: sdlcommon::test::testSdlPlot(pRenderer); break;
                     case 1: imresh::test::testDcft(pRenderer);       break;
@@ -71,16 +71,11 @@ int main(void)
                     case 3: imresh::test::testGaussian2d(pRenderer); break;
                     case 4: imresh::test::testDft(pRenderer);        break;
                     case 5: imresh::test::testFftw(pRenderer);       break;
-                    case 6: imresh::test::testFftw2d(pRenderer);     break;
+                    //case 6: imresh::test::testFftw2d(pRenderer);     break;
                     default: break;
                 }
                 SDL_RenderPresent( pRenderer );
             }
-        }
-
-        if ( renderTouched )
-        {
-            renderTouched = 0;
         }
         SDL_Delay(50 /*ms*/);
     }

@@ -9,8 +9,8 @@
 #include "sdl/sdlcommon.h"
 #include "sdl/sdlplot.h"
 #include "sdl/complexPlot.h"
-#include "../examples/createAtomCluster.cpp"
-#include "../examples/createSlit.cpp"
+#include "examples/createAtomCluster.cpp"
+#include "examples/createSlit.cpp"
 #include "math/vector/vectorReduce.h"
 
 #ifndef M_PI

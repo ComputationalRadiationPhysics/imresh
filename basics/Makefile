@@ -90,12 +90,12 @@ mainTestAll.exe: mainTestAll.cpp basics.a cudaBasics.a \
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
 		gaussian.o sdlplot.o sdlcommon.o \
-		../examples/createAtomCluster.cpp ../examples/createSlit.cpp \
+		examples/createAtomCluster.cpp examples/createSlit.cpp \
 		basics.a
 	rm -f $@
 	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 basics.a -o $@
 
 mainUnderstandHybridInputOutput.exe: mainUnderstandHybridInputOutput.cpp \
-		../examples/createAtomCluster.cpp ../examples/createSlit.cpp basics.a
+		examples/createAtomCluster.cpp examples/createSlit.cpp basics.a
 	rm -f $@
 	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 basics.a -o $@
