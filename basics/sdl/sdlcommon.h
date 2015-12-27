@@ -146,5 +146,3 @@ int SDL_RenderPopColor(SDL_Renderer * const rpRenderer);
 
 
 } // namespace sdlcommon
-
-#include "sdlcommon.tpp"

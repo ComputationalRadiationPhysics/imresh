@@ -297,8 +297,8 @@ int SDL_RenderDrawHistogram
     y0 = fmin( y0, 0.0f );
     y1 = fmax( y1, 0.0f );
 
-    if (x0 >= x1) return 1;
-    if (y0 >= y1) return 1;
+    if (x0 > x1) return 1;
+    if (y0 > y1) return 1;
 
     /* automatically choose a binWidth which fills the x-Range as best as
      * possible. For many bins this becomes less and less optimal, because
@@ -324,7 +324,8 @@ int SDL_RenderDrawHistogram
         rect.w  = binWidth;
         rect.h  = abs(height);
 
-        SDL_RenderDrawThickRect( rpRenderer, rect, 1 );
+        if ( rect.h > 0 )
+            SDL_RenderDrawThickRect( rpRenderer, rect, 1 );
     }
 
     if ( drawAxis )

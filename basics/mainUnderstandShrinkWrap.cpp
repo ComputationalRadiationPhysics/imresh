@@ -290,8 +290,12 @@ public:
 
         /* highlight current step with a green frame */
         unsigned iPos = mCurrentFrame;
+        if ( mCurrentFrame == 4 )
+            iPos = 8;
+        if ( mCurrentFrame == 5 )
+            iPos = 9;
         if ( mCurrentFrame >= 6 )
-            iPos = 4+(mCurrentFrame-4) % 4;
+            iPos = 4+(mCurrentFrame-6) % 4;
         SDL_Rect rect = mPlotPositions[iPos];
         rect.x -= 0.15*rect.w;
         rect.y -= 0.10*rect.h;
@@ -430,7 +434,7 @@ public:
         if ( mCurrentFrame < 7 ) {}
         else if ( cycleFrame % cyclePeriod == 0 )
         {
-            /* Transform G into real space g' */
+            /* Transform G' into real space g' */
             fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, GPrime, gPrime,
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
@@ -463,13 +467,39 @@ public:
             {
                 std::cout << "Update Mask with sigma="<<mSigma<<"\n";
 
-                /* blur current guess for f(x) */
+                /* blur IFT[ G'(x)**2 ] not g'=IFT[G'(x)] !! */
                 fftw_complex * tmp = fftw_alloc_complex( Nx*Ny );
-                memcpy( tmp, gPrime, Nx*Ny*sizeof(fftw_complex) );
-                //fftShift( tmp, Nx,Ny );
-
+                #if false
+                    /* square G' */
+                    for ( unsigned i = 0; i < Nx*Ny; ++i )
+                    {
+                        const float & re = GPrime[i][0]; /* Re */
+                        const float & im = GPrime[i][1]; /* Im */
+                        tmp[i][0] = re*re + im*im; /* Re */
+                        tmp[i][1] = 0;  /* Im */
+                    }
+                    /* IFT squared G' */
+                    fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, tmp, tmp,
+                        FFTW_BACKWARD, FFTW_ESTIMATE );
+                    fftw_execute(fft);
+                    fftw_destroy_plan(fft);
+                    /* shift real space variant, may not be necessary ... */
+                    fftShift( tmp, Nx,Ny );
+                #else
+                    /* square g' */
+                    for ( unsigned i = 0; i < Nx*Ny; ++i )
+                    {
+                        const float & re = gPrime[i][0]; /* Re */
+                        const float & im = gPrime[i][1]; /* Im */
+                        tmp[i][0] = re*re + im*im; /* Re */
+                        tmp[i][1] = 0;  /* Im */
+                    }
+                #endif
+                /* copy result into float array, because blur can't handle
+                 * fftw_complex array */
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    mBlurred[i] = tmp[i][0] > 0 ? tmp[i][0] : 0;
+                    mBlurred[i] = tmp[i][0];
+                /* blur IFT[ G'(x)**2 ] */
                 gaussianBlur( mBlurred, Nx, Ny, mSigma );
 
                 /* make mask from autocorrelation */
@@ -478,7 +508,8 @@ public:
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
                     mMask[i] = mMask[i] < intensityCutOff*absMax ? 0 : 1;
 
-                mSigma = std::max( 0.5, (1-0.1)*mSigma );
+                mSigma = std::max( 0.5, (1-0.01)*mSigma );
+                fftw_free(tmp);
             }
 
             /* buffer domain gamma where g' does not satisfy object constraints */
@@ -581,7 +612,7 @@ int main(void)
 
     using namespace imresh::examples;
 
-#if true
+#if false
     const unsigned Nx = 40, Ny = 40;
     float * example = createVerticalSingleSlit( Nx, Ny );
     AnimateHybridInputOutput animateHybridInputOutput( example, Nx, Ny );

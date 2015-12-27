@@ -28,7 +28,7 @@ colors/colors.a:
 gaussian.o: math/image/gaussian.cpp math/image/gaussian.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-sdlcommon.o: sdl/sdlcommon.cpp sdl/sdlcommon.h sdl/sdlcommon.tpp
+sdlcommon.o: sdl/sdlcommon.cpp sdl/sdlcommon.h
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
 
 sdlplot.o: sdl/sdlplot.cpp sdl/sdlplot.h sdl/sdlplot.tpp sdlcommon.o colors/colors.a
