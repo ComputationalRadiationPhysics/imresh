@@ -25,8 +25,11 @@
 
 #pragma once
 
+#include <iostream>
 #include <vector>
-#include <cmath>    // sqrtf
+#include <cmath>     // sqrtf
+#include <cstring>   // memset
+#include <cfloat>    // FLT_EPSILON
 #include <fftw3.h>
 #include "vectorIndex.h"
 

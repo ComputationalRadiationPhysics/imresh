@@ -25,47 +25,28 @@
 
 #pragma once
 
-#include <cstddef>    // NULL
-#include <fftw3.h>
-#include "hybridInputOutput.h"
+#include <iostream>
+#include <cassert>
+#include <vector>
+#include <cstdint>   // uint8_t
+#include <SDL.h>
+#include "sdlcommon/sdlplot.h"
+#include "sdlcommon/complexPlot.h"
+#include "algorithms/vectorIndex.h"
+#include "algorithms/diffractionIntensity.h"
+#include "algorithms/phasereconstruction/hybridInputOutput.h"
+#include "examples/createSlit.h"
 
 
 namespace imresh
 {
-namespace algorithms
-{
-namespace phasereconstruction
+namespace test
 {
 
 
-    /**
-     * Finds f(x) so that FourierTransform[f(x)] == Input(x)
-     *
-     * For all the default parameters you can use -1 to denote that the
-     * default value should be used.
-     *
-     * @param[in]  rIoData measured (phaseless) intensity distribution whose
-     *             phase shrinkWrap will reconstruct
-     * @param[in]  rnCores Number of Cores to utilize in parallel.
-     *             (If 0 then it tries to choose automatically)
-     * @param[out] rIoData will hold the reconstructed object. Currently
-     *             only positive real valued objects are supported.
-     * @return 0 on success, else error or warning codes.
-     **/
-    int shrinkWrap
-    (
-        float * const rIoData,
-        const unsigned rNx,
-        const unsigned rNy,
-        float rnHioCycles = 20,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
-        unsigned rnCores = 1
-    );
+    void testHybridInputOutput( SDL_Renderer * const & rpRenderer );
 
 
-} // namespace phasereconstruction
-} // namespace algorithms
 } // namespace imresh
+} // namespace test
+

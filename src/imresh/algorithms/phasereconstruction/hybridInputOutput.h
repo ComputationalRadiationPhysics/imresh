@@ -28,6 +28,12 @@
 #include <cstddef>    // NULL
 #include <cstdint>    // uint8_t
 #include <climits>    // INT_MAX
+#include <cstring>    // memcpy
+#include <cmath>      // sqrtf
+#include <complex>
+#include <cassert>
+#include <iostream>
+#include <vector>
 #include <omp.h>      // omp_get_num_procs, omp_set_num_procs
 #include <fftw3.h>
 #include "hybridInputOutput.h"
@@ -55,6 +61,7 @@ namespace phasereconstruction
      *                 rIoData * rMask == rIoData
      *             except for rounding errors or if the algorithm did not
      *             converge sufficiently.
+     * @param[in]  rSize width, height, depth, ... of rIoData and rMask
      * @param[in]  rnHioCycles maximum cycles to calculate. Use with care,
      *             because the returned 'solution' may not have converged
      *             enough!
@@ -67,16 +74,14 @@ namespace phasereconstruction
      **/
     int hybridInputOutput
     (
-        float * const rIoData,
-        const uint8_t * const rMask,
-        const unsigned rNx,
-        const unsigned rNy,
-        int rnCycles = INT_MAX,
+        float * const & rIoData,
+        const uint8_t * const & rMask,
+        const std::vector<unsigned> & rSize,
+        unsigned rnCycles = UINT_MAX,
+        float rTargetErr = 1e-6,
         float rBeta = 0.9,
         unsigned rnCores = 0
     );
-
-}
 
 
 } // namespace phasereconstruction

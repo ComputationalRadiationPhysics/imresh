@@ -32,6 +32,20 @@ namespace algorithms
 {
 
 
+    template<class T>
+    std::ostream & operator<<
+    (
+        std::ostream & rOut,
+        const std::vector<T> & rVectorToPrint
+    )
+    {
+        rOut << "{ ";
+        for ( const auto & elem : rVectorToPrint )
+            rOut << elem << " ";
+        rOut << "}";
+        return rOut;
+    }
+
     unsigned fftShiftIndex
     (
         const unsigned & rLinearIndex,
@@ -42,10 +56,11 @@ namespace algorithms
 
         std::vector<unsigned> vectorIndex =
             convertLinearToVectorIndex( rLinearIndex, rDim );
+        //std::cout << "   lini=" << rLinearIndex << " -> " << vectorIndex << "\n";
         for ( unsigned i = 0; i < rDim.size(); ++i )
         {
-            vectorIndex[i] += rDim.size() / 2;
-            vectorIndex[i] %= rDim.size();
+            vectorIndex[i] += rDim[i] / 2;
+            vectorIndex[i] %= rDim[i];
         }
         return convertVectorToLinearIndex( vectorIndex, rDim );
     }
@@ -74,10 +89,11 @@ namespace algorithms
         fftwf_execute( planForward );
 
         /* strip fourier transformed real image of it's phase (measurement) */
+        memset( rIoData, 0, nElements*sizeof( rIoData[0] ) );
         for ( unsigned iRow = 0; iRow < nElements / lastDim; ++iRow )
         for ( unsigned iCol = 0; iCol < reducedLastDim; ++iCol )
         {
-            const unsigned i = iRow*lastDim + iCol;
+            const unsigned i = iRow*reducedLastDim + iCol;
             const float & re = tmp[i][0]; /* Re */
             const float & im = tmp[i][1]; /* Im */
             const float norm = sqrtf( re*re + im*im );
@@ -94,10 +110,18 @@ namespace algorithms
              * The result is in row major form, meaning lastDim lies contiguous
              * in memory.
              **/
-            const unsigned i0 = fftShiftIndex( iRow*lastDim + iCol, rDim );
-            const unsigned i1 = fftShiftIndex( iRow*lastDim + lastDim-iCol, rDim );
+            //const unsigned i0 = fftShiftIndex( iRow*lastDim + iCol, rDim );
+            //const unsigned i1 = fftShiftIndex( iRow*lastDim + lastDim-1-iCol,
+            const unsigned i0 = iRow*lastDim + iCol;
             rIoData[i0] = norm;
-            rIoData[i1] = norm;
+            if ( iCol != 0 )
+            {
+                const unsigned i1 = iRow*lastDim + lastDim-iCol;
+                rIoData[i1] = norm;
+            }
+
+            //std::cout << "iRow=" << iRow << ", iCol=" << iCol
+            //          << " => i0=" << i0 << ", i1=" << i1 << "\n";
         }
 
         fftwf_destroy_plan( planForward );

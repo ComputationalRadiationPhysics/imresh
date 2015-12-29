@@ -42,6 +42,7 @@ namespace sdlcommon
      * Uses domain coloring to plot a complex valued matrix
      *
      * The matrix could e.g. contain evaluations of a complex function.
+     * @see SDL_RenderDrawMatrix for parameters not listed
      *
      * @param[in] logPlot if true, then instead of the magnitude of the complex
      *            number log(|z|) will be plotted.
@@ -51,8 +52,11 @@ namespace sdlcommon
      * @param[in] colorFunction 1:HSL (H=arg(z), S=1, L=|z|)
      *                          2:HSV
      *                          3:
-     * @see SDL_RenderDrawMatrix for other parameters
+     * @tparam T_COMPLEX a complex data type, which must allow access [0] for
+     *         its real and [1] for its imaginary part, e.g. fftw_complex,
+     *         fftwf_complex or even a simple std::vector would work
      **/
+    template<class T_COMPLEX>
     void SDL_RenderDrawComplexMatrix
     (
         SDL_Renderer * const & rpRenderer,
@@ -61,7 +65,7 @@ namespace sdlcommon
         const float & x1,
         const float & y0,
         const float & y1,
-        fftw_complex * const & values,
+        T_COMPLEX * const & values,
         const unsigned & nValuesX,
         const unsigned & nValuesY,
         const bool & drawAxis,

@@ -25,47 +25,32 @@
 
 #pragma once
 
-#include <cstddef>    // NULL
-#include <fftw3.h>
-#include "hybridInputOutput.h"
+#include <cstdlib>  // srand, RAND_MAX, rand
+#include <cmath>    // fmin, sqrtf
+#include <vector>
+#include <cstdlib>  // srand, rand
+#include "math/image/gaussian.h"
 
 
 namespace imresh
 {
-namespace algorithms
-{
-namespace phasereconstruction
+namespace examples
 {
 
 
     /**
-     * Finds f(x) so that FourierTransform[f(x)] == Input(x)
+     * Create a sample data of two atom clusters
      *
-     * For all the default parameters you can use -1 to denote that the
-     * default value should be used.
-     *
-     * @param[in]  rIoData measured (phaseless) intensity distribution whose
-     *             phase shrinkWrap will reconstruct
-     * @param[in]  rnCores Number of Cores to utilize in parallel.
-     *             (If 0 then it tries to choose automatically)
-     * @param[out] rIoData will hold the reconstructed object. Currently
-     *             only positive real valued objects are supported.
-     * @return 0 on success, else error or warning codes.
+     * @param[in] Nx width of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    int shrinkWrap
+    float * createAtomCluster
     (
-        float * const rIoData,
-        const unsigned rNx,
-        const unsigned rNy,
-        float rnHioCycles = 20,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
-        unsigned rnCores = 1
+        const unsigned & Nx,
+        const unsigned & Ny
     );
 
 
-} // namespace phasereconstruction
-} // namespace algorithms
+} // namespace examples
 } // namespace imresh

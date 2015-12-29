@@ -29,5 +29,5 @@ complexPlot.o: complexPlot.cpp complexPlot.h sdlplot.o colors.a
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -lfftw3 -o $@
 
 
-sdlcommons.a: complexPlot.o sdlplot.o sdlcommon.o
+sdlcommon.a: complexPlot.o sdlplot.o sdlcommon.o
 	ar rcsT $@ $^

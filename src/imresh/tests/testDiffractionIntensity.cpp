@@ -23,7 +23,7 @@
  */
 
 
-#include "testVectorIndex.h"
+#include "testDiffractionIntensity.h"
 
 
 namespace imresh
@@ -32,9 +32,117 @@ namespace test
 {
 
 
-    void testConvertToDiffractionIntensity( void )
+    void testDiffractionIntensity
+    ( SDL_Renderer * const & rpRenderer )
     {
-        //
+        std::vector<unsigned> imageSize = {20,20};
+        const unsigned & Nx = imageSize[1];
+        const unsigned & Ny = imageSize[0];
+        const unsigned w  = 4;
+        const unsigned h  = 8;
+
+        /* initialize rectangle */
+        float * rectangle = new float[Nx*Ny];
+        memset( rectangle,0, Nx*Ny*sizeof( rectangle[0] ) );
+        for ( unsigned ix = Nx/2-w; ix < Nx/2+w; ++ix )
+        for ( unsigned iy = Ny/2-h; iy < Ny/2+h; ++iy )
+            rectangle[iy*Nx+ix] = 1.0f;
+
+        /* display it */
+        using namespace sdlcommon;
+        SDL_Rect position = { 40,30,200,200 };
+        SDL_RenderDrawMatrix( rpRenderer, position,0,0,0,0, rectangle,Nx,Ny,
+            true /*drawAxis*/, "Rectangular Opening" );
+        SDL_RenderDrawArrow( rpRenderer,
+            position.x + 1.1*position.w, position.y + position.h/2,
+            position.x + 1.4*position.w, position.y + position.h/2 );
+        position.x += 1.5*position.w;
+
+        /* convert with slightly less performant method */
+        fftw_complex * F = fftw_alloc_complex( Nx*Ny );
+        {
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                F[i][0] = rectangle[i];
+                F[i][1] = 0;
+            }
+            /* fourier transform the original image */
+            fftw_plan planRectToDiff = fftw_plan_dft_2d( Nx,Ny, F,F,
+                FFTW_FORWARD, FFTW_ESTIMATE );
+            fftw_execute( planRectToDiff );
+            fftw_destroy_plan( planRectToDiff );
+            /* strip fourier transformed real image of it's phase (measurement) */
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                const float & re = F[i][0]; /* Re */
+                const float & im = F[i][1]; /* Im */
+                F[i][0] = sqrtf( re*re + im*im );
+                F[i][1] = 0;
+            }
+        }
+
+        /* convert to diffraction pattern */
+        algorithms::diffractionIntensity( rectangle, imageSize );
+
+        /* compare diffractionIntensity result with slower method */
+        {
+            bool foundInequality = false;
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                float max = fmax( F[i][0] , rectangle[i] );
+                if ( max == 0 ) max = 1.0;
+                bool equal = fabs( F[i][0] - rectangle[i] ) / max
+                             < 10*FLT_EPSILON;
+                if ( not equal )
+                    std::cout << "i = " << i << " is not equal. ( "
+                    << F[i][0] << " != " << rectangle[i] << ")\n";
+                foundInequality |= not equal;
+            }
+            assert( not foundInequality );
+        }
+
+        /* do some sanity checks on the diffraction pattern */
+        {
+            std::cout << std::setprecision(8) ;
+            bool foundInequality = false;
+            for ( unsigned ix = 1; ix < Nx; ++ix )
+            for ( unsigned iy = 1; iy < Ny; ++iy )
+            {
+                bool equalX = fabs( rectangle[ iy*Nx + ix ]
+                                  - rectangle[ iy*Nx + Nx -ix ] )
+                              < 10*FLT_EPSILON;
+                if ( not equalX )
+                    std::cout << "ix = " << ix << ", iy = " << iy
+                    << " ( " << rectangle[ iy*Nx + ix ] << " != "
+                    << rectangle[ iy*Nx + Nx -ix ] << ")\n";
+
+                bool equalY = fabs( rectangle[ iy*Nx + ix ]
+                                  - rectangle[ ( Ny - iy )*Nx + ix ] )
+                              < 20*FLT_EPSILON;
+                if ( not equalY )
+                    std::cout << "ix = " << ix << ", iy = " << iy
+                    << " ( " << rectangle[ iy*Nx + ix ] << " != "
+                    << rectangle[ (Ny-iy)*Nx + ix ] << ")\n";
+
+                foundInequality |= not equalX;
+                foundInequality |= not equalY;
+            }
+            //assert( not foundInequality );
+        }
+
+        /* display pattern */
+        //for ( unsigned i = 0; i < Nx*Ny; ++i )
+        //    rectangle[i] = logf( 1+rectangle[i] );
+        float max = 0;
+        for ( unsigned i = 0; i < Nx*Ny; ++i )
+            max = std::max( max, rectangle[i] );
+        for ( unsigned i = 0; i < Nx*Ny; ++i )
+            rectangle[i] /= max;
+        SDL_RenderDrawMatrix( rpRenderer, position,0,0,0,0, rectangle,Nx,Ny,
+            true /*drawAxis*/, "Diffraction Intensity" );
+
+        fftw_free( F );
+        delete[] rectangle;
     }
 
 

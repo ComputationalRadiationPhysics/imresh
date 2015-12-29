@@ -32,6 +32,7 @@ namespace sdlcommon
 {
 
 
+template <class T_COMPLEX>
 void SDL_RenderDrawComplexMatrix
 (
     SDL_Renderer * const & rpRenderer,
@@ -40,7 +41,7 @@ void SDL_RenderDrawComplexMatrix
     const float & x1,
     const float & y0,
     const float & y1,
-    fftw_complex * const & values,
+    T_COMPLEX * const & values,
     const unsigned & nValuesX,
     const unsigned & nValuesY,
     const bool & drawAxis,
@@ -178,6 +179,44 @@ void SDL_RenderDrawComplexMatrix
 
     free( toPlot );
 }
+
+
+template
+void SDL_RenderDrawComplexMatrix<fftw_complex>
+(
+    SDL_Renderer * const & rpRenderer,
+    const SDL_Rect & rAxes,
+    const float & x0,
+    const float & x1,
+    const float & y0,
+    const float & y1,
+    fftw_complex * const & values,
+    const unsigned & nValuesX,
+    const unsigned & nValuesY,
+    const bool & drawAxis,
+    const char * const & title,
+    const bool & logPlot,
+    const bool & swapQuadrants,
+    const int & colorFunction
+);
+template
+void SDL_RenderDrawComplexMatrix<fftwf_complex>
+(
+    SDL_Renderer * const & rpRenderer,
+    const SDL_Rect & rAxes,
+    const float & x0,
+    const float & x1,
+    const float & y0,
+    const float & y1,
+    fftwf_complex * const & values,
+    const unsigned & nValuesX,
+    const unsigned & nValuesY,
+    const bool & drawAxis,
+    const char * const & title,
+    const bool & logPlot,
+    const bool & swapQuadrants,
+    const int & colorFunction
+);
 
 
 } // namespace sdlcommon

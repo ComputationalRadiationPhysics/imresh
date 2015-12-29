@@ -26,11 +26,13 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
 #include <cassert>
 #include <vector>
 #include <SDL.h>
-#include "sdlcommon/sdlcommon.h"
+#include "sdlcommon/sdlplot.h"
 #include "algorithms/vectorIndex.h"
+#include "algorithms/diffractionIntensity.h"
 
 
 namespace imresh
@@ -39,7 +41,7 @@ namespace test
 {
 
 
-    void testConvertToDiffractionIntensity( SDL_Renderer );
+    void testDiffractionIntensity( SDL_Renderer * const & rpRenderer );
 
 
 } // namespace imresh

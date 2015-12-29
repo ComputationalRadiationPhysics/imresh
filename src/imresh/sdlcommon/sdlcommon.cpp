@@ -36,7 +36,7 @@ void SDL_check
 (
     const int & rErrorCode,
     const char * const & rFilename,
-    const int & rLineNumber )
+    const unsigned & rLineNumber )
 {
     if ( rErrorCode != 0 )
     {
@@ -51,7 +51,7 @@ void SDL_check
 (
     const void * const & rPointerToCheck,
     const char * const & rFilename,
-    const int & rLineNumber
+    const unsigned & rLineNumber
 )
 {
     if ( rPointerToCheck == NULL )
@@ -62,7 +62,7 @@ void checkTTFPtr
 (
     void const * const & rPointerToCheck,
     const char * const & rFilename,
-    const int & rLineNumber
+    const unsigned & rLineNumber
 )
 {
     if ( rPointerToCheck == NULL )

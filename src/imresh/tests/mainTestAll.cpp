@@ -25,16 +25,19 @@
 
 #include "sdlcommon/sdlcommon.h"
 #include "testVectorIndex.h"
+#include "testDiffractionIntensity.h"
+#include "testHybridInputOutput.h"
 
 
 int main(void)
 {
     /* Tests which don't need to show graphics */
     imresh::test::testVectorIndex();
+    std::cout << "testVectorIndex [OK]\n";
 
-    return 0;
 
     using namespace imresh::sdlcommon;
+    using namespace imresh::test;
 
     SDL_Window   * pWindow;
     SDL_Renderer * pRenderer;
@@ -57,6 +60,7 @@ int main(void)
     /* Wait for key to quit */
     int mainProgrammRunning = 1;
     int currentFrame = 0;
+    bool drawNext = true;
     while (mainProgrammRunning)
     {
         /* Handle Keyboard and Mouse events */
@@ -65,18 +69,24 @@ int main(void)
         {
             mainProgrammRunning &= not SDL_basicControl(event,pWindow,pRenderer);
             SDL_SetRenderDrawColor( pRenderer, 128,0,0,255 );
-            bool drawNext = SDL_animControl( event );
+            drawNext |= SDL_animControl( event );
             if ( drawNext )
             {
+                drawNext = false;
+
                 SDL_SetRenderDrawColor( pRenderer, 255,255,255,255 );
                 SDL_RenderClear( pRenderer );
 
                 SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-                switch ( currentFrame % 6 )
+                switch ( currentFrame % 2 )
                 {
+                    case 0:
+                        testHybridInputOutput(pRenderer);
+                        break;
+                    case 1:
+                        testDiffractionIntensity(pRenderer);
+                        break;
                     /*
-                    case 0: sdlcommon::test::testSdlPlot(pRenderer); break;
-                    case 1: imresh::test::testDcft(pRenderer);       break;
                     case 2: imresh::test::testGaussian(pRenderer);   break;
                     case 3: imresh::test::testGaussian2d(pRenderer); break;
                     case 4: imresh::test::testDft(pRenderer);        break;
@@ -86,6 +96,8 @@ int main(void)
                     default: break;
                 }
                 SDL_RenderPresent( pRenderer );
+
+                ++currentFrame;
             }
         }
         SDL_Delay(50 /*ms*/);
