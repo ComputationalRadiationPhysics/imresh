@@ -2,9 +2,10 @@
 
 #include <iostream>
 #include <cassert>
-#include <cmath>  // sqrt
+#include <cmath>    // sqrt
 #include <stack>
-#include <ctime>  // time, strftime
+#include <ctime>    // time, strftime
+#include <cstdint>  // uint32_t
 #include <SDL.h>
 #include <SDL_ttf.h>
 
@@ -117,6 +118,17 @@ void SDL_RenderDrawThickLine2
 
 int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * const rpRenderer );
 
+/**
+ * Provides control for SDL, like pause/stop, make screenshot, next Frame, ...
+ *
+ * @param[in]  event SDL event which we shall parse for control keystrokes
+ * @param[out] anim a class which provides methods like togglePause,
+ *             getCurrentFrameNumber
+ * @return 1 if render touched and needs to be redrawn, else 0
+ **/
+int SDL_animControl( SDL_Event const & event );
+
+
 class SDL_drawLineControl {
 private:
     Point2D p0;  // last point clicked at
@@ -133,19 +145,4 @@ int SDL_RenderPushColor(SDL_Renderer * const rpRenderer);
 int SDL_RenderPopColor(SDL_Renderer * const rpRenderer);
 
 
-
-/**
- * Provides control for SDL, like pause/stop, make screenshot, next Frame, ...
- *
- * @param[in]  event SDL event which we shall parse for control keystrokes
- * @param[out] anim a class which provides methods like togglePause,
- *             getCurrentFrameNumber
- **/
-template<class T_ANIMATION>
-void basicAnimControl( SDL_Event const & event, T_ANIMATION & anim );
-
-
-
 } // namespace sdlcommon
-
-#include "sdlcommon.tpp"

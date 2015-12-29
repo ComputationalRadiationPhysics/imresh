@@ -249,15 +249,18 @@ int SDL_RenderDrawAxes
 
 
 void SDL_PlotGetYRange
-( float * values, int nValues, float * rY0, float * rY1,
-  const char * rTitle = "" )
+(
+  const float * const values, const unsigned nValues,
+  float * const rY0, float * const rY1,
+  const char * const rTitle = ""
+)
 {
     float &y0 = *rY0, &y1 = *rY1;
 
     /* find minimum and maximum function value for plot range */
     y0 = FLT_MAX;
     y1 = FLT_MIN;
-    for ( int i = 0; i < nValues; ++i )
+    for ( unsigned i = 0; i < nValues; ++i )
     {
         y0 = fmin( y0, values[i] );
         y1 = fmax( y1, values[i] );
@@ -271,10 +274,17 @@ void SDL_PlotGetYRange
 }
 
 int SDL_RenderDrawHistogram
-( SDL_Renderer * rpRenderer, const SDL_Rect & rAxes,
+(
+  SDL_Renderer * const rpRenderer,
+  const SDL_Rect & rAxes,
   float x0, float x1, float y0, float y1,
-  float * values, const int nValues,
-  int binWidth,  bool fill, bool drawAxis, const char * title )
+  const float * const values,
+  const unsigned nValues,
+  unsigned binWidth,
+  const bool fill,
+  const bool drawAxis,
+  const char * const title
+)
 {
     if ( y0 == y1 )
         SDL_PlotGetYRange( values,nValues, &y0,&y1, title );
@@ -287,8 +297,8 @@ int SDL_RenderDrawHistogram
     y0 = fmin( y0, 0.0f );
     y1 = fmax( y1, 0.0f );
 
-    if (x0 >= x1) return 1;
-    if (y0 >= y1) return 1;
+    if (x0 > x1) return 1;
+    if (y0 > y1) return 1;
 
     /* automatically choose a binWidth which fills the x-Range as best as
      * possible. For many bins this becomes less and less optimal, because
@@ -297,7 +307,7 @@ int SDL_RenderDrawHistogram
     if ( binWidth <= 0 )
         binWidth = rAxes.w / nValues; /* integer floor division */
 
-    for ( int i = 0; i < nValues; ++i )
+    for ( unsigned i = 0; i < nValues; ++i )
     {
         /* convert function value back to pixel by shifting and scaling */
         const int height = ( values[i]-0.0f )/( y1-y0 )*rAxes.h;
@@ -314,7 +324,8 @@ int SDL_RenderDrawHistogram
         rect.w  = binWidth;
         rect.h  = abs(height);
 
-        SDL_RenderDrawThickRect( rpRenderer, rect, 1 );
+        if ( rect.h > 0 )
+            SDL_RenderDrawThickRect( rpRenderer, rect, 1 );
     }
 
     if ( drawAxis )
@@ -456,7 +467,6 @@ template int SDL_RenderDrawMatrix<unsigned char>
   unsigned char * const values, const unsigned nValuesX, const unsigned nValuesY,
   bool drawAxis, const char * title, const bool useColors );
 */
-
 
 
 } // namespace sdlcommon

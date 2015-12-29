@@ -12,43 +12,17 @@
 #include "examples/createAtomCluster.cpp"
 #include "examples/createSlit.cpp"
 #include "math/vector/vectorReduce.h"
-#include "math/image/gaussian.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 
 
-/**
- * Shifts the Fourier transform result in frequency space to the center
- *
- * @verbatim
- *        +------------+      +------------+          +------------+
- *        |            |      |78 ++  ++ 56|          |     --     |
- *        |            |      |o> ''  '' <o|          | .. <oo> .. |
- *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
- *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
- *        |            |      |o> ..  .. <o|          | '' <oo> '' |
- *        |            |      |34 ++  ++ 12|          |     --     |
- *        +------------+      +------------+          +------------+
- *                           k=0         k=N-1              k=0
- * @endverbatim
- * This index shift can be done by a simple shift followed by a modulo:
- *   newArray[i] = array[ (i+N/2)%N ]
- **/
-void fftShift( fftw_complex * const data, const unsigned Nx, const unsigned Ny )
-{
-    /* only up to Ny/2 necessary, because wie use std::swap meaning we correct
-     * two elements with 1 operation */
-    for ( unsigned iy = 0; iy < Ny/2; ++iy )
-    for ( unsigned ix = 0; ix < Nx; ++ix )
-    {
-        const unsigned index =
-            ( ( iy+Ny/2 ) % Ny ) * Nx +
-            ( ( ix+Nx/2 ) % Nx );
-        std::swap( data[iy*Nx + ix], data[index] );
-    }
-}
+#define ERROR_REDUCTION     0
+#define HYBRID_INPUT_OUTPUT 1
+#define SHRINK_WRAP         2
+
+#define ALGORITHM SHRINK_WRAP
 
 
 /**
@@ -87,24 +61,16 @@ private:
     int mCurrentFrame;
 
     const unsigned Nx, Ny;
-    static constexpr unsigned mnSteps = 8;
-    SDL_Rect mPlotPositions[ mnSteps+3 ]; /* +3: blurred, mask, error */
+    static constexpr unsigned mnSteps = 10;
+    SDL_Rect mPlotPositions[ mnSteps+1 ];
     fftw_complex * mImageState[ mnSteps ];
-    std::string mTitles[ mnSteps+3 ];
+    std::string mTitles[mnSteps];
     std::vector<float> mReconstructedErrors;
-
-    float * mBlurred, * mMask;
 
     typedef struct { int x0,y0,x1,y1; } Line2d;
     std::vector<Line2d> mArrows;
 
     static constexpr float hioBeta = 0.9;
-    static constexpr float intensityCutOffAutoCorel = 0.04;
-    static constexpr float intensityCutOff = 0.20;
-    static constexpr float sigma0 = 3.0;
-    static constexpr int   nHioCycles = 20;
-
-    float mSigma;
 
     /**
      * Draws an array to point from 1 rectangle to another, e.g. for plots
@@ -164,24 +130,30 @@ public:
     AnimateHybridInputOutput
     (
       const float * const rpOriginalData,
+      const float * const rpBlurred,
+      const float * const rpMask,
       const unsigned rNx, const unsigned rNy
     )
-     : mCurrentFrame(0), Nx(rNx), Ny(rNy), mSigma(sigma0)
+     : mCurrentFrame(-1), Nx(rNx), Ny(rNy)
     {
-        /* allocate and clear all intermediary steps */
         for ( unsigned i = 0; i < mnSteps; ++i )
         {
             mImageState[i] = fftw_alloc_complex(Nx*Ny);
             memset( mImageState[i], 0, sizeof(mImageState[i][0])*Nx*Ny );
         }
-        mBlurred = new float[ Nx*Ny ];
-        mMask    = new float[ Nx*Ny ];
-        memset( mBlurred, 0, Nx*Ny*sizeof(mBlurred[0]) );
-        memset( mMask   , 0, Nx*Ny*sizeof(mMask   [0]) );
 
         /* save original image to first array */
         for ( unsigned i = 0; i < Nx*Ny; ++i )
+        {
             mImageState[0][i][0] = rpOriginalData[i]; /* Re */
+            mImageState[0][i][1] = 0; /* Im */
+
+            mImageState[8][i][0] = rpBlurred[i]; /* Re */
+            mImageState[8][i][1] = 0; /* Im */
+
+            mImageState[9][i][0] = rpMask[i]; /* Re */
+            mImageState[9][i][1] = 0; /* Im */
+        }
 
         /* scale very small images up to a height of at least 200 */
         const int multiplierX = (int) ceilf( 160.0f / (float) Nx );
@@ -253,8 +225,6 @@ public:
     {
         for ( unsigned i = 0; i < mnSteps; ++i )
             fftw_free( mImageState[i] );
-        delete[] mMask;
-        delete[] mBlurred;
     }
 
     void render( SDL_Renderer * rpRenderer )
@@ -262,40 +232,23 @@ public:
         using namespace sdlcommon;
 
         SDL_SetRenderDrawColor( rpRenderer, 0,0,0,255 );
-        /* Draw arrows */
+        /* Draw arrows and complex plots */
         for ( const auto & l : mArrows )
             SDL_RenderDrawArrow( rpRenderer, l.x0, l.y0, l.x1, l.y1 );
-
-        /* Draw complex plots */
         for ( unsigned i = 0; i < mnSteps; ++i )
         {
-            bool isRealSpace = i == 0 /* original */
-                            or i == 3 /* autocorelation */
-                            or i == 5 /* g' */
-                            or i == 6 /* g */;
+            bool isRealSpace = i == 0 or i == 3 or i == 5 or i == 6 or i == 8
+                            or i == 9;
             SDL_RenderDrawComplexMatrix( rpRenderer, mPlotPositions[i], 0,0,0,0,
                 mImageState[i],Nx,Ny, true/*drawAxis*/, mTitles[i].c_str(),
                 not isRealSpace/*log scale*/, not isRealSpace/*swapQuadrants*/,
                 1 /* color map */ );
         }
 
-        /* Draw blurred and mask plot */
-        const float maxVal = imresh::math::vector::vectorMaxAbs( mBlurred, Nx*Ny);
-        for ( unsigned i = 0; i < Nx*Ny; ++i )
-            mBlurred[i] /= maxVal;
-        SDL_RenderDrawMatrix( rpRenderer, mPlotPositions[8], 0,0,0,0,
-            mBlurred, Nx,Ny, true/*drawAxis*/, mTitles[8].c_str() );
-        SDL_RenderDrawMatrix( rpRenderer, mPlotPositions[9], 0,0,0,0,
-            mMask, Nx,Ny, true/*drawAxis*/, mTitles[9].c_str() );
-
         /* highlight current step with a green frame */
         unsigned iPos = mCurrentFrame;
-        if ( mCurrentFrame == 4 )
-            iPos = 8;
-        if ( mCurrentFrame == 5 )
-            iPos = 9;
         if ( mCurrentFrame >= 6 )
-            iPos = 4+(mCurrentFrame-6) % 4;
+            iPos = 4+(mCurrentFrame-4) % 4;
         SDL_Rect rect = mPlotPositions[iPos];
         rect.x -= 0.15*rect.w;
         rect.y -= 0.10*rect.h;
@@ -323,22 +276,22 @@ public:
 
     void step( void )
     {
-        using namespace imresh::math::image;
-        using namespace imresh::math::vector;
-
         ++mCurrentFrame;
 
         /* define some aliases according to Fienup82 */
-        const auto & F        = mImageState[1];
-        const auto & absF     = mImageState[2];
-        const auto & autocorr = mImageState[3]; // autocorrelation
-        const auto & GPrime   = mImageState[4];
-        const auto & gPrime   = mImageState[5];
-        const auto & g        = mImageState[6];
-        const auto & G        = mImageState[7];
+        const auto & F      = mImageState[1];
+        const auto & absF   = mImageState[2];
+        const auto & GPrime = mImageState[4];
+        const auto & gPrime = mImageState[5];
+        const auto & g      = mImageState[6];
+        const auto & G      = mImageState[7];
+        const auto & mask   = mImageState[9];
 
+        /* we already have the original image, nothing to be done here */
+        if ( mCurrentFrame == 0 )
+            return;
         /* fourier transform the original image */
-        if ( mCurrentFrame == 1 )
+        else if ( mCurrentFrame == 1 )
         {
             /* create and execute fftw plan */
             fftw_plan planForward = fftw_plan_dft_2d( Nx,Ny,
@@ -361,82 +314,66 @@ public:
         else if ( mCurrentFrame == 3 )
         {
             /* create and execute fftw plan */
-            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, absF, autocorr,
+            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny,
+                absF, mImageState[3] /* \tilde{f} */,
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
-            fftShift( autocorr, Nx,Ny );
         }
         else if ( mCurrentFrame == 4 )
         {
-            /* blur the autocorrelation function */
+            /* in the initial step introduce a random phase as a first guess */
+#           if false
+            /* this is not suited, see comment below */
             for ( unsigned i = 0; i < Nx*Ny; ++i )
-                mBlurred[i] = autocorr[i][0] > 0 ? autocorr[i][0] : 0;
-            gaussianBlur( mBlurred, Nx, Ny, mSigma /*sigma*/ );
+            {
+                const float & re = absF[i][0]; /* Re */
+                assert( absF[i][1] == 0 );     /* Im */
+                const float phase = 2*M_PI * rand() / RAND_MAX;
+                GPrime[i][0] = re * cos(phase); /* Re */
+                GPrime[i][1] = re * sin(phase); /* Im */
+            }
+#           else
+            /* Because we constrain the object to be a real image (e.g. no
+             * absorption which would result in an imaginary structure
+             * coefficient), we should choose the random phases in such a way,
+             * that the resulting fourier transformed will also be real */
+            /* initialize a random real object */
+            fftw_complex * tmpRandReal = fftw_alloc_complex( Nx*Ny );
+            srand( 2623091912 );
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                tmpRandReal[i][0] = (float) rand() / RAND_MAX; /* Re */
+                tmpRandReal[i][1] = 0; /* Im */
+            }
+
+            /* create and execute fftw plan */
+            fftw_plan planForward = fftw_plan_dft_2d( Nx,Ny,
+                tmpRandReal, tmpRandReal, FFTW_FORWARD, FFTW_ESTIMATE );
+            fftw_execute(planForward);
+            fftw_destroy_plan(planForward);
+
+            /* applies phases of fourier transformed real random field to
+             * measured input intensity */
+            for ( unsigned i = 0; i < Nx*Ny; ++i )
+            {
+                /* get phase */
+                const std::complex<float> z( tmpRandReal[i][0], tmpRandReal[i][1] );
+                const float phase = std::arg( z );
+                /* apply phase */
+                const float & re = mImageState[2][i][0]; /* Re */
+                assert( mImageState[2][i][1] == 0 );     /* Im */
+                mImageState[4][i][0] = re * cos(phase); /* Re */
+                mImageState[4][i][1] = re * sin(phase); /* Im */
+            }
+            fftw_free( tmpRandReal );
+#           endif
         }
         else if ( mCurrentFrame == 5 )
         {
-            /* make mask from autocorrelation */
-            const float absMax = vectorMaxAbs( mBlurred, Nx*Ny );
-            memcpy( mMask, mBlurred, Nx*Ny*sizeof(mMask[0]) );
-            for ( unsigned i = 0; i < Nx*Ny; ++i )
-                mMask[i] = mMask[i] < intensityCutOffAutoCorel*absMax ? 0 : 1;
-        }
-        else if ( mCurrentFrame == 6 )
-        {
-            /* in the initial step introduce a random phase as a first guess */
-            memcpy( GPrime, absF, Nx*Ny*sizeof(absF[0]) );
-#           if false
-                /* Because we constrain the object to be a real image (e.g. no
-                 * absorption which would result in an imaginary structure
-                 * coefficient), we should choose the random phases in such a way,
-                 * that the resulting fourier transformed will also be real */
-                /* initialize a random real object */
-                fftw_complex * tmpRandReal = fftw_alloc_complex( Nx*Ny );
-                srand( 2623091912 );
-                for ( unsigned i = 0; i < Nx*Ny; ++i )
-                {
-                    tmpRandReal[i][0] = (float) rand() / RAND_MAX; /* Re */
-                    tmpRandReal[i][1] = 0; /* Im */
-                }
-
-                /* create and execute fftw plan */
-                fftw_plan planForward = fftw_plan_dft_2d( Nx,Ny,
-                    tmpRandReal, tmpRandReal, FFTW_FORWARD, FFTW_ESTIMATE );
-                fftw_execute(planForward);
-                fftw_destroy_plan(planForward);
-
-                /* applies phases of fourier transformed real random field to
-                 * measured input intensity */
-                for ( unsigned i = 0; i < Nx*Ny; ++i )
-                {
-                    /* get phase */
-                    const std::complex<float> z( tmpRandReal[i][0], tmpRandReal[i][1] );
-                    const float phase = std::arg( z );
-                    /* apply phase */
-                    const float & re = absF[i][0];
-                    assert( absF[i][1] == 0 );
-                    GPrime[i][0] = re * cos(phase); /* Re */
-                    GPrime[i][1] = re * sin(phase); /* Im */
-                }
-                fftw_free( tmpRandReal );
-#           endif
-        }
-
-        /* From here forth the periodic algorithm cycle steps begin!
-         * (Actually the above 2 already belonged to the algorithm cycle
-         * but those steps are different for the first rund than for
-         * subsequent runs) */
-        const int cycleOffset = 7;
-        const int cycleFrame  = mCurrentFrame - cycleOffset;
-        const int cyclePeriod = 4;
-
-        if ( mCurrentFrame < 7 ) {}
-        else if ( cycleFrame % cyclePeriod == 0 )
-        {
-            /* Transform G' into real space g' */
-            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, GPrime, gPrime,
-                FFTW_BACKWARD, FFTW_ESTIMATE );
+            /* create and execute fftw plan */
+            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny,
+                GPrime, gPrime, FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
 
@@ -444,98 +381,68 @@ public:
             float avgRe = 0, avgIm = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
             {
-                avgRe += fabs( gPrime[i][0] );
-                avgIm += fabs( gPrime[i][1] );
+                avgRe += gPrime[i][0];
+                avgIm += gPrime[i][1];
             }
             avgRe /= (float) Nx*Ny;
             avgIm /= (float) Nx*Ny;
-            //std::cout << std::scientific
-            //          << "Avg. Re = " << avgRe << "\n"
-            //          << "Avg. Im = " << avgIm << "\n";
-            //assert( avgIm < avgRe * 1e-5 );
+            std::cout << std::scientific
+                      << "Avg. Re = " << avgRe << "\n"
+                      << "Avg. Im = " << avgIm << "\n";
+            assert( avgIm < avgRe * 1e-5 );
 
             /* in the first step the last value for g is to be approximated
              * by g'. The last value for g, called g_k is needed, because
              * g_{k+1} = g_k - hioBeta * g' ! */
-            if ( cycleFrame == 0 )
-                memcpy( g, gPrime, sizeof(g[0])*Nx*Ny );
+            memcpy( g, gPrime, sizeof(g[0])*Nx*Ny );
         }
-        else if ( cycleFrame % cyclePeriod == 1 )
+        /* From here forth the periodic algorithm cycle steps begin!
+         * (Actually the above 2 already belonged to the algorithm cycle
+         * but those steps are different for the first rund than for
+         * subsequent runs) */
+        else if ( (mCurrentFrame-6) % 4 == 0 )
         {
-            /* create a new mask (shrink-wrap) */
-            if ( cycleFrame % ( nHioCycles*cyclePeriod ) == 1 && cycleFrame != 1 )
-            {
-                std::cout << "Update Mask with sigma="<<mSigma<<"\n";
-
-                /* blur IFT[ G'(x)**2 ] not g'=IFT[G'(x)] !! */
-                fftw_complex * tmp = fftw_alloc_complex( Nx*Ny );
-                #if false
-                    /* square G' */
-                    for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    {
-                        const float & re = GPrime[i][0]; /* Re */
-                        const float & im = GPrime[i][1]; /* Im */
-                        tmp[i][0] = re*re + im*im; /* Re */
-                        tmp[i][1] = 0;  /* Im */
-                    }
-                    /* IFT squared G' */
-                    fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, tmp, tmp,
-                        FFTW_BACKWARD, FFTW_ESTIMATE );
-                    fftw_execute(fft);
-                    fftw_destroy_plan(fft);
-                    /* shift real space variant, may not be necessary ... */
-                    fftShift( tmp, Nx,Ny );
-                #else
-                    /* square g' */
-                    for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    {
-                        const float & re = gPrime[i][0]; /* Re */
-                        const float & im = gPrime[i][1]; /* Im */
-                        tmp[i][0] = re*re + im*im; /* Re */
-                        tmp[i][1] = 0;  /* Im */
-                    }
-                #endif
-                /* copy result into float array, because blur can't handle
-                 * fftw_complex array */
-                for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    mBlurred[i] = tmp[i][0];
-                /* blur IFT[ G'(x)**2 ] */
-                gaussianBlur( mBlurred, Nx, Ny, mSigma );
-
-                /* make mask from autocorrelation */
-                const float absMax = vectorMaxAbs( mBlurred, Nx*Ny );
-                memcpy( mMask, mBlurred, Nx*Ny*sizeof(mMask[0]) );
-                for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    mMask[i] = mMask[i] < intensityCutOff*absMax ? 0 : 1;
-
-                mSigma = std::max( 0.5, (1-0.01)*mSigma );
-                fftw_free(tmp);
-            }
-
             /* buffer domain gamma where g' does not satisfy object constraints */
             float * gamma = new float[Nx*Ny];
             for ( unsigned i = 0; i < Nx*Ny; ++i )
                 //gamma[i] = ( mask[i][0] == 0 or gPrime[i][0] < 0 );
-                gamma[i] = mMask[i] == 0 or gPrime[i][0] < 0 ? 1 : 0;
+                gamma[i] = mask[i][0] == 0 or gPrime[i][0] < 0 ? 1 : 0;
 
             /* apply domain constraints to g' to get g */
-            for ( unsigned i = 0; i < Nx*Ny; ++i )
-            {
-                if ( gamma[i] == 0 )
+            #if ALGORITHM == ERROR_REDUCTION
+                for ( unsigned i = 0; i < Nx*Ny; ++i )
                 {
-                    g[i][0] = gPrime[i][0];
-                    g[i][1] = gPrime[i][1]; /* shouldn't be necessary */
+                    if ( gamma[i] == 0 )
+                    {
+                        g[i][0] = gPrime[i][0];
+                        g[i][1] = gPrime[i][1]; /* shouldn't be necessary */
+                    }
+                    else
+                    {
+                        g[i][0] = 0;
+                        g[i][1] = 0; /* shouldn't be necessary */
+                    }
                 }
-                else
+
+            #elif ALGORITHM == HYBRID_INPUT_OUTPUT or ALGORITHM == SHRINK_WRAP
+                for ( unsigned i = 0; i < Nx*Ny; ++i )
                 {
-                    g[i][0] -= hioBeta*gPrime[i][0];
-                    g[i][1] -= hioBeta*gPrime[i][1]; /* shouldn't be necessary */
+                    if ( gamma[i] == 0 )
+                    {
+                        g[i][0] = gPrime[i][0];
+                        g[i][1] = gPrime[i][1]; /* shouldn't be necessary */
+                    }
+                    else
+                    {
+                        g[i][0] -= hioBeta*gPrime[i][0];
+                        g[i][1] -= hioBeta*gPrime[i][1]; /* shouldn't be necessary */
+                    }
                 }
-            }
+            #endif
 
             delete[] gamma;
         }
-        else if ( cycleFrame % cyclePeriod == 2 )
+        else if ( (mCurrentFrame-6) % 4 == 1 )
         {
             /* Transform new guess g for f back into frequency space G' */
             fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, g, G,
@@ -543,7 +450,7 @@ public:
             fftw_execute(fft);
             fftw_destroy_plan(fft);
         }
-        else if ( cycleFrame % cyclePeriod == 3 )
+        else if ( (mCurrentFrame-6) % 4 == 2 )
         {
             /* Replace absolute of G' with measured absolute |F|, keep phase */
             for ( unsigned i = 0; i < Nx*Ny; ++i )
@@ -574,17 +481,33 @@ public:
             unsigned nSummands = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
             {
-                const auto & re = gPrime[i][0];
-                const auto & im = gPrime[i][1];
-                if ( mMask[i] == 0 )
-                {
-                    avgAbsDiff += re*re+im*im;
-                    nSummands += 1;
-                }
+                #if ALGORITHM == HYBRID_INPUT_OUTPUT or ALGORITHM == SHRINK_WRAP
+                    const auto & re = gPrime[i][0];
+                    const auto & im = gPrime[i][1];
+                    if ( mask[i][0] == 0 )
+                    {
+                        avgAbsDiff += re*re+im*im;
+                        nSummands += 1;
+                    }
+                #else
+                    const auto & re = G[i][0];
+                    const auto & im = G[i][1];
+                    const float norm = sqrtf(re*re+im*im);
+                    avgAbsDiff += pow( norm-absF[i][0], 2 );
+                    nSummands = Nx*Ny;
+                #endif
             }
             /* delete enclosing log(...) if no log-plot wanted */
             mReconstructedErrors.push_back( log( sqrtf( avgAbsDiff ) / nSummands ) );
             //std::cout << "Current error = " << mReconstructedErrors.back() << "\n";
+        }
+        else if ( (mCurrentFrame-6) % 4 == 3 )
+        {
+            /* Transform G into real space g' */
+            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, GPrime, gPrime,
+                FFTW_BACKWARD, FFTW_ESTIMATE );
+            fftw_execute(fft);
+            fftw_destroy_plan(fft);
         }
     }
 
@@ -612,16 +535,34 @@ int main(void)
 
     using namespace imresh::examples;
 
-#if false
+#if true
     const unsigned Nx = 40, Ny = 40;
     float * example = createVerticalSingleSlit( Nx, Ny );
-    AnimateHybridInputOutput animateHybridInputOutput( example, Nx, Ny );
+    float * mask    = createVerticalSingleSlit( Nx, Ny );
+    AnimateHybridInputOutput animateHybridInputOutput( example, mask, mask, Nx, Ny );
 #else
     const unsigned Nx = 160, Ny = 160;
     float * example = createAtomCluster( Nx, Ny );
-    AnimateHybridInputOutput animateHybridInputOutput( example, Nx, Ny );
+    float * blurred = new float[ Nx*Ny ];
+    float * mask    = new float[ Nx*Ny ];
+
+    using namespace imresh::math::image;
+    memcpy( blurred, example, sizeof(float)*Nx*Ny );
+    gaussianBlur( blurred, Nx, Ny, 1.0 /*sigma*/ );
+
+    for ( unsigned i = 0; i < Nx*Ny; ++i )
+    {
+        if ( blurred[i] < 0.4 )
+            mask[i] = 0;
+        else
+            mask[i] = 1;
+    }
+
+    AnimateHybridInputOutput animateHybridInputOutput( example, blurred, mask, Nx, Ny );
+    delete[] blurred;
 #endif
     delete[] example;
+    delete[] mask;
 
     animateHybridInputOutput.step();
     animateHybridInputOutput.render( pRenderer );

@@ -18,4 +18,4 @@ x11Colors.o: x11Colors.cpp x11Colors.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 colors.a: x11Colors.o conversions.o
-	ar rcs colors.a $?
+	ar rcs colors.a $^

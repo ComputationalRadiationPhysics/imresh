@@ -55,3 +55,6 @@
 
 Geany
 *.geany
+
+# no need to allow uncompressed images, use png or tiff
+*.bmp

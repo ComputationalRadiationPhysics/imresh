@@ -28,11 +28,14 @@ colors/colors.a:
 gaussian.o: math/image/gaussian.cpp math/image/gaussian.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-sdlcommon.o: sdl/sdlcommon.cpp sdl/sdlcommon.h sdl/sdlcommon.tpp
+sdlcommon.o: sdl/sdlcommon.cpp sdl/sdlcommon.h
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
 
-sdlplot.o: sdl/sdlplot.cpp sdl/sdlplot.h sdl/sdlplot.tpp
+sdlplot.o: sdl/sdlplot.cpp sdl/sdlplot.h sdl/sdlplot.tpp sdlcommon.o colors/colors.a
 	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
+
+complexPlot.o: sdl/complexPlot.cpp sdl/complexPlot.h sdlplot.o colors/colors.a
+	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -lfftw3 -o $@
 
 cudacommon.o: cudacommon.cu cudacommon.h
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
@@ -54,7 +57,7 @@ vectorReduce.o: math/vector/vectorReduce.cpp math/vector/vectorReduce.h
 cudaBasics.a: cudaGaussian.o cudacommon.o
 	nvcc $(NVCCFLAGS) $(SDLLIBS) -lib $^ -o $@
 
-basics.a: colors/colors.a gaussian.o sdlcommon.o sdlplot.o  \
+basics.a: gaussian.o complexPlot.o colors/colors.a sdlplot.o sdlcommon.o \
  dft.o matrix.o vectorReduce.o
 	ar rcsT $@ $^
 
@@ -83,12 +86,16 @@ mainTestAll.exe: mainTestAll.cpp basics.a cudaBasics.a \
 		  testDft.o testFftw.o testGaussian.o testGaussian2d.o
 	rm -f $@
 	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 \
-	testGaussian.o testDft.o testFftw.o testGaussian2d.o cudaBasics.a basics.a -o $@
+	testGaussian.o testDft.o testFftw.o testGaussian2d.o testColors.o cudaBasics.a basics.a -o $@
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
-		gaussian.o sdlplot.o sdlcommon.o cudacommon.o vectorReduce.o \
-		../examples/createAtomCluster.cpp ../examples/createSlit.cpp \
-		colors/colors.a testColors.o
+		gaussian.o sdlplot.o sdlcommon.o \
+		examples/createAtomCluster.cpp examples/createSlit.cpp \
+		basics.a
 	rm -f $@
-	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 gaussian.o sdlplot.o sdlcommon.o \
-	cudacommon.o vectorReduce.o colors/colors.a testColors.o -o $@
+	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 basics.a -o $@
+
+mainUnderstandHybridInputOutput.exe: mainUnderstandHybridInputOutput.cpp \
+		examples/createAtomCluster.cpp examples/createSlit.cpp basics.a
+	rm -f $@
+	$(CC) $(CFLAGS) $< $(SDLLIBS) -lfftw3 basics.a -o $@
