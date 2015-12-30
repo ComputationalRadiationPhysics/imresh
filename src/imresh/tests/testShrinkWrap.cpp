@@ -39,7 +39,7 @@ namespace test
         using namespace imresh::examples;
         using namespace imresh::algorithms::phasereconstruction;
 
-        std::vector<unsigned> imageSize = {160,160};
+        std::vector<unsigned> imageSize = {17,17};
         const unsigned & Nx = imageSize[1];
         const unsigned & Ny = imageSize[0];
 
@@ -64,6 +64,8 @@ namespace test
 
         if ( rpRenderer != NULL )
         {
+            fftwf_complex * tmp = fftwf_alloc_complex( Nx*Ny );
+
             /* scale data for plotting */
             //for ( unsigned i = 0; i < Nx*Ny; ++i )
             //    rectangle[i] = logf( 1+rectangle[i] );
@@ -72,19 +74,25 @@ namespace test
                 absMax = std::max( absMax, std::abs( rectangle[i] ) );
             if ( absMax > 0 )
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    rectangle[i] /= absMax;
+                {
+                    tmp[i][0] = rectangle[i];
+                    tmp[i][1] = 0;
+                }
 
-            SDL_RenderDrawMatrix( rpRenderer, position,0,0,0,0, rectangle,Nx,Ny,
-                true /*drawAxis*/, "Diffraction Intensity" );
+            SDL_RenderDrawComplexMatrix( rpRenderer, position, 0,0,0,0,
+                tmp,Nx,Ny, true /*drawAxis*/, "Diffraction Intensity",
+                true /*logPlot*/, true /*swapQuadrants*/, 1 );
             /* -> */
             SDL_RenderDrawArrow( rpRenderer,
                 position.x + 1.1*position.w, position.y + position.h/2,
                 position.x + 1.4*position.w, position.y + position.h/2 );
             position.x += 1.5*position.w;
+
+            fftwf_free( tmp );
         }
 
         /* display reconstructed image */
-        int shrinkWrapError = imresh::algorithms::phasereconstruction::shrinkWrap( rectangle, imageSize,
+        int shrinkWrapError = shrinkWrap( rectangle, imageSize,
             64 /*cycles*/, 1e-6 /* targetError */ );
         assert( shrinkWrapError == 0 );
 #if false

@@ -368,7 +368,10 @@ void gaussianBlurVertical
         const auto weight = pKernelInt[iRowA];
         /* scalar * rowvector a_0x, could try to write a class to hide this(!)*/
         for ( int iColA = 0; iColA < nColsCacheLine; ++iColA )
+        {
+            assert( bRow+iColA < buffer+bufferSize );
             bRow[iColA] = weight * cachedRowA[iColA];
+        }
     }
 
     /* set the rest of the buffer to 0 */

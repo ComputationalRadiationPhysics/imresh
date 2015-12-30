@@ -51,33 +51,31 @@ namespace algorithms
     unsigned fftShiftIndex
     (
         const unsigned & rLinearIndex,
-        const std::vector<unsigned> & rDim
+        const std::vector<unsigned> & rSize
     )
     {
-        using namespace imresh::algorithms;
-
         std::vector<unsigned> vectorIndex =
-            convertLinearToVectorIndex( rLinearIndex, rDim );
+            convertLinearToVectorIndex( rLinearIndex, rSize );
         //std::cout << "   lini=" << rLinearIndex << " -> " << vectorIndex << "\n";
-        for ( unsigned i = 0; i < rDim.size(); ++i )
+        for ( unsigned i = 0; i < rSize.size(); ++i )
         {
-            vectorIndex[i] += rDim[i] / 2;
-            vectorIndex[i] %= rDim[i];
+            vectorIndex[i] += rSize[i] / 2;
+            vectorIndex[i] %= rSize[i];
         }
-        return convertVectorToLinearIndex( vectorIndex, rDim );
+        return convertVectorToLinearIndex( vectorIndex, rSize );
     }
 
 
     void diffractionIntensity
     (
         float * const & rIoData,
-        const std::vector<unsigned> & rDim
+        const std::vector<unsigned> & rSize
     )
     {
         unsigned nElements = 1;
-        for ( const auto & dim : rDim )
+        for ( const auto & dim : rSize )
             nElements *= dim;
-        const unsigned & lastDim = rDim[ rDim.size()-1 ];
+        const unsigned & lastDim = rSize[ rSize.size()-1 ];
         const unsigned reducedLastDim = lastDim/2+1;
         const unsigned nElementsReduced = nElements / lastDim * reducedLastDim;
         /* @ see http://www.fftw.org/doc/Precision.html */
@@ -85,7 +83,7 @@ namespace algorithms
 
         /* forward fourier transform the original image, i.e. negative
          * coefficients @see http://www.fftw.org/fftw3_doc/The-1d-Discrete-Fourier-Transform-_0028DFT_0029.html#The-1d-Discrete-Fourier-Transform-_0028DFT_0029 */
-        fftwf_plan planForward = fftwf_plan_dft_r2c( rDim.size(), (int*) /*dangerous*/ &rDim[0],
+        fftwf_plan planForward = fftwf_plan_dft_r2c( rSize.size(), (int*) /*dangerous*/ &rSize[0],
             rIoData, tmp, FFTW_ESTIMATE );
         /* FFTW_FORWARD not needed, automatically assumed for r2c */
         fftwf_execute( planForward );
@@ -112,14 +110,25 @@ namespace algorithms
              * The result is in row major form, meaning lastDim lies contiguous
              * in memory.
              **/
-            //const unsigned i0 = fftShiftIndex( iRow*lastDim + iCol, rDim );
+            //const unsigned i0 = fftShiftIndex( iRow*lastDim + iCol, rSize );
             //const unsigned i1 = fftShiftIndex( iRow*lastDim + lastDim-1-iCol,
             const unsigned i0 = iRow*lastDim + iCol;
             rIoData[i0] = norm;
-            if ( iCol != 0 )
+            /* calculate mirrored index */
             {
-                const unsigned i1 = iRow*lastDim + lastDim-iCol;
-                rIoData[i1] = norm;
+                auto iVec = convertLinearToVectorIndex( i0, rSize );
+                bool firstElementInOneDim = false;
+                for ( unsigned iDim = 0; iDim < rSize.size(); ++iDim )
+                {
+                    firstElementInOneDim |= iVec[iDim] == 0;
+                    iVec[iDim] = rSize[iDim] - iVec[iDim];
+                }
+                /* write to symmetric location */
+                if ( not firstElementInOneDim )
+                {
+                    const unsigned i1 = convertVectorToLinearIndex( iVec, rSize );
+                    rIoData[i1] = norm;
+                }
             }
 
             //std::cout << "iRow=" << iRow << ", iCol=" << iCol

@@ -429,7 +429,10 @@ namespace algorithms
         {
             T_PREC * bRow = b + iRowB*nColsCacheLine;
             for ( unsigned iColA = 0; iColA < nColsCacheLine; ++iColA )
+            {
+                assert( bRow+iColA < buffer+bufferSize );
                 bRow[iColA] = 0;
+            }
         }
 
         /* The state now is:
@@ -478,7 +481,10 @@ namespace algorithms
 
                 /* do scalar multiply-add vector \vec{b} += w_iW * \vec{a} */
                 for ( unsigned iCol = 0; iCol < nColsCacheLine; ++iCol )
+                {
+                    assert( bRow+iCol < buffer+bufferSize );
                     bRow[iCol] += weight * cachedRowA[iCol];
+                }
             }
             /* write the line of the buffer, which completed calculating
              * back to global memory */
