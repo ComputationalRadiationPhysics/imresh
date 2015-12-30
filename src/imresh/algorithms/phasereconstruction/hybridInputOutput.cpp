@@ -55,7 +55,8 @@ namespace phasereconstruction
     (
         const T_COMPLEX * const & gPrime,
         const T_MASK_ELEMENT * const & rIsMasked,
-        const unsigned & nElements
+        const unsigned & nElements,
+        const bool & rInvertMask
     )
     {
         float totalError    = 0;
@@ -68,7 +69,10 @@ namespace phasereconstruction
             const auto & im = gPrime[i][1];
 
             /* only add up norm where no object should be (rMask == 0) */
-            const float shouldBeZero = rIsMasked[i];
+            assert( rIsMasked[i] >= 0.0 and rIsMasked[i] <= 1.0 );
+            float shouldBeZero = rIsMasked[i];
+            if ( rInvertMask )
+                shouldBeZero = 1 - shouldBeZero;
 
             totalError    += shouldBeZero * ( re*re+im*im );
             nMaskedPixels += shouldBeZero;
@@ -80,7 +84,15 @@ namespace phasereconstruction
     (
         const fftwf_complex * const & gPrime,
         const float * const & rIsMasked,
-        const unsigned & nElements
+        const unsigned & nElements,
+        const bool & rInvertMask
+    );
+    template float calculateHioError<fftw_complex,float>
+    (
+        const fftw_complex * const & gPrime,
+        const float * const & rIsMasked,
+        const unsigned & nElements,
+        const bool & rInvertMask
     );
 
 

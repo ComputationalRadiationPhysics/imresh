@@ -54,7 +54,8 @@ namespace phasereconstruction
     (
         const T_COMPLEX * const & gPrime,
         const T_MASK_ELEMENT * const & rIsMasked,
-        const unsigned & nElements
+        const unsigned & nElements,
+        const bool & rInvertMask = false
     );
 
     /**
