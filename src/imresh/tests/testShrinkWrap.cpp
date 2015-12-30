@@ -39,7 +39,7 @@ namespace test
         using namespace imresh::examples;
         using namespace imresh::algorithms::phasereconstruction;
 
-        std::vector<unsigned> imageSize = {17,17};
+        std::vector<unsigned> imageSize = {160,160};
         const unsigned & Nx = imageSize[1];
         const unsigned & Ny = imageSize[0];
 
@@ -64,21 +64,13 @@ namespace test
 
         if ( rpRenderer != NULL )
         {
-            fftwf_complex * tmp = fftwf_alloc_complex( Nx*Ny );
+            fftw_complex * tmp = fftw_alloc_complex( Nx*Ny );
 
-            /* scale data for plotting */
-            //for ( unsigned i = 0; i < Nx*Ny; ++i )
-            //    rectangle[i] = logf( 1+rectangle[i] );
-            float absMax = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
-                absMax = std::max( absMax, std::abs( rectangle[i] ) );
-            if ( absMax > 0 )
-                for ( unsigned i = 0; i < Nx*Ny; ++i )
-                {
-                    tmp[i][0] = rectangle[i];
-                    tmp[i][1] = 0;
-                }
-
+            {
+                tmp[i][0] = rectangle[i];
+                tmp[i][1] = 0;
+            }
             SDL_RenderDrawComplexMatrix( rpRenderer, position, 0,0,0,0,
                 tmp,Nx,Ny, true /*drawAxis*/, "Diffraction Intensity",
                 true /*logPlot*/, true /*swapQuadrants*/, 1 );
@@ -88,7 +80,7 @@ namespace test
                 position.x + 1.4*position.w, position.y + position.h/2 );
             position.x += 1.5*position.w;
 
-            fftwf_free( tmp );
+            fftw_free( tmp );
         }
 
         /* display reconstructed image */

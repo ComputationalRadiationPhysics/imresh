@@ -257,7 +257,7 @@ public:
         delete[] mBlurred;
     }
 
-    void render( SDL_Renderer * rpRenderer )
+    void render( SDL_Renderer * rpRenderer ) const
     {
         using namespace sdlcommon;
 
@@ -309,7 +309,7 @@ public:
         {
             const unsigned maxWidth = mPlotPositions[10].w;
             const unsigned size = std::min( maxWidth, (unsigned) mReconstructedErrors.size() );
-            float * data = &mReconstructedErrors[0];
+            const float * data = &mReconstructedErrors[0];
             if ( size == maxWidth )
                 data += mReconstructedErrors.size()-maxWidth;
 
@@ -365,7 +365,7 @@ public:
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
-            fftShift( autocorr, Nx,Ny );
+            //fftShift( autocorr, Nx,Ny );
         }
         else if ( mCurrentFrame == 4 )
         {
