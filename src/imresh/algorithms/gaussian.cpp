@@ -300,7 +300,7 @@ namespace algorithms
          * Therefore needs to be at least kernelSize*nColsCacheLine large, else
          * we would have to write-back the buffer before the weighted sum
          * completed! */
-        const unsigned bufferSize = nColsCacheLine*nColsCacheLine;
+        const unsigned bufferSize = nRowsCacheLine*nColsCacheLine;
         T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
         //assert( rnDataY <= bufferSize/nColsCacheLine );
 
@@ -418,7 +418,10 @@ namespace algorithms
             const auto weight = pKernelInt[iRowA];
             /* scalar * rowvector a_0x, could try to write a class to hide this(!)*/
             for ( unsigned iColA = 0; iColA < nColsCacheLine; ++iColA )
+            {
+                assert( bRow+iColA < buffer+bufferSize );
                 bRow[iColA] = weight * cachedRowA[iColA];
+            }
         }
 
         /* set the rest of the buffer to 0 */

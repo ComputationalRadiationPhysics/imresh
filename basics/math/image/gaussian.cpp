@@ -251,7 +251,7 @@ void gaussianBlurVertical
      * Therefore needs to be at least kernelSize*nColsCacheLine large, else
      * we would have to write-back the buffer before the weighted sum
      * completed! */
-    const int bufferSize = nColsCacheLine*nColsCacheLine;
+    const int bufferSize = nRowsCacheLine*nColsCacheLine;
     T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
     //assert( rnDataY <= bufferSize/nColsCacheLine );
 
