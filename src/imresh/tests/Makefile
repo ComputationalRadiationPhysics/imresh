@@ -19,6 +19,10 @@ diffractionIntensity.o:
 	make -C ../algorithms $@
 hybridInputOutput.o:
 	make -C ../algorithms/phasereconstruction $@
+shrinkWrap.o:
+	make -C ../algorithms/phasereconstruction $@
+gaussian.o:
+	make -C ../algorithms $@
 
 sdlcommon.a:
 	make -C ../sdlcommon $@
@@ -30,15 +34,25 @@ testVectorIndex.o: testVectorIndex.cpp testVectorIndex.h vectorIndex.o
 	$(CC) -c $(CFLAGS) $< -o $@
 testDiffractionIntensity.o: testDiffractionIntensity.cpp testDiffractionIntensity.h diffractionIntensity.o
 	$(CC) -c $(CFLAGS) $< -o $@
-testHybridInputOutput.o: testHybridInputOutput.cpp testHybridInputOutput.h diffractionIntensity.o examples.a
+testHybridInputOutput.o: testHybridInputOutput.cpp testHybridInputOutput.h diffractionIntensity.o examples.a hybridInputOutput.o
 	$(CC) -c $(CFLAGS) $< -o $@
+testShrinkWrap.o: testShrinkWrap.cpp testShrinkWrap.h diffractionIntensity.o examples.a shrinkWrap.o
+	$(CC) -c $(CFLAGS) $< -o $@
+testGaussian.o: testGaussian.cpp testGaussian.h gaussian.o
+	$(CC) -c $(CFLAGS) $< -o $@
+#testGaussian2d.o: testGaussian2d.cpp testGaussian2d.h gaussian.o
+#	$(CC) -c $(CFLAGS) $< -o $@
 
 
-mainTestAll.exe: mainTestAll.cpp testVectorIndex.o testDiffractionIntensity.o sdlcommon.a testHybridInputOutput.o hybridInputOutput.o
+mainTestAll.exe: mainTestAll.cpp testVectorIndex.o testDiffractionIntensity.o sdlcommon.a testHybridInputOutput.o testShrinkWrap.o testGaussian.o
 	rm -f $@
 	$(CC) $(CFLAGS) $< testVectorIndex.o ../algorithms/vectorIndex.o \
 	testDiffractionIntensity.o ../algorithms/diffractionIntensity.o \
-	testHybridInputOutput.o ../examples/examples.a \
+	testHybridInputOutput.o  \
+	testShrinkWrap.o ../algorithms/phasereconstruction/shrinkWrap.o \
 	../algorithms/phasereconstruction/hybridInputOutput.o \
+	testGaussian.o \
+	../examples/examples.a \
+	../algorithms/gaussian.o \
 	../sdlcommon/sdlcommon.a ../colors/colors.a $(SDLLIBS) \
 	 -lfftw3 -lfftw3f -o $@

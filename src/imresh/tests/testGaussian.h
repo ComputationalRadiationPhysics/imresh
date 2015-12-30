@@ -25,30 +25,39 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include <vector>
-#include <cstdlib>  // srand, rand
+#include <SDL.h>
+#include <cstdlib> // srand, rand, RAND_MAX
+#include <cassert>
+#include <cstdio>  // sprintf
+#include <cmath>
+#include "sdlcommon/sdlplot.h"
 #include "algorithms/gaussian.h"
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
 
 namespace imresh
 {
-namespace examples
+namespace test
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float * createAtomCluster
+    void testGaussianBlurVector
     (
-        const std::vector<unsigned> & rSize
+        SDL_Renderer * const & rpRenderer,
+        SDL_Rect rRect,
+        float * const & rData,
+        const unsigned & rnData,
+        const float & rSigma,
+        const char * const & rTitle
+    );
+
+    void testGaussian(
+        SDL_Renderer * const & rpRenderer
     );
 
 
-} // namespace examples
 } // namespace imresh
+} // namespace test

@@ -25,30 +25,51 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include <vector>
-#include <cstdlib>  // srand, rand
-#include "algorithms/gaussian.h"
+#include <SDL.h>
+#include <cstdlib> // srand, rand, RAND_MAX, malloc, free
+#include <cassert>
+#include <cstring> // memcpy
+#include <cstdio>  // sprintf
+#include <cmath>
+#include <cfloat>  // FLT_EPSILON
+#include "sdl/sdlplot.h"
+#include "math/image/gaussian.h"
+#include "math/image/cudaGaussian.h"
+#include <cuda_runtime_api.h>  // cudaMalloc, cudaFree, ... (yes not cuda.h!)
+#include "math/vector/vectorReduce.h"
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
 
 namespace imresh
 {
-namespace examples
+namespace test
 {
 
 
     /**
-     * Create a sample data of two atom clusters
+     * Plots original, horizontally and vertically blurred intermediary steps
      *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
+     * Also compares the result of the CPU blur with the CUDA blur
      **/
-    float * createAtomCluster
+    void testGaussianBlur2d
     (
-        const std::vector<unsigned> & rSize
+        SDL_Renderer * const & rpRenderer,
+        SDL_Rect rRect,
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const float & rSigma,
+        const char * const & rTitle
+    );
+
+    void testGaussian2d
+    (
+        SDL_Renderer * const & rpRenderer
     );
 
 
-} // namespace examples
 } // namespace imresh
+} // namespace test

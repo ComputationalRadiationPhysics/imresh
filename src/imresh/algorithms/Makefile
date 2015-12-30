@@ -5,9 +5,8 @@ NVCCFLAGS=-std=c++11 --compiler-bindir $$(which $(CC)) -arch=sm_20 \
 		  $$(sdl2-config --cflags) $(INC) --compiler-options -fopenmp \
 		  --compiler-options -Wall,-Wextra,-Wshadow,-Wno-unused-parameter
 
-SDLLIBS=$$(sdl2-config --libs) -l SDL2_image -l SDL2_ttf
 WARNINGS=-Wall -Wextra -Wshadow -Wno-unused-parameter
-CFLAGS=-g -fopenmp -std=c++11 $$(sdl2-config --cflags) $(INC) $(WARNINGS)
+CFLAGS=-g -fopenmp -std=c++11 $(INC) $(WARNINGS)
 
 
 
@@ -25,10 +24,11 @@ phasereconstruction.a:
 
 
 vectorIndex.o: vectorIndex.cpp vectorIndex.h
-	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -o $@
-
+	$(CC) -c $(CFLAGS) $< -o $@
 diffractionIntensity.o: diffractionIntensity.cpp diffractionIntensity.h
-	$(CC) -c $(CFLAGS) $< $(SDLLIBS) -lfftw3 -lfftw3f -o $@
+	$(CC) -c $(CFLAGS) $< -lfftw3 -lfftw3f -o $@
+gaussian.o: gaussian.cpp gaussian.h
+	$(CC) -c $(CFLAGS) $< -o $@
 
 #cudacommon.o: cudacommon.cu cudacommon.h
 #	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@

@@ -32,11 +32,13 @@
 #include <cmath>      // sqrtf
 #include <complex>
 #include <cassert>
+#include <cfloat>     // FLT_EPSILON
 #include <iostream>
 #include <vector>
 #include <omp.h>      // omp_get_num_procs, omp_set_num_procs
 #include <fftw3.h>
 #include "hybridInputOutput.h"
+#include "algorithms/vectorIndex.h"
 
 
 namespace imresh
@@ -46,6 +48,14 @@ namespace algorithms
 namespace phasereconstruction
 {
 
+
+    template< class T_COMPLEX, class T_MASK_ELEMENT >
+    float calculateHioError
+    (
+        const T_COMPLEX * const & gPrime,
+        const T_MASK_ELEMENT * const & rIsMasked,
+        const unsigned & nElements
+    );
 
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)

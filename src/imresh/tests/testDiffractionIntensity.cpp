@@ -44,8 +44,8 @@ namespace test
         /* initialize rectangle */
         float * rectangle = new float[Nx*Ny];
         memset( rectangle,0, Nx*Ny*sizeof( rectangle[0] ) );
-        for ( unsigned ix = Nx/2-w; ix < Nx/2+w; ++ix )
-        for ( unsigned iy = Ny/2-h; iy < Ny/2+h; ++iy )
+        for ( unsigned ix = Nx/2-w; ix <= Nx/2+w; ++ix )
+        for ( unsigned iy = Ny/2-h; iy <= Ny/2+h; ++iy )
             rectangle[iy*Nx+ix] = 1.0f;
 
         /* display it */
@@ -129,6 +129,22 @@ namespace test
             }
             //assert( not foundInequality );
         }
+
+        /* compare with analytical solution. Not that easy, because it is
+         * a discrete fourier transform */
+        /*
+        auto sinc = []( double x ) { return fabs(x) < FLT_EPSILON ?
+            cos(x) : sin(x) / x; };
+        for ( unsigned iy = 0; iy < 1; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float omegaX = ix <= Nx/2 ? ix : ix-Nx;
+            float omegaY = iy <= Ny/2 ? iy : iy-Ny;
+            std::cout << "ix="<<ix<<",iy="<<iy<<": "<< rectangle[iy*Nx+ix] /
+            sinc(omegaX)*sinc(omegaY) << "\n";
+        }
+        */
+
 
         /* display pattern */
         //for ( unsigned i = 0; i < Nx*Ny; ++i )

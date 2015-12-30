@@ -32,6 +32,7 @@ namespace algorithms
 {
 
 
+    /*
     template<class T>
     std::ostream & operator<<
     (
@@ -45,6 +46,7 @@ namespace algorithms
         rOut << "}";
         return rOut;
     }
+    */
 
     unsigned fftShiftIndex
     (

@@ -12,11 +12,11 @@ clean:
 	rm -f *.exe *.o *.a
 
 
-#createAtomCluster.o: createAtomCluster.cpp createAtomCluster.h
-#	$(CC) -c $(CFLAGS) $< -o $@
+createAtomCluster.o: createAtomCluster.cpp createAtomCluster.h
+	$(CC) -c $(CFLAGS) $< -o $@
 createSlit.o: createSlit.cpp createSlit.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
 
-examples.a: createSlit.o
+examples.a: createSlit.o createAtomCluster.o
 	ar rcsT $@ $^

@@ -37,7 +37,7 @@ float * createAtomCluster( const unsigned Nx, const unsigned Ny )
 
     /* Add random background noise and blur it, so that it isn't pixelwise */
     srand(4628941);
-    const float noiseAmplitude = 0.01;
+    const float noiseAmplitude = 0.00;
     for ( unsigned i = 0; i < Nx*Ny; ++i )
         data[i] = 0.7*noiseAmplitude * rand() / (float) RAND_MAX;
     gaussianBlur( data, Nx, Ny, 1.5 /*sigma in pixels*/ );

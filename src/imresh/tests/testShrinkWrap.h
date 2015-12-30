@@ -25,30 +25,28 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
+#include <iostream>
+#include <cassert>
 #include <vector>
-#include <cstdlib>  // srand, rand
-#include "algorithms/gaussian.h"
+#include <SDL.h>
+#include "sdlcommon/sdlplot.h"
+#include "sdlcommon/complexPlot.h"
+#include "algorithms/vectorIndex.h"
+#include "algorithms/diffractionIntensity.h"
+#include "algorithms/phasereconstruction/shrinkWrap.h"
+#include "examples/createSlit.h"
+#include "examples/createAtomCluster.h"
 
 
 namespace imresh
 {
-namespace examples
+namespace test
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float * createAtomCluster
-    (
-        const std::vector<unsigned> & rSize
-    );
+    void testShrinkWrap( SDL_Renderer * const & rpRenderer );
 
 
-} // namespace examples
 } // namespace imresh
+} // namespace test
+

@@ -26,8 +26,19 @@
 #pragma once
 
 #include <cstddef>    // NULL
+#include <cstdint>    // uint8_t
+#include <climits>    // INT_MAX
+#include <cstring>    // memcpy
+#include <cassert>
+#include <cfloat>     // FLT_EPSILON
+#include <cmath>
+#include <iostream>
+#include <vector>
+#include <omp.h>      // omp_get_num_procs, omp_set_num_procs
 #include <fftw3.h>
-#include "hybridInputOutput.h"
+#include "shrinkWrap.h"
+#include "algorithms/gaussian.h"
+#include "algorithms/phasereconstruction/hybridInputOutput.h"
 
 
 namespace imresh
@@ -54,14 +65,16 @@ namespace phasereconstruction
      **/
     int shrinkWrap
     (
-        float * const rIoData,
-        const unsigned rNx,
-        const unsigned rNy,
+        float * const & rIoData,
+        const std::vector<unsigned> & rSize,
         float rnHioCycles = 20,
+        float rTargetError = 1e-5,
         float rHioBeta = 0.9,
         float rIntensityCutOffAutoCorel = 0.04,
         float rIntensityCutOff = 0.20,
         float sigma0 = 3.0,
+        float rSigmaChange = 0.01,
+        unsigned rnCycles = 10000,
         unsigned rnCores = 1
     );
 

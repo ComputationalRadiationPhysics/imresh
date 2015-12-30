@@ -23,21 +23,28 @@
  */
 
 
+#include <iostream>
+#include <cstddef>  // NULL
+#include <SDL.h>
 #include "sdlcommon/sdlcommon.h"
 #include "testVectorIndex.h"
 #include "testDiffractionIntensity.h"
 #include "testHybridInputOutput.h"
+#include "testShrinkWrap.h"
+#include "testGaussian.h"
 
 
 int main(void)
 {
+    using namespace imresh::sdlcommon;
+    using namespace imresh::test;
+
     /* Tests which don't need to show graphics */
     imresh::test::testVectorIndex();
     std::cout << "testVectorIndex [OK]\n";
+    testHybridInputOutput(NULL);
+    std::cout << "testHybridInputOutput [OK]\n";
 
-
-    using namespace imresh::sdlcommon;
-    using namespace imresh::test;
 
     SDL_Window   * pWindow;
     SDL_Renderer * pRenderer;
@@ -78,21 +85,23 @@ int main(void)
                 SDL_RenderClear( pRenderer );
 
                 SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-                switch ( currentFrame % 2 )
+                switch ( currentFrame % 4 )
                 {
                     case 0:
-                        testHybridInputOutput(pRenderer);
+                        testShrinkWrap(pRenderer);
+                        std::cout << "testShrinkWrap [OK]\n";
                         break;
                     case 1:
-                        testDiffractionIntensity(pRenderer);
+                        testHybridInputOutput(pRenderer);
+                        std::cout << "testHybridInputOutput [OK]\n";
                         break;
-                    /*
-                    case 2: imresh::test::testGaussian(pRenderer);   break;
-                    case 3: imresh::test::testGaussian2d(pRenderer); break;
-                    case 4: imresh::test::testDft(pRenderer);        break;
-                    case 5: imresh::test::testFftw(pRenderer);       break;
-                    case 6: imresh::test::testFftw2d(pRenderer);     break;
-                    */
+                    case 2:
+                        testDiffractionIntensity(pRenderer);
+                        std::cout << "testDiffractionIntensity [OK]\n";
+                        break;
+                    case 3:
+                        testGaussian(pRenderer);
+                        break;
                     default: break;
                 }
                 SDL_RenderPresent( pRenderer );

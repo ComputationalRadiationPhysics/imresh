@@ -28,7 +28,6 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include <cstdint>   // uint8_t
 #include <SDL.h>
 #include "sdlcommon/sdlplot.h"
 #include "sdlcommon/complexPlot.h"
@@ -36,6 +35,7 @@
 #include "algorithms/diffractionIntensity.h"
 #include "algorithms/phasereconstruction/hybridInputOutput.h"
 #include "examples/createSlit.h"
+#include "examples/createAtomCluster.h"
 
 
 namespace imresh

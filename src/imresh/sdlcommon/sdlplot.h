@@ -133,13 +133,13 @@ namespace sdlcommon
      **/
     int SDL_RenderDrawHistogram
     (
-        SDL_Renderer * const rpRenderer,
+        SDL_Renderer * const & rpRenderer,
         const SDL_Rect & rAxes,
         float x0,
         float x1,
         float y0,
         float y1,
-        const float * const values,
+        const float * const & values,
         const unsigned & nValues,
         unsigned binWidth = 0,
         const bool & fill = false,

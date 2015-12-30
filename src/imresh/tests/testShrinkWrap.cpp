@@ -24,7 +24,7 @@
 
 
 #include "testHybridInputOutput.h"
-
+#include "algorithms/phasereconstruction/shrinkWrap.h"
 
 namespace imresh
 {
@@ -32,19 +32,20 @@ namespace test
 {
 
 
-    void testHybridInputOutput
+    void testShrinkWrap
     ( SDL_Renderer * const & rpRenderer )
     {
         using namespace sdlcommon;
         using namespace imresh::examples;
         using namespace imresh::algorithms::phasereconstruction;
 
-        std::vector<unsigned> imageSize = {40,40};
+        std::vector<unsigned> imageSize = {160,160};
         const unsigned & Nx = imageSize[1];
         const unsigned & Ny = imageSize[0];
 
         /* display rectangle */
-        float * rectangle = createVerticalSingleSlit( Nx, Ny );
+        //float * rectangle = createVerticalSingleSlit( Nx, Ny );
+        float * rectangle = createAtomCluster( imageSize );
         SDL_Rect position = { 40,30,160,160 };
         if ( rpRenderer != NULL )
         {
@@ -58,11 +59,6 @@ namespace test
         float * originalRectangle = new float[Nx*Ny];
         memcpy( originalRectangle, rectangle, sizeof(float)*Nx*Ny );
 
-        /* create mask for HIO */
-        uint8_t * mask = new uint8_t[ Nx*Ny ];
-        for ( unsigned i = 0; i < Nx*Ny; ++i )
-            mask[i] = 1-rectangle[i];
-
         /* convert to diffraction pattern and display it */
         algorithms::diffractionIntensity( rectangle, imageSize );
 
@@ -71,11 +67,12 @@ namespace test
             /* scale data for plotting */
             //for ( unsigned i = 0; i < Nx*Ny; ++i )
             //    rectangle[i] = logf( 1+rectangle[i] );
-            float max = 0;
+            float absMax = 0;
             for ( unsigned i = 0; i < Nx*Ny; ++i )
-                max = std::max( max, rectangle[i] );
-            for ( unsigned i = 0; i < Nx*Ny; ++i )
-                rectangle[i] /= max;
+                absMax = std::max( absMax, std::abs( rectangle[i] ) );
+            if ( absMax > 0 )
+                for ( unsigned i = 0; i < Nx*Ny; ++i )
+                    rectangle[i] /= absMax;
 
             SDL_RenderDrawMatrix( rpRenderer, position,0,0,0,0, rectangle,Nx,Ny,
                 true /*drawAxis*/, "Diffraction Intensity" );
@@ -87,16 +84,16 @@ namespace test
         }
 
         /* display reconstructed image */
-        int hioError = hybridInputOutput( rectangle, mask, imageSize,
-            64 /*cycles*/, 1e-6 /* targetError */, 0.9 /* beta */, 0 /* cores */ );
-        assert( hioError == 0 );
-
+        int shrinkWrapError = imresh::algorithms::phasereconstruction::shrinkWrap( rectangle, imageSize,
+            64 /*cycles*/, 1e-6 /* targetError */ );
+        assert( shrinkWrapError == 0 );
+#if false
         /* check if result is correct */
         float avgScale = 0;
         unsigned elementsNeqZero = 0;
         for ( unsigned i = 0; i < Nx*Ny; ++i )
         {
-            if ( mask[i] == 0 )
+            if ( originalRectangle[i] != 0 )
             {
                 avgScale += rectangle[i] / originalRectangle[i];
                 ++elementsNeqZero;
@@ -108,7 +105,7 @@ namespace test
         elementsNeqZero = 0;
         for ( unsigned i = 0; i < Nx*Ny; ++i )
         {
-            if ( mask[i] == 0 )
+            if ( originalRectangle[i] != 0 )
             {
                 //std::cout << originalRectangle[i] << " - " << rectangle[i] << " = ";
                 avgError += fabs( originalRectangle[i] - rectangle[i] / avgScale );
@@ -117,8 +114,9 @@ namespace test
             }
         }
         avgError /= elementsNeqZero;
-        std::cout << " avgError = " << avgError << "\n";
-        //assert( avgError < 1e-3 );
+        std::cout << "avgError = " << avgError << "\n";
+        assert( avgError < 1e-3 );
+#endif
 
         /* plot reconstructed image */
         if ( rpRenderer != NULL )
@@ -134,7 +132,6 @@ namespace test
 
         delete[] originalRectangle;
         delete[] rectangle;
-        delete[] mask;
     }
 
 
