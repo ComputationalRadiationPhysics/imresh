@@ -119,7 +119,7 @@ namespace phasereconstruction
     (
         float * const & rIntensity,
         const std::vector<unsigned> & rSize,
-        float rnHioCycles,
+        unsigned rnHioCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
@@ -140,12 +140,14 @@ namespace phasereconstruction
         /* Evaluate input parameters and fill with default values if necessary */
         if ( rIntensity == NULL ) return 1;
         if ( rTargetError              <= 0 ) rTargetError              = 1e-5;
-        if ( rnHioCycles               <= 0 ) rnHioCycles               = 20;
+        if ( rnHioCycles               == 0 ) rnHioCycles               = 20;
         if ( rHioBeta                  <= 0 ) rHioBeta                  = 0.9;
         if ( rIntensityCutOffAutoCorel <= 0 ) rIntensityCutOffAutoCorel = 0.04;
         if ( rIntensityCutOff          <= 0 ) rIntensityCutOff          = 0.2;
         if ( rSigma0                   <= 0 ) rSigma0                   = 3.0;
         if ( rSigmaChange              <= 0 ) rSigmaChange              = 0.01;
+
+        float sigma = rSigma0;
 
         /* calculate this (length of array) often needed value */
         unsigned nElements = 1;
@@ -161,6 +163,44 @@ namespace phasereconstruction
         fftwf_complex * const gPrevious = fftwf_alloc_complex( nElements );
         auto const isMasked = new float[nElements];
 
+        /* create fft plans G' to g' and g to G */
+        fftwf_plan toRealSpace = fftwf_plan_dft( rSize.size(),
+            (int*) &rSize[0], curData, curData, FFTW_BACKWARD, FFTW_ESTIMATE );
+        fftwf_plan toFreqSpace = fftwf_plan_dft( rSize.size(),
+            (int*) &rSize[0], gPrevious, curData, FFTW_FORWARD, FFTW_ESTIMATE );
+
+        /* create first guess for mask from autocorrelation (fourier transform
+         * of the intensity @see
+         * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
+        #pragma omp parallel for
+        for ( unsigned i = 0; i < nElements; ++i )
+        {
+            curData[i][0] = rIntensity[i]; /* Re */
+            curData[i][1] = 0;
+        }
+        fftwf_execute( toRealSpace );
+        #pragma omp parallel for
+        for ( unsigned i = 0; i < nElements; ++i )
+        {
+            float & re = curData[i][0]; /* Re */
+            float & im = curData[i][1]; /* Im */
+            isMasked[i] = sqrtf( re*re + im*im );
+        }
+        fftShift( isMasked, Nx,Ny );
+        gaussianBlur( isMasked, Nx, Ny, sigma );
+
+        /* find maximum in order to calc threshold value */
+        float absMax = 0;
+        #pragma omp parallel for reduction( max : absMax )
+        for ( unsigned i = 0; i < nElements; ++i )
+            absMax = fmax( absMax, isMasked[i] );
+
+        /* apply threshold to make binary mask */
+        const float threshold = rIntensityCutOffAutoCorel * absMax;
+        #pragma omp parallel for
+        for ( unsigned i = 0; i < nElements; ++i )
+            isMasked[i] = isMasked[i] < threshold ? 1 : 0;
+
         /* copy original image into fftw_complex array and add random phase */
         #pragma omp parallel for
         for ( unsigned i = 0; i < nElements; ++i )
@@ -169,244 +209,100 @@ namespace phasereconstruction
             curData[i][1] = 0;
         }
 
-        /* create fft plans G' to g' and g to G */
-        fftwf_plan toRealSpace = fftwf_plan_dft( rSize.size(),
-            (int*) &rSize[0], curData, curData, FFTW_BACKWARD, FFTW_ESTIMATE );
-        fftwf_plan toFreqSpace = fftwf_plan_dft( rSize.size(),
-            (int*) &rSize[0], gPrevious, curData, FFTW_FORWARD, FFTW_ESTIMATE );
-
-
-
-
-        /* needed variables */
-        int mCurrentFrame = 0;
-
-        static constexpr unsigned mnSteps = 8;
-        fftw_complex * mImageState[ mnSteps ];
-        std::string mTitles[ mnSteps+3 ];
-        std::vector<float> mReconstructedErrors;
-
-        float * mBlurred;
-
-        typedef struct { int x0,y0,x1,y1; } Line2d;
-        std::vector<Line2d> mArrows;
-
-        static constexpr float hioBeta = 0.9;
-        static constexpr float intensityCutOffAutoCorel = 0.04;
-        static constexpr float intensityCutOff = 0.20;
-        static constexpr float sigma0 = 3.0;
-        static constexpr int   nHioCycles = 20;
-
-        float mSigma = sigma0;
-
-        /* allocate and clear all intermediary steps */
-        for ( unsigned i = 0; i < mnSteps; ++i )
-        {
-            mImageState[i] = fftw_alloc_complex(nElements);
-            memset( mImageState[i], 0, sizeof(mImageState[i][0])*nElements );
-        }
-        mBlurred = new float[ nElements ];
-        memset( mBlurred, 0, nElements*sizeof(mBlurred[0]) );
-        memset( isMasked   , 0, nElements*sizeof(isMasked   [0]) );
-
-        /* save original image to first array */
+        /* in the first step the last value for g is to be approximated
+         * by g'. The last value for g, called g_k is needed, because
+         * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
+         * because the fft is needed */
         for ( unsigned i = 0; i < nElements; ++i )
-            mImageState[2][i][0] = rIntensity[i]; /* Re */
+        {
+            gPrevious[i][0] = curData[i][0];
+            gPrevious[i][1] = curData[i][1];
+        }
 
+        /* repeatedly call HIO algorithm and change mask */
+        for ( unsigned iCycle = 0; iCycle < rnCycles; ++iCycle )
+        {
+            /************************** Update Mask ***************************/
+            std::cout << "Update Mask with sigma=" << sigma << "\n";
 
-        using namespace imresh::algorithms;
-
-        /* define some aliases according to Fienup82 */
-        const auto & absF     = mImageState[2];
-        const auto & autocorr = mImageState[3]; // autocorrelation
-        const auto & GPrime   = mImageState[4];
-        const auto & gPrime   = mImageState[5];
-        const auto & g        = mImageState[6];
-        const auto & G        = mImageState[7];
-
-        /* create and execute fftw plan */
-        fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, absF, autocorr,
-            FFTW_BACKWARD, FFTW_ESTIMATE );
-        fftw_execute(fft);
-        fftw_destroy_plan(fft);
-        fftShift( autocorr, Nx,Ny );
-
-            /* blur the autocorrelation function */
+            /* blur |g'| (normally g' should be real!, so |.| not
+             * necessary) */
+            #pragma omp parallel for
             for ( unsigned i = 0; i < nElements; ++i )
-                mBlurred[i] = autocorr[i][0] > 0 ? autocorr[i][0] : 0;
-            gaussianBlur( mBlurred, Nx, Ny, mSigma /*sigma*/ );
+            {
+                const float & re = curData[i][0]; /* Re */
+                const float & im = curData[i][1]; /* Im */
+                isMasked[i] = sqrtf( re*re + im*im );
+            }
+            gaussianBlur( isMasked, Nx, Ny, sigma );
 
-
-            /* make mask from autocorrelation */
+            /* find maximum in order to calc threshold value */
             float absMax = 0;
             #pragma omp parallel for reduction( max : absMax )
             for ( unsigned i = 0; i < nElements; ++i )
-                absMax = fmax( absMax, fabs( mBlurred[i] ) );
-            memcpy( isMasked, mBlurred, nElements*sizeof(isMasked[0]) );
+                absMax = fmax( absMax, isMasked[i] );
+
+            /* apply threshold to make binary mask */
+            const float threshold = ( iCycle == 0 ? rIntensityCutOffAutoCorel : rIntensityCutOff ) * absMax;
+            #pragma omp parallel for
             for ( unsigned i = 0; i < nElements; ++i )
-                isMasked[i] = isMasked[i] < intensityCutOffAutoCorel*absMax ? 1 : 0;
+                isMasked[i] = isMasked[i] < threshold ? 1 : 0;
 
+            /* update the blurring sigma */
+            sigma = fmax( 1.5, ( 1 - rSigmaChange ) * sigma );
 
-            /* in the initial step introduce a random phase as a first guess */
-            memcpy( GPrime, absF, nElements*sizeof(absF[0]) );
-#           if false
-                /* Because we constrain the object to be a real image (e.g. no
-                 * absorption which would result in an imaginary structure
-                 * coefficient), we should choose the random phases in such a way,
-                 * that the resulting fourier transformed will also be real */
-                /* initialize a random real object */
-                fftw_complex * tmpRandReal = fftw_alloc_complex( nElements );
-                srand( 2623091912 );
-                for ( unsigned i = 0; i < nElements; ++i )
-                {
-                    tmpRandReal[i][0] = (float) rand() / RAND_MAX; /* Re */
-                    tmpRandReal[i][1] = 0; /* Im */
-                }
-
-                /* create and execute fftw plan */
-                fftw_plan planForward = fftw_plan_dft_2d( Nx,Ny,
-                    tmpRandReal, tmpRandReal, FFTW_FORWARD, FFTW_ESTIMATE );
-                fftw_execute(planForward);
-                fftw_destroy_plan(planForward);
-
-                /* applies phases of fourier transformed real random field to
-                 * measured input intensity */
-                for ( unsigned i = 0; i < nElements; ++i )
-                {
-                    /* get phase */
-                    const std::complex<float> z( tmpRandReal[i][0], tmpRandReal[i][1] );
-                    const float phase = std::arg( z );
-                    /* apply phase */
-                    const float & re = absF[i][0];
-                    assert( absF[i][1] == 0 );
-                    GPrime[i][0] = re * cos(phase); /* Re */
-                    GPrime[i][1] = re * sin(phase); /* Im */
-                }
-                fftw_free( tmpRandReal );
-#           endif
-
-
-        const int cycleOffset = 7;
-        const int cyclePeriod = 4;
-        mCurrentFrame = -1;
-for ( unsigned int iCycle = 0; iCycle < 100; ++iCycle )
-{
-        ++mCurrentFrame;
-
-        /* From here forth the periodic algorithm cycle steps begin!
-         * (Actually the above 2 already belonged to the algorithm cycle
-         * but those steps are different for the first rund than for
-         * subsequent runs) */
-
-            /* Transform G' into real space g' */
-            fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, GPrime, gPrime,
-                FFTW_BACKWARD, FFTW_ESTIMATE );
-            fftw_execute(fft);
-            fftw_destroy_plan(fft);
-
-            /* check if result is real! */
-            float avgRe = 0, avgIm = 0;
-            for ( unsigned i = 0; i < nElements; ++i )
+            for ( unsigned iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
             {
-                avgRe += fabs( gPrime[i][0] );
-                avgIm += fabs( gPrime[i][1] );
-            }
-            avgRe /= (float) nElements;
-            avgIm /= (float) nElements;
-            //std::cout << std::scientific
-            //          << "Avg. Re = " << avgRe << "\n"
-            //          << "Avg. Im = " << avgIm << "\n";
-            //assert( avgIm < avgRe * 1e-5 );
-
-            /* in the first step the last value for g is to be approximated
-             * by g'. The last value for g, called g_k is needed, because
-             * g_{k+1} = g_k - hioBeta * g' ! */
-            if ( mCurrentFrame == 0 )
-                memcpy( g, gPrime, sizeof(g[0])*nElements );
-
-
-            /* create a new mask (shrink-wrap) */
-            if ( mCurrentFrame % nHioCycles == 0 && mCurrentFrame != 0 )
-            {
-                std::cout << "Update Mask with sigma="<<mSigma<<"\n";
-
-                /* blur |g'| (normally g' should be real!, so |.| not
-                 * necessary) */
+                /* apply domain constraints to g' to get g */
                 #pragma omp parallel for
                 for ( unsigned i = 0; i < nElements; ++i )
                 {
-                    const float & re = gPrime[i][0]; /* Re */
-                    const float & im = gPrime[i][1]; /* Im */
-                    mBlurred[i] = sqrtf( re*re + im*im );
+                    if ( isMasked[i] == 1 or /* g' */ curData[i][0] < 0 )
+                    {
+                        gPrevious[i][0] -= rHioBeta * curData[i][0];
+                        gPrevious[i][1] -= rHioBeta * curData[i][1];
+                    }
+                    else
+                    {
+                        gPrevious[i][0] = curData[i][0];
+                        gPrevious[i][1] = curData[i][1];
+                    }
                 }
-                gaussianBlur( mBlurred, Nx, Ny, mSigma );
 
-                float absMax = 0;
-                #pragma omp parallel for reduction( max : absMax )
+                /* Transform new guess g for f back into frequency space G' */
+                fftwf_execute( toFreqSpace );
+
+                /* Replace absolute of G' with measured absolute |F|, keep phase */
+                #pragma omp parallel for
                 for ( unsigned i = 0; i < nElements; ++i )
-                    absMax = fmax( absMax, mBlurred[i] );
-
-                /* make mask */
-                memcpy( isMasked, mBlurred, nElements*sizeof(isMasked[0]) );
-                for ( unsigned i = 0; i < nElements; ++i )
-                    isMasked[i] = isMasked[i] < intensityCutOff*absMax ? 1 : 0;
-
-                mSigma = std::max( 0.5, (1-0.01)*mSigma );
-            }
-
-            /* buffer domain gamma where g' does not satisfy object constraints */
-            float * gamma = new float[nElements];
-            for ( unsigned i = 0; i < nElements; ++i )
-                //gamma[i] = ( mask[i][0] == 0 or gPrime[i][0] < 0 );
-                gamma[i] = isMasked[i] == 1 or gPrime[i][0] < 0 ? 1 : 0;
-
-            /* apply domain constraints to g' to get g */
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                if ( gamma[i] == 0 )
                 {
-                    g[i][0] = gPrime[i][0];
-                    g[i][1] = gPrime[i][1]; /* shouldn't be necessary */
+                    const auto & re = curData[i][0];
+                    const auto & im = curData[i][1];
+                    const float factor = rIntensity[i] / sqrtf(re*re+im*im);
+                    curData[i][0] *= factor;
+                    curData[i][1] *= factor;
                 }
-                else
-                {
-                    g[i][0] -= hioBeta*gPrime[i][0];
-                    g[i][1] -= hioBeta*gPrime[i][1]; /* shouldn't be necessary */
-                }
-            }
 
-            delete[] gamma;
-
-
-            /* Transform new guess g for f back into frequency space G' */
-            fftw_plan fft2 = fftw_plan_dft_2d( Nx,Ny, g, G,
-                FFTW_FORWARD, FFTW_ESTIMATE );
-            fftw_execute( fft2 );
-            fftw_destroy_plan( fft2 );
-
-
-            /* Replace absolute of G' with measured absolute |F|, keep phase */
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                const auto & re = G[i][0];
-                const auto & im = G[i][1];
-                const float norm = sqrtf(re*re+im*im);
-                GPrime[i][0] = rIntensity[i] * G[i][0] / norm;
-                GPrime[i][1] = rIntensity[i] * G[i][1] / norm;
-            }
+                fftwf_execute( toRealSpace );
+            } // HIO loop
 
             /* check if we are done */
-            const float currentError = calculateHioError( gPrime /*g'*/,  isMasked, nElements, false /* invert mask */ );
+            const float currentError = calculateHioError( curData /*g'*/, isMasked, nElements );
+            std::cout << currentError << "\n";
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;
-            //if ( iCycle >= 10/*rnCycles */ )
-            //    break;
-
-            std::cout << " =? " << log(currentError) << "\n";
-}
-
+            if ( iCycle >= 100/*rnCycles */ )
+                break;
+        } // shrink wrap loop
         for ( unsigned i = 0; i < nElements; ++i )
-            rIntensity[i] = fabs( gPrime[i][0] );
+            rIntensity[i] = fabs( curData[i][0] );
+
+        /* free buffers and plans */
+        fftwf_destroy_plan( toFreqSpace );
+        fftwf_destroy_plan( toRealSpace );
+        fftwf_free( curData  );
+        fftwf_free( gPrevious);
+        delete[] isMasked;
 
         return 0;
     }

@@ -67,14 +67,14 @@ namespace phasereconstruction
     (
         float * const & rIoData,
         const std::vector<unsigned> & rSize,
-        float rnHioCycles = 20,
+        unsigned rnHioCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,
         float rIntensityCutOffAutoCorel = 0.04,
         float rIntensityCutOff = 0.20,
         float sigma0 = 3.0,
         float rSigmaChange = 0.01,
-        unsigned rnCycles = 10000,
+        unsigned rnCycles = 10,
         unsigned rnCores = 1
     );
 
