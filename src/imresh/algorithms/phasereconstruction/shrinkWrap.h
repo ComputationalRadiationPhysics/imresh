@@ -39,6 +39,8 @@
 #include "shrinkWrap.h"
 #include "algorithms/gaussian.h"
 #include "algorithms/phasereconstruction/hybridInputOutput.h"
+#include "algorithms/vectorReduce.h"
+#include "algorithms/vectorElementwise.h"
 
 
 namespace imresh

@@ -30,5 +30,5 @@ shrinkWrap.o: shrinkWrap.cpp shrinkWrap.h
 #cudaBasics.a: cudaGaussian.o cudacommon.o
 #	nvcc $(NVCCFLAGS) $(SDLLIBS) -lib $^ -o $@
 
-phasereconstruction.a: hybridInputOutput.o
+phasereconstruction.a: hybridInputOutput.o shrinkWrap.o
 	ar rcsT $@ $^

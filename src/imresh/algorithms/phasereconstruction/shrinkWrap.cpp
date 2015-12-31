@@ -164,9 +164,9 @@ namespace phasereconstruction
         auto const isMasked = new float[nElements];
 
         /* create fft plans G' to g' and g to G */
-        fftwf_plan toRealSpace = fftwf_plan_dft( rSize.size(),
+        auto toRealSpace = fftwf_plan_dft( rSize.size(),
             (int*) &rSize[0], curData, curData, FFTW_BACKWARD, FFTW_ESTIMATE );
-        fftwf_plan toFreqSpace = fftwf_plan_dft( rSize.size(),
+        auto toFreqSpace = fftwf_plan_dft( rSize.size(),
             (int*) &rSize[0], gPrevious, curData, FFTW_FORWARD, FFTW_ESTIMATE );
 
         /* create first guess for mask from autocorrelation (fourier transform
@@ -179,27 +179,18 @@ namespace phasereconstruction
             curData[i][1] = 0;
         }
         fftwf_execute( toRealSpace );
-        #pragma omp parallel for
-        for ( unsigned i = 0; i < nElements; ++i )
-        {
-            float & re = curData[i][0]; /* Re */
-            float & im = curData[i][1]; /* Im */
-            isMasked[i] = sqrtf( re*re + im*im );
-        }
+        complexNormElementwise( isMasked, curData, nElements );
         fftShift( isMasked, Nx,Ny );
         gaussianBlur( isMasked, Nx, Ny, sigma );
 
-        /* find maximum in order to calc threshold value */
-        float absMax = 0;
-        #pragma omp parallel for reduction( max : absMax )
-        for ( unsigned i = 0; i < nElements; ++i )
-            absMax = fmax( absMax, isMasked[i] );
-
         /* apply threshold to make binary mask */
-        const float threshold = rIntensityCutOffAutoCorel * absMax;
-        #pragma omp parallel for
-        for ( unsigned i = 0; i < nElements; ++i )
-            isMasked[i] = isMasked[i] < threshold ? 1 : 0;
+        {
+            const auto absMax = vectorMax( isMasked, nElements );
+            const float threshold = rIntensityCutOffAutoCorel * absMax;
+            #pragma omp parallel for
+            for ( unsigned i = 0; i < nElements; ++i )
+                isMasked[i] = isMasked[i] < threshold ? 1 : 0;
+        }
 
         /* copy original image into fftw_complex array and add random phase */
         #pragma omp parallel for
@@ -213,6 +204,7 @@ namespace phasereconstruction
          * by g'. The last value for g, called g_k is needed, because
          * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
          * because the fft is needed */
+        #pragma omp parallel for
         for ( unsigned i = 0; i < nElements; ++i )
         {
             gPrevious[i][0] = curData[i][0];
@@ -225,25 +217,12 @@ namespace phasereconstruction
             /************************** Update Mask ***************************/
             std::cout << "Update Mask with sigma=" << sigma << "\n";
 
-            /* blur |g'| (normally g' should be real!, so |.| not
-             * necessary) */
-            #pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                const float & re = curData[i][0]; /* Re */
-                const float & im = curData[i][1]; /* Im */
-                isMasked[i] = sqrtf( re*re + im*im );
-            }
+            /* blur |g'| (normally g' should be real!, so |.| not necessary) */
+            complexNormElementwise( isMasked, curData, nElements );
             gaussianBlur( isMasked, Nx, Ny, sigma );
-
-            /* find maximum in order to calc threshold value */
-            float absMax = 0;
-            #pragma omp parallel for reduction( max : absMax )
-            for ( unsigned i = 0; i < nElements; ++i )
-                absMax = fmax( absMax, isMasked[i] );
-
+            const auto absMax = vectorMax( isMasked, nElements );
             /* apply threshold to make binary mask */
-            const float threshold = ( iCycle == 0 ? rIntensityCutOffAutoCorel : rIntensityCutOff ) * absMax;
+            const float threshold = rIntensityCutOff * absMax;
             #pragma omp parallel for
             for ( unsigned i = 0; i < nElements; ++i )
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
@@ -272,16 +251,8 @@ namespace phasereconstruction
                 /* Transform new guess g for f back into frequency space G' */
                 fftwf_execute( toFreqSpace );
 
-                /* Replace absolute of G' with measured absolute |F|, keep phase */
-                #pragma omp parallel for
-                for ( unsigned i = 0; i < nElements; ++i )
-                {
-                    const auto & re = curData[i][0];
-                    const auto & im = curData[i][1];
-                    const float factor = rIntensity[i] / sqrtf(re*re+im*im);
-                    curData[i][0] *= factor;
-                    curData[i][1] *= factor;
-                }
+                /* Replace absolute of G' with measured absolute |F| */
+                applyComplexModulus( curData, curData, rIntensity, nElements );
 
                 fftwf_execute( toRealSpace );
             } // HIO loop
@@ -295,7 +266,7 @@ namespace phasereconstruction
                 break;
         } // shrink wrap loop
         for ( unsigned i = 0; i < nElements; ++i )
-            rIntensity[i] = fabs( curData[i][0] );
+            rIntensity[i] = curData[i][0];
 
         /* free buffers and plans */
         fftwf_destroy_plan( toFreqSpace );
