@@ -43,5 +43,5 @@ gaussian.o: gaussian.cpp gaussian.h
 #	nvcc $(NVCCFLAGS) $(SDLLIBS) -lib $^ -o $@
 
 algorithms.a: phasereconstruction/phasereconstruction.a vectorIndex.o vectorReduce.o vectorElementwise.o diffractionIntensity.o gaussian.o
-	rm $@
+	rm -f $@
 	ar rcsT $@ $^
