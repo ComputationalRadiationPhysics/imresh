@@ -48,6 +48,7 @@ int main(void)
     /* Wait for key to quit */
     int mainProgrammRunning = 1;
     int currentFrame = 0;
+    bool drawNext = true;
     while (mainProgrammRunning)
     {
         /* Handle Keyboard and Mouse events */
@@ -56,7 +57,7 @@ int main(void)
         {
             mainProgrammRunning &= not SDL_basicControl(event,pWindow,pRenderer);
             SDL_SetRenderDrawColor( pRenderer, 128,0,0,255 );
-            bool drawNext = SDL_animControl( event );
+            drawNext = SDL_animControl( event );
             if ( drawNext )
             {
                 SDL_SetRenderDrawColor( pRenderer, 255,255,255,255 );
@@ -75,6 +76,8 @@ int main(void)
                     default: break;
                 }
                 SDL_RenderPresent( pRenderer );
+                ++currentFrame;
+                drawNext = false;
             }
         }
         SDL_Delay(50 /*ms*/);

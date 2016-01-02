@@ -1,50 +1,101 @@
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2015-2016 Maximilian Knespel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 
 #include "sdlcommon.h"
-
 
 namespace sdlcommon {
 
 
-void SDL_check(int errorCode, const char * file, int line )
+void SDL_check
+(
+    const int & rErrorCode,
+    const char * const & rFilename,
+    const unsigned & rLineNumber )
 {
-    if ( errorCode != 0 )
+    if ( rErrorCode != 0 )
     {
         std::cout
-        << "SDL error in " << file << " line:" << line << " : "
+        << "SDL error in " << rFilename << " line:" << rLineNumber << " : "
         << SDL_GetError() << "\n" << std::flush;
         assert(false);
     }
 }
-void SDL_check(const void * ptr, const char * file, int line )
-{ if ( ptr == NULL ) SDL_check(1,file,line); }
 
-void checkTTFPtr(void const * ptr, const char * file, int line )
+void SDL_check
+(
+    const void * const & rPointerToCheck,
+    const char * const & rFilename,
+    const unsigned & rLineNumber
+)
 {
-    if ( ptr == NULL )
+    if ( rPointerToCheck == NULL )
+        SDL_check( 1, rFilename, rLineNumber );
+}
+
+void checkTTFPtr
+(
+    void const * const & rPointerToCheck,
+    const char * const & rFilename,
+    const unsigned & rLineNumber
+)
+{
+    if ( rPointerToCheck == NULL )
     {
         std::cout
-        << "TTF error in " << file << " line:" << line << " : "
+        << "TTF error in " << rFilename << " line:" << rLineNumber << " : "
         << TTF_GetError() << "\n";
         assert(false);
     }
 }
 
-std::ostream & operator<<( std::ostream & out, SDL_Rect rect )
+std::ostream & operator<<
+(
+    std::ostream & rOut,
+    const SDL_Rect & rRect )
 {
-    out << "SDL_Rect = { x:"<<rect.x<<", y:"<<rect.y<<", w:"<<rect.w<<", h:"
-        << rect.h<<"}";
-    return out;
+    rOut << "SDL_Rect = { "
+        << "x:" << rRect.x << ", "
+        << "y:" << rRect.y << ", "
+        << "w:" << rRect.w << ", "
+        << "h:" << rRect.h << "}";
+    return rOut;
 }
 
 int SDL_SaveRenderedToBmp
-( SDL_Renderer * rRenderer, SDL_Window* rpWindow, const char * rFilename )
+(
+    SDL_Renderer * const & rpRenderer,
+    SDL_Window * const & rpWindow,
+    const char * const & rFilename
+)
 {
     int w,h;
-    SDL_GetRendererOutputSize(rRenderer,&w,&h);
+    SDL_GetRendererOutputSize( rpRenderer, &w, &h );
 
     SDL_Surface *saveSurface = SDL_CreateRGBSurface( 0, w, h, 32,
         /* channel bitmasks */ 0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000 );
-    SDL_RenderReadPixels( rRenderer, NULL, SDL_PIXELFORMAT_ARGB8888,
+    SDL_RenderReadPixels( rpRenderer, NULL, SDL_PIXELFORMAT_ARGB8888,
         saveSurface->pixels, saveSurface->pitch );
     int errorCode = SDL_SaveBMP( saveSurface,rFilename );
     SDL_FreeSurface(saveSurface);
@@ -94,36 +145,41 @@ T Point2Dx<T>::norm( void ) const
 }
 
 template<class T>
-std::ostream & operator<<( std::ostream & out, Point2Dx<T> p0 )
+std::ostream & operator<<
+(
+    std::ostream & rOut,
+    const Point2Dx<T> & rPointToPrint
+)
 {
-    out << "(" << p0.x << "," << p0.y << ")";
-    return out;
+    rOut << "(" << rPointToPrint.x << "," << rPointToPrint.y << ")";
+    return rOut;
 }
 
-std::ostream & operator<<( std::ostream & out, Line2D l0 )
+std::ostream & operator<<
+(
+    std::ostream & rOut,
+    const Line2D & rLineToPrint
+)
 {
-    out << l0.p[0] << "->" << l0.p[1];
-    return out;
+    rOut << rLineToPrint.p[0] << "->" << rLineToPrint.p[1];
+    return rOut;
 }
 
 
 /* explicitely instantiating operator<< for the Point2Dx<T> automatically
  * instantiates Point2Dx and all it's methods for those template parameters,
  * thereby saving quite some text to type */
-template std::ostream & operator<< <float>( std::ostream & out, Point2Dx<float> p0 );
-template std::ostream & operator<< <double>( std::ostream & out, Point2Dx<double> p0 );
-template std::ostream & operator<< <int>( std::ostream & out, Point2Dx<int> p0 );
-/*
-Point2Dx<T>   Point2Dx<T>::operator-( Point2Dx const & b ) const;
-Point2Dx<T>   Point2Dx<T>::operator+( Point2Dx const & b ) const;
-Point2Dx<T>   Point2Dx<T>::operator*( T        const & b ) const;
-Point2Dx<T> & Point2Dx<T>::operator/=( Point2Dx const & b );
-Point2Dx<T> & Point2Dx<T>::operator/=( T        const & b );
-T Point2Dx<T>::norm(void) const;
-*/
+template std::ostream & operator<< <float>( std::ostream & rOut, const Point2Dx<float> & rPointToPrint );
+template std::ostream & operator<< <double>( std::ostream & rOut, const Point2Dx<double> & rPointToPrint );
+template std::ostream & operator<< <int>( std::ostream & rOut, const Point2Dx<int> & rPointToPrint );
+
 
 void calcIntersectPoint2Lines
-( Line2Df const & l0, Line2Df const & l1, Point2Df * intsct )
+(
+    Line2Df const & rLine0,
+    Line2Df const & rLine1,
+    Point2Df * const & rIntersectionPoint
+)
 {
     /* Test if they are even intersecting */
     /*Point2Df v,w,r; float s,u;
@@ -134,120 +190,58 @@ void calcIntersectPoint2Lines
     s =  ( w.x*r.y - w.y*r.x )/u; // |w cross r|/u
     //t = -( r.x*v.y - r.y*v.x )/u;
     */
-    const Point2Df & p0 = l0.p[0];
-    const Point2Df & p1 = l1.p[0];
-    Point2Df v0 = l0.p[1] - p0;
-    Point2Df v1 = l1.p[1] - p1;
+    const Point2Df & p0 = rLine0.p[0];
+    const Point2Df & p1 = rLine1.p[0];
+    Point2Df v0 = rLine0.p[1] - p0;
+    Point2Df v1 = rLine1.p[1] - p1;
     const float s =   ( v1.y*(p1.x-p0.x) + (p0.y-p1.y)*v1.x ) /
                             ( v0.x*v1.y  -  v0.y*v1.x );
     const float t = - ( v0.y*(p1.x-p0.x) + (p0.y-p1.y)*v0.x ) /
                             ( v1.x*v0.y  -  v1.y*v0.x );
     /* note: comparison with NaN always false */
     if ( s >= 0 and s <= 1 and t >= 0 and t <= 1 )
-        *intsct = p0 + v0*s;
+        *rIntersectionPoint = p0 + v0*s;
         //*intsct = p1 + v1*t;
 }
 
 void calcIntersectPoint2Lines
-( Line2D const & l0, Line2D const & l1, Point2Df * intsct )
+(
+    Line2D const & rLine0,
+    Line2D const & rLine1,
+    Point2Df * const & rIntersectionPoint
+)
 {
-    const Line2Df l0f = Line2Df{ (float) l0.p[0].x, (float) l0.p[0].y,
-                                 (float) l0.p[1].x, (float) l0.p[1].y };
-    const Line2Df l1f = Line2Df{ (float) l1.p[0].x, (float) l1.p[0].y,
-                                 (float) l1.p[1].x, (float) l1.p[1].y };
-    calcIntersectPoint2Lines( l0f,l1f,intsct );
+    const Line2Df l0f = Line2Df{ (float) rLine0.p[0].x, (float) rLine0.p[0].y,
+                                 (float) rLine0.p[1].x, (float) rLine0.p[1].y };
+    const Line2Df l1f = Line2Df{ (float) rLine1.p[0].x, (float) rLine1.p[0].y,
+                                 (float) rLine1.p[1].x, (float) rLine1.p[1].y };
+    calcIntersectPoint2Lines( l0f, l1f, rIntersectionPoint );
 }
 
 void SDL_RenderDrawCircle
-( SDL_Renderer * renderer, const float & cx, const float & cy,
-  const float & r, bool fill )
+(
+    SDL_Renderer * const & rpRrenderer,
+    const float & rCenterX,
+    const float & rCenterY,
+    const float & rRadius,
+    const bool & rFill
+)
 {
-    for ( int h=ceil(r); h > -ceil(r); --h )
+    for ( int h=ceil(rRadius); h > -ceil(rRadius); --h )
     {
-        const int s = floor(sqrt(r*r-h*h));
-        SDL_RenderDrawLine( renderer, cx-s, cy+h, cx+s, cy+h );
+        const int s = floor(sqrt(rRadius*rRadius-h*h));
+        SDL_RenderDrawLine( rpRrenderer,
+                            rCenterX-s, rCenterY+h,
+                            rCenterX+s, rCenterY+h );
     }
 }
-
-#if false
-float circleIntegral(float x)
-{ return 0.5f*(sqrt(1.0f-x*x)*x+asin(x)); }
-
-/* draws filled circle. cx and cy are in the center of the specified pixel,
- * meaning r<=0.5 will result in only 1px set */
-void SDL_RenderDrawCircle
-( SDL_Renderer * const rpRenderer, const float & cx, const float & cy,
-  const float & R, bool fill = true )
-{
-    if (R <= 0.5) return;
-
-    SDL_BlendMode oldBlendMode;
-    SDL_GetRenderDrawBlendMode( rpRenderer,&oldBlendMode );
-    SDL_SetRenderDrawBlendMode( rpRenderer,SDL_BLENDMODE_BLEND );
-    Uint8 cr,cg,cb,ca;
-    SDL_GetRenderDrawColor( rpRenderer, &cr,&cg,&cb,&ca );
-
-    /* Note: for r<=0.5 ymax will be 0, meaning the for loop goes from 0 to 0
-     * meaning only 1 pixel at maximum will be drawn */
-    const int ymax = ceil(R-0.5);
-    for ( int y = ymax; y >= -ymax; --y )
-    {
-        using std::abs;   using std::sqrt;
-        using std::floor; using std::ceil;
-        using std::min;   using std::max;
-
-        const int s = floor(sqrt(R*R-y*y));
-        SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb,255 );
-        SDL_RenderDrawLine( rpRenderer, cx-s,cy+y, /* -> */ cx+s,cy+y );
-
-        /* 1 special case is y=0, because in that case the integral is 0,
-         * because we don't change x-positions, only y-positions in the limits
-         * ! */
-        assert( R > 0.5 ); // else abs(y)-0.5 could be problematic too
-        float x0 = R*R - (abs(y)+0.5)*(abs(y)+0.5);
-        float x1 = R*R - (abs(y)-0.5)*(abs(y)-0.5);
-        if ( x0 < 0 ) x0 = 0;
-        if ( x1 < 0 ) x1 = 0;
-        x0 = sqrt(x0);  // left  global integration limit
-        x1 = sqrt(x1);  // right global integration limit
-        assert( x1 > x0 );
-        const int xmin = (int)floor(x0+0.5); // left  loop limit
-        const int xmax = (int)ceil (x0-0.5); // right loop limit
-
-        std::cout << "[y="<<y<<"] x="<<x0<<"~"<<((int)floor(x0)) << ".." << ((int)ceil(x1))<<"~"<<x1<<": \n" << std::flush;
-
-        if (y != 0) for ( int x = xmin; x <= xmax; ++x )
-        {
-            const float xLeft  = max( x0, (float)x   );
-            const float xRight = min( x1, (float)x+1 );
-            std::cout << "  ["<<xLeft<<","<<xRight<<"] " << std::flush;
-            float area = R*circleIntegral(xRight/R) - R*circleIntegral(xLeft /R);
-            #ifndef NDEBUG
-                const float areaMin = (xRight-xLeft)*(y-0.5);
-                const float areaMax = (xRight-xLeft)*(y+0.5);
-                assert( xRight-xLeft >= 0 and xRight-xLeft <= 1 );
-                assert( sqrt(R*R-xRight*xRight) - sqrt(R*R-xLeft*xLeft) >= 0 );
-                assert( sqrt(R*R-xRight*xRight) - sqrt(R*R-xLeft*xLeft) <= 1 );
-                assert( areaMax >= area and areaMin <= areaMin );
-            #endif
-            //                 - (xRight-xLeft)*(y-0.5);
-            const int alpha  = (int)(255*area);
-            std::cout << area << "\n" << std::flush;
-            assert( alpha <= 255 );
-            SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb,alpha );
-            SDL_RenderDrawPoint( rpRenderer, cx-x,cy+y );
-        }
-        std::cout << "\n";
-    }
-
-    SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb,ca );
-    SDL_SetRenderDrawBlendMode( rpRenderer,oldBlendMode );
-}
-
-#endif
 
 void SDL_RenderDrawThickRect
-( SDL_Renderer * const rpRenderer, const SDL_Rect & rRect, const int rWidth )
+(
+    SDL_Renderer * const & rpRenderer,
+    const SDL_Rect & rRect,
+    const unsigned & rWidth
+)
 {
     /* It is allowed, that rRect.w < 2*rWidth, but in that case will result
      * in a seemingly filled rectangle */
@@ -284,17 +278,28 @@ void SDL_RenderDrawThickRect
 }
 
 void SDL_RenderDrawThickRect
-( SDL_Renderer * const rpRenderer, const SDL_Rect * rRect, const int rWidth )
+(
+    SDL_Renderer * const & rpRenderer,
+    const SDL_Rect * const & rRect,
+    const unsigned & rWidth
+)
 {
     return SDL_RenderDrawThickRect(rpRenderer,*rRect,rWidth);
 }
 
 int SDL_RenderDrawArrow
-( SDL_Renderer* rpRenderer, int x1, int y1, int x2, int y2,
-  float rHeadSize, float rAngle )
+(
+    SDL_Renderer * const & rpRenderer,
+    const int & x1,
+    const int & y1,
+    const int & x2,
+    const int & y2,
+    const float & rHeadSize,
+    const float & rAngle
+)
 {
     SDL_RenderDrawLine( rpRenderer, x1,y1, x2,y2 );
-    float ds = tan(30.*M_PI/180.) * rHeadSize;
+    float ds = tan( rAngle * M_PI / 180.0f ) * rHeadSize;
 
     #if false
     /* for phi=0, meaning the arrow points to the right : dy=ds, dx=rHeadSize
@@ -333,152 +338,6 @@ int SDL_RenderDrawArrow
 }
 
 
-namespace drawthickline
-{
-
-    float f(float x, float a, float b)
-    {
-        assert( a >= 0 and b >= 0 );
-        if      ( x < -(a/2+b) ) return 0;
-        else if ( x < - a/2    ) return ( x+(a/2+b) )/b;
-        else if ( x < + a/2    ) return 1;
-        else if ( x < +(a/2+b) ) return ( x-(a/2+b) )/b;
-        else                     return 0;
-    }
-
-    float F(float x, float a, float b)
-    {
-        assert( a >= 0 and b >= 0 );
-        if      ( x < -(a/2+b) ) return 0;
-        else if ( x < - a/2    ) return  pow( x+(a/2+b) ,2 )/( 2*b );
-        else if ( x < + a/2    ) return (a+b)/2+x;
-        else if ( x < +(a/2+b) ) return -pow(-x+(a/2+b) ,2 )/( 2*b ) + a+b;
-        else                     return a+b;
-    }
-
-}
-
-void SDL_RenderDrawThickLine
-( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width )
-{
-    /* point 0 is supposed to be to the left for some optimizations */
-    if ( x1 < x0 )
-    {
-        std::swap(x0,x1);
-        std::swap(y0,y1);
-    }
-
-    SDL_BlendMode oldBlendMode;
-    SDL_GetRenderDrawBlendMode( rpRenderer,&oldBlendMode );
-    SDL_SetRenderDrawBlendMode( rpRenderer,SDL_BLENDMODE_BLEND );
-    Uint8 cr,cg,cb,ca;
-    SDL_GetRenderDrawColor( rpRenderer, &cr,&cg,&cb,&ca );
-
-    /* set render clip which ensures that we only traverse points we actually
-     * may need to set */
-    int xmin,ymin,xmax,ymax;
-    SDL_GetRendererOutputSize( rpRenderer, &xmax,&ymax );
-
-    xmin = ceil ( std::max( 0.0f     , std::min(x0,x1)-width ) );
-    xmax = floor( std::min( xmax-1.0f, std::max(x0,x1)+width ) );
-    /* y not yet working with gradient ... */
-    ymin = std::max( 0     , std::min(y0,y1) );
-    ymax = std::min( ymax-1, std::max(y0,y1) );
-
-    const float phi = atan( (float)(y1-y0)/(x1-x0) );
-    const float t   = abs(width/cos(phi));
-    const float b   = abs(tan(phi));
-    const float a   = t-2*b;
-
-    std::cout << "Drawing thick line: ";
-
-    struct fstruct {
-        float a,b;
-        fstruct(float ra, float rb) : a(ra), b(rb) {};
-        float operator()(float x)
-        {
-            assert( a >= 0 and b >= 0 );
-            if      ( x < -(a/2+b) ) return 0;
-            else if ( x < - a/2    ) return  pow( x+(a/2+b) ,2 )/( 2*b );
-            else if ( x < + a/2    ) return (a+b)/2+x;
-            else if ( x < +(a/2+b) ) return -pow(-x+(a/2+b) ,2 )/( 2*b ) + a+b;
-            else                     return a+b;
-        }
-    } flambda(a,b);
-//    SDL_RenderDrawFunction( rpRenderer, flambda, -a/2-b-1, a/2+b+1, 0, a+b,
-//      SDL_Rect{ 50,50,200,200 } );
-
-    for ( int y = ymin; y <= ymax; ++y )
-    {
-        bool didDraw = false;
-        const float xline = x0 + (float)(y-std::min(y0,y1))/(y1-y0) * (x1-x0);
-        for ( int x = xmin; x <= xmax; ++x )
-        {
-            using drawthickline::F;
-
-            float area = F(x-xline+0.5,a,b) - F(x-xline-0.5,a,b);
-            printf("[x=%i,y=%i => x'=%f] area=%f\n",x,y,x-xline+0.5,area);
-            if ( area == 0 and didDraw ) break;
-            else if ( area == 0 ) ++xmin;
-            else
-            {
-                //assert( int(area*255) <= 255 and area >= 0 );
-                SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb, area*255 );
-                SDL_RenderDrawPoint( rpRenderer, x,y );
-                didDraw = true;
-            }
-        }
-    }
-
-    SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb,ca );
-    SDL_SetRenderDrawBlendMode( rpRenderer,oldBlendMode );
-}
-
-void SDL_RenderDrawThickLine2
-( SDL_Renderer * const rpRenderer, int x0, int y0, int x1, int y1, float width )
-{
-    /* Temporarily save blendmode, set to transpaency and save calling colors */
-    SDL_BlendMode oldBlendMode;
-    SDL_GetRenderDrawBlendMode( rpRenderer,&oldBlendMode );
-    SDL_SetRenderDrawBlendMode( rpRenderer,SDL_BLENDMODE_BLEND );
-    Uint8 cr,cg,cb,ca;
-    SDL_GetRenderDrawColor( rpRenderer, &cr,&cg,&cb,&ca );
-
-    /* because we don't know if x0 < x1 and y0 < y1 in general we need to
-     * somehow formulate this abstractly using dx, dy */
-    int dx = sgn(x1-x0);
-    int dy = sgn(y1-y0);
-    // note if dx or dy==0, then x0==x1 meaning the do while loop will be exited
-    // after only 1 run
-
-    std::cout << "dx=" << dx << ",dy=" << dy << "\n";
-
-    using std::abs;
-    // sample all pixels no matter the orientation of the line
-    for ( int y = y0; (dy > 0 ? y <= y1 : y >= y1); y += dy )
-    {
-        // find x to start at by calculating the intersection:
-        for ( int x = x0; (dx > 0 ? x <= x1 : x >= x1); x += dx )
-        {
-            /* calculate pixel overlap with line */
-            double area = 1;
-
-            /* Draw Pixel */
-            SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb, area*255 );
-            SDL_RenderDrawPoint( rpRenderer, x,y );
-
-            /* break needed for pure horizontal and vertical lines, or else
-             * endless loop, because of x+=dx */
-            if ( dx == 0 ) break;
-        }
-        if ( dy == 0 ) break;
-    }
-
-    /* Revert changes made to blend mode and color */
-    SDL_SetRenderDrawColor( rpRenderer, cr,cg,cb,ca );
-    SDL_SetRenderDrawBlendMode( rpRenderer,oldBlendMode );
-}
-
 const char * getTimeString( void )
 {
     time_t date;
@@ -493,7 +352,12 @@ const char * getTimeString( void )
     return buffer;
 }
 
-int SDL_basicControl(SDL_Event const & event, SDL_Window * rpWindow, SDL_Renderer * const rpRenderer )
+int SDL_basicControl
+(
+    SDL_Event const & event,
+    SDL_Window * const & rpWindow,
+    SDL_Renderer * const & rpRenderer
+)
 {
     switch ( event.type )
     {
@@ -570,48 +434,9 @@ int SDL_animControl( SDL_Event const & event )
 }
 
 
-int SDL_drawLineControl::operator()( SDL_Event const & event, SDL_Renderer * const rpRenderer )
-{
-    if ( event.type == SDL_MOUSEBUTTONDOWN )
-    {
-        SDL_Keymod mod = SDL_GetModState();
-        bool shiftPressed = mod & KMOD_LSHIFT;
-        if ( p0.x < 0 or not shiftPressed )
-        {
-            p0 = Point2D{ event.button.x, event.button.y };
-            std::cout << "1st point set to (" << p0.x << "," << p0.y << ")\n";
-        }
-        else if ( shiftPressed )
-        {
-            Point2D p1 = p0;
-            p0 = Point2D{ event.button.x, event.button.y };
-            std::cout << "new point set to (" << p0.x << "," << p0.y << ")\n";
-
-            SDL_RenderDrawArrow( rpRenderer, p1.x,p1.y, p0.x,p0.y, 10 );
-            Point2Df intsct;
-            const Line2D l1 = Line2D{p0,p1};
-            if ( l0.p[0].x >= 0 )
-            {
-                calcIntersectPoint2Lines(l0, l1, &intsct );
-                std::cout << "Intersection between line " << l0 << " and " << l1 << " is at (" << intsct.x << "," << intsct.y << ")\n";
-                SDL_SetRenderDrawColor( rpRenderer, 0,200,127,128 );
-                SDL_RenderDrawCircle( rpRenderer, intsct.x, intsct.y, 3.5 );
-                SDL_SetRenderDrawColor( rpRenderer, 255,0,0,255 );
-            }
-            l0 = l1;
-            //p1 = Point2D{-1,-1};
-        }
-        else if ( not shiftPressed )
-            p0 = Point2D{ event.button.x, event.button.y };
-        return 1;
-    }
-    return 0;
-}
-
-
 std::stack<SDL_Color> savedRenderingColors;
 
-int SDL_RenderPushColor(SDL_Renderer * const rpRenderer)
+int SDL_RenderPushColor( SDL_Renderer * const & rpRenderer )
 {
     SDL_Color c;
     const int error = SDL_GetRenderDrawColor( rpRenderer, &c.r, &c.g, &c.b, &c.a );
@@ -619,7 +444,7 @@ int SDL_RenderPushColor(SDL_Renderer * const rpRenderer)
     return error;
 }
 
-int SDL_RenderPopColor(SDL_Renderer * const rpRenderer)
+int SDL_RenderPopColor( SDL_Renderer * const & rpRenderer )
 {
     /* test if stack is empty */
     if ( savedRenderingColors.empty() )
