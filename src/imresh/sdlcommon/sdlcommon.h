@@ -157,14 +157,14 @@ namespace sdlcommon
     (
         SDL_Renderer * const & rpRenderer,
         const SDL_Rect & rRect,
-        const int & rWidth
+        const unsigned & rWidth = 1
     );
 
     void SDL_RenderDrawThickRect
     (
         SDL_Renderer * const & rpRenderer,
         const SDL_Rect * const & rRect,
-        const int & rWidth
+        const unsigned & rWidth = 1
     );
 
     /**

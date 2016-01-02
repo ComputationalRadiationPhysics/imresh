@@ -32,11 +32,11 @@
 #include <cstdio>  // sprintf
 #include <cmath>
 #include <cfloat>  // FLT_EPSILON
-#include "sdl/sdlplot.h"
-#include "math/image/gaussian.h"
-#include "math/image/cudaGaussian.h"
+#include "sdlcommon/sdlplot.h"
+#include "algorithms/gaussian.h"
+#include "algorithms/cuda/cudaGaussian.h"
 #include <cuda_runtime_api.h>  // cudaMalloc, cudaFree, ... (yes not cuda.h!)
-#include "math/vector/vectorReduce.h"
+//#include "algorithms/vectorReduce.h"
 
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884

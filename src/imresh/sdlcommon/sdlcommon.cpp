@@ -244,7 +244,7 @@ void SDL_RenderDrawThickRect
 (
     SDL_Renderer * const & rpRenderer,
     const SDL_Rect & rRect,
-    const int & rWidth
+    const unsigned & rWidth
 )
 {
     /* It is allowed, that rRect.w < 2*rWidth, but in that case will result
@@ -283,9 +283,9 @@ void SDL_RenderDrawThickRect
 
 void SDL_RenderDrawThickRect
 (
-    SDL_Renderer * const rpRenderer,
+    SDL_Renderer * const & rpRenderer,
     const SDL_Rect * const & rRect,
-    const int & rWidth
+    const unsigned & rWidth
 )
 {
     return SDL_RenderDrawThickRect(rpRenderer,*rRect,rWidth);
