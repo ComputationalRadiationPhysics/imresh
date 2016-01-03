@@ -83,14 +83,16 @@ void fftShift( fftw_complex * const data, const unsigned Nx, const unsigned Ny )
  **/
 class AnimateHybridInputOutput
 {
-private:
+public:
     int mCurrentFrame;
-
+private:
     const unsigned Nx, Ny;
     static constexpr unsigned mnSteps = 8;
-    SDL_Rect mPlotPositions[ mnSteps+3 ]; /* +3: blurred, mask, error */
     fftw_complex * mImageState[ mnSteps ];
-    std::string mTitles[ mnSteps+3 ];
+    SDL_Rect mPlotPositions[ mnSteps+3 ]; /* +3: blurred, mask, error */
+    std::string mTitles    [ mnSteps+3 ];
+    bool mLogScaled        [ mnSteps+3 ];
+    bool mSwapQuadrants    [ mnSteps+3 ];
     std::vector<float> mReconstructedErrors;
 
     float * mBlurred, * mMask;
@@ -201,6 +203,17 @@ public:
         mTitles[8] = "blurred f";
         mTitles[9] = "mask'";
 
+        mLogScaled[0] = false;
+        mLogScaled[1] = true;
+        mLogScaled[2] = true;
+        mLogScaled[3] = true;
+        mLogScaled[4] = true;
+        mLogScaled[5] = false;
+        mLogScaled[6] = false;
+        mLogScaled[7] = true;
+        mLogScaled[8] = true;
+        mLogScaled[9] = false;
+
         /* Initialize plot positions */
         {
         SDL_Rect tmp = { 40, 30 + int(1.3*plotHeight), plotWidth, plotHeight };
@@ -280,7 +293,9 @@ public:
         }
 
         /* Draw blurred and mask plot */
-        const float maxVal = imresh::math::vector::vectorMaxAbs( mBlurred, Nx*Ny);
+        float maxVal = imresh::math::vector::vectorMaxAbs( mBlurred, Nx*Ny);
+        if ( maxVal == 0 )
+            maxVal = 1;
         for ( unsigned i = 0; i < Nx*Ny; ++i )
             mBlurred[i] /= maxVal;
         SDL_RenderDrawMatrix( rpRenderer, mPlotPositions[8], 0,0,0,0,
@@ -365,7 +380,7 @@ public:
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
-            //fftShift( autocorr, Nx,Ny );
+            fftShift( autocorr, Nx,Ny );
         }
         else if ( mCurrentFrame == 4 )
         {
@@ -439,6 +454,7 @@ public:
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
+            fftShift( gPrime, Nx,Ny );
 
             /* check if result is real! */
             float avgRe = 0, avgIm = 0;
@@ -519,7 +535,9 @@ public:
             /* Transform new guess g for f back into frequency space G' */
             fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, g, G,
                 FFTW_FORWARD, FFTW_ESTIMATE );
+            fftShift( g, Nx,Ny );
             fftw_execute(fft);
+            fftShift( g, Nx,Ny );
             fftw_destroy_plan(fft);
         }
         else if ( cycleFrame % cyclePeriod == 3 )
@@ -583,7 +601,7 @@ int main(void)
 
     pWindow = SDL_CreateWindow( "Understand Shrink-Wrap",
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        1150, 650, SDL_WINDOW_SHOWN );
+        920, 650, SDL_WINDOW_SHOWN );
     SDL_CHECK( pWindow );
 
     pRenderer = SDL_CreateRenderer( pWindow, -1, SDL_RENDERER_ACCELERATED );
@@ -621,13 +639,16 @@ int main(void)
             {
                 animateHybridInputOutput.step();
                 renderTouched = 1;
+                /*
+                char filename[256];
+                sprintf( filename, "frames/%04i.bmp", animateHybridInputOutput.mCurrentFrame );
+                int err = SDL_SaveRenderedToBmp( pRenderer, pWindow, filename );
+                if (err == 0)
+                    std::cout << "Saved screenshot to " << filename << "\n";
+                else
+                    std::cout << "Couldn't save "<<filename<<" does the target folder exist and has the correct permissions?\n";
+                */
             }
-        }
-        bool drawNext = SDL_animControl( event );
-        if ( drawNext )
-        {
-            animateHybridInputOutput.step();
-            renderTouched = 1;
         }
 
         if ( renderTouched )
