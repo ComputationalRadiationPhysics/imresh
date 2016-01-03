@@ -28,6 +28,7 @@
 #include <SDL.h>
 #include "sdlcommon/sdlcommon.h"
 #include "testGaussian2d.h"
+#include "testCudaShrinkWrap.h"
 
 
 int main(void)
@@ -74,11 +75,15 @@ int main(void)
                 SDL_RenderClear( pRenderer );
 
                 SDL_SetRenderDrawColor( pRenderer, 0,0,0,255 );
-                switch ( currentFrame % 1 )
+                switch ( currentFrame % 2 )
                 {
                     case 0:
                         testGaussian2d(pRenderer);
                         std::cout << "testGaussian2d [OK]\n";
+                        break;
+                    case 1:
+                        testCudaShrinkWrap(pRenderer);
+                        std::cout << "testCudaShrinkWrap [OK]\n";
                         break;
                     default: break;
                 }

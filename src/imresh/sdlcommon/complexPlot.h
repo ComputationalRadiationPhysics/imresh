@@ -28,7 +28,6 @@
 #include <cmath>    // log10
 #include <complex>
 #include <SDL.h>
-#include <fftw3.h>
 #include "sdlplot.h"
 #include "colors/conversions.h"
 

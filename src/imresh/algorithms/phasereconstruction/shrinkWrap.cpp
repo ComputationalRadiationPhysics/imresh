@@ -180,7 +180,9 @@ namespace phasereconstruction
         }
         fftwf_execute( toRealSpace );
         complexNormElementwise( isMasked, curData, nElements );
-        fftShift( isMasked, Nx,Ny );
+        /* fftShift is not necessary, but I introduced this, because for the
+         * example it shifted the result to a better looking position ... */
+        //fftShift( isMasked, Nx,Ny );
         gaussianBlur( isMasked, Nx, Ny, sigma );
 
         /* apply threshold to make binary mask */
@@ -212,7 +214,7 @@ namespace phasereconstruction
         }
 
         /* repeatedly call HIO algorithm and change mask */
-        for ( unsigned iCycle = 0; iCycle < rnCycles; ++iCycle )
+        for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
             std::cout << "Update Mask with sigma=" << sigma << "\n";
@@ -259,10 +261,12 @@ namespace phasereconstruction
 
             /* check if we are done */
             const float currentError = calculateHioError( curData /*g'*/, isMasked, nElements );
-            std::cout << currentError << "\n";
+            std::cout << "[Error " << currentError << "/" << rTargetError << "] "
+                      << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
+                      << "\n";
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;
-            if ( iCycle >= 100/*rnCycles */ )
+            if ( iCycleShrinkWrap >= rnCycles )
                 break;
         } // shrink wrap loop
         for ( unsigned i = 0; i < nElements; ++i )

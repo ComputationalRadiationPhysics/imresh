@@ -26,14 +26,17 @@
 #pragma once
 
 #include <iostream>
-#include <iomanip>
 #include <cassert>
 #include <vector>
+#include <cstdlib>   // malloc, free
 #include <SDL.h>
-#include <fftw3.h>
 #include "sdlcommon/sdlplot.h"
+#include "sdlcommon/complexPlot.h"
 #include "algorithms/vectorIndex.h"
 #include "algorithms/diffractionIntensity.h"
+#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "examples/createSlit.h"
+#include "examples/createAtomCluster.h"
 
 
 namespace imresh
@@ -42,7 +45,7 @@ namespace test
 {
 
 
-    void testDiffractionIntensity( SDL_Renderer * const & rpRenderer );
+    void testCudaShrinkWrap( SDL_Renderer * const & rpRenderer );
 
 
 } // namespace imresh

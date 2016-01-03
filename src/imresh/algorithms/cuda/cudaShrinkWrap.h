@@ -25,24 +25,35 @@
 
 #pragma once
 
+
+#ifndef NDEBUG
+#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
+#else
+#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
+#endif
+
+
 #include <cstddef>    // NULL
 #include <cstring>    // memcpy
 #include <cassert>
+#include <cstdint>    // uint64_t
 #include <cmath>
-#include <iostream>
 #include <vector>
-#include <fftw3.h>
-#include "algorithms/gaussian.h"
-#include "algorithms/phasereconstruction/hybridInputOutput.h" // calculateHioError
-#include "algorithms/vectorReduce.h"
-#include "algorithms/vectorElementwise.h"
+#include <cuda.h>     // atomicCAS
+#include <cufft.h>
+#include "cudaGaussian.h"
+#if DEBUG_CUDASHRINKWRAP == 1
+#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
+#    include "../vectorReduce.h"
+#    include "../vectorElementwise.h"
+#endif
 
 
 namespace imresh
 {
 namespace algorithms
 {
-namespace phasereconstruction
+namespace cuda
 {
 
 
@@ -60,7 +71,7 @@ namespace phasereconstruction
      *             only positive real valued objects are supported.
      * @return 0 on success, else error or warning codes.
      **/
-    int shrinkWrap
+    int cudaShrinkWrap
     (
         float * const & rIoData,
         const std::vector<unsigned> & rSize,
@@ -76,6 +87,6 @@ namespace phasereconstruction
     );
 
 
-} // namespace phasereconstruction
+} // namespace cuda
 } // namespace algorithms
 } // namespace imresh

@@ -27,10 +27,9 @@
 
 #include <iostream>
 #include <vector>
+#include <cstdlib>   // malloc, free
 #include <cmath>     // sqrtf
 #include <cstring>   // memset
-#include <cfloat>    // FLT_EPSILON
-#include <fftw3.h>
 #include "vectorIndex.h"
 
 

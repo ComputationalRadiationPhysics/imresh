@@ -23,7 +23,8 @@
  */
 
 
-#include "testShrinkWrap.h"
+#include "testCudaShrinkWrap.h"
+#include <fftw3.h>   // fftw_complex
 
 
 namespace imresh
@@ -32,12 +33,12 @@ namespace test
 {
 
 
-    void testShrinkWrap
+    void testCudaShrinkWrap
     ( SDL_Renderer * const & rpRenderer )
     {
         using namespace sdlcommon;
         using namespace imresh::examples;
-        using namespace imresh::algorithms::phasereconstruction;
+        using namespace imresh::algorithms::cuda;
 
         std::vector<unsigned> imageSize = {160,160};
         const unsigned & Nx = imageSize[1];
@@ -64,7 +65,7 @@ namespace test
 
         if ( rpRenderer != NULL )
         {
-            fftw_complex * tmp = fftw_alloc_complex( Nx*Ny );
+            fftw_complex * tmp = (fftw_complex*) malloc( sizeof(fftw_complex)*Nx*Ny );
 
             for ( unsigned i = 0; i < Nx*Ny; ++i )
             {
@@ -80,11 +81,11 @@ namespace test
                 position.x + 1.4*position.w, position.y + position.h/2 );
             position.x += 1.5*position.w;
 
-            fftw_free( tmp );
+            free( tmp );
         }
 
         /* display reconstructed image */
-        int shrinkWrapError = shrinkWrap( rectangle, imageSize,
+        int shrinkWrapError = cudaShrinkWrap( rectangle, imageSize,
             64 /*cycles*/, 1e-6 /* targetError */ );
         assert( shrinkWrapError == 0 );
 #if false

@@ -24,6 +24,7 @@
 
 
 #include "diffractionIntensity.h"
+#include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
 
 
 namespace imresh
@@ -75,11 +76,8 @@ namespace algorithms
         unsigned nElements = 1;
         for ( const auto & dim : rSize )
             nElements *= dim;
-        const unsigned & nLastDim = rSize.back();
-        const unsigned reducedLastDim = nLastDim/2+1;
-        const unsigned nElementsReduced = nElements / nLastDim * reducedLastDim;
         /* @ see http://www.fftw.org/doc/Precision.html */
-        fftwf_complex * tmp = fftwf_alloc_complex( nElements );
+        fftwf_complex * tmp = (fftwf_complex*) malloc( sizeof(tmp[0])*nElements );
 
 #if true
         for ( unsigned i = 0; i < nElements; ++i )
@@ -100,6 +98,10 @@ namespace algorithms
             rIoData[i] = norm;
         }
 #else
+        const unsigned & nLastDim = rSize.back();
+        const unsigned reducedLastDim = nLastDim/2+1;
+        const unsigned nElementsReduced = nElements / nLastDim * reducedLastDim;
+
         /* forward fourier transform the original image, i.e. negative
          * coefficients @see http://www.fftw.org/fftw3_doc/The-1d-Discrete-Fourier-Transform-_0028DFT_0029.html#The-1d-Discrete-Fourier-Transform-_0028DFT_0029 */
         fftwf_plan planForward = fftwf_plan_dft_r2c( rSize.size(), (int*) /*dangerous*/ &rSize[0],
@@ -151,8 +153,8 @@ namespace algorithms
         }
 
         fftwf_destroy_plan( planForward );
-        fftwf_free( tmp );
 #endif
+        free( tmp );
     }
 
 

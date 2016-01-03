@@ -9,7 +9,7 @@ NVCCFLAGS=-std=c++11 --compiler-bindir $$(which $(CC)) -arch=sm_20        \
 		  --compiler-options -Wall,-Wextra,-Wshadow,-Wno-unused-parameter
 
 
-.PHONY: clean all algorithms.a sdlcommon.a examples.a cuda.a testVectorIndex.o testDiffractionIntensity.o testHybridInputOutput.o testShrinkWrap.o testGaussian.o testGaussian2d.o
+.PHONY: clean all algorithms.a sdlcommon.a examples.a cuda.a testVectorIndex.o testDiffractionIntensity.o testHybridInputOutput.o testShrinkWrap.o testGaussian.o testGaussian2d.o testCudaShrinkWrap.o
 
 all: mainTestAll.exe
 
@@ -40,6 +40,8 @@ testGaussian.o: testGaussian.cpp testGaussian.h
 
 testGaussian2d.o: testGaussian2d.cu testGaussian2d.h
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
+testCudaShrinkWrap.o: testCudaShrinkWrap.cpp testCudaShrinkWrap.h
+	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 
 mainTestAll.exe: mainTestAll.cpp testVectorIndex.o testDiffractionIntensity.o sdlcommon.a testHybridInputOutput.o testShrinkWrap.o testGaussian.o algorithms.a
 	rm -f $@
@@ -57,10 +59,11 @@ mainTestAll.exe: mainTestAll.cpp testVectorIndex.o testDiffractionIntensity.o sd
 	../examples/examples.a        \
 	-o $@
 
-mainTestAllCuda.exe: mainTestAllCuda.cpp sdlcommon.a algorithms.a testGaussian2d.o cuda.a
+mainTestAllCuda.exe: mainTestAllCuda.cpp sdlcommon.a algorithms.a testGaussian2d.o testCudaShrinkWrap.o cuda.a
 	rm -f $@
 	nvcc $(NVCCFLAGS) $<          \
 	testGaussian2d.o              \
+	testCudaShrinkWrap.o          \
 	../examples/examples.a        \
 	../algorithms/algorithms.a    \
 		-lfftw3 -lfftw3f          \
@@ -68,4 +71,5 @@ mainTestAllCuda.exe: mainTestAllCuda.cpp sdlcommon.a algorithms.a testGaussian2d
 		../colors/colors.a        \
 		$(SDLLIBS)                \
 	../algorithms/cuda/cuda.a     \
+	-lcufft                       \
 	 -o $@

@@ -14,6 +14,8 @@ cudacommon.o: cudacommon.cu cudacommon.h
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 cudaGaussian.o: cudaGaussian.cu cudaGaussian.h
 	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
+cudaShrinkWrap.o: cudaShrinkWrap.cu cudaShrinkWrap.h
+	nvcc $(NVCCFLAGS) -dc -x cu $< -o $@
 
-cuda.a: cudaGaussian.o cudacommon.o
+cuda.a: cudaShrinkWrap.o cudaGaussian.o cudacommon.o
 	nvcc $(NVCCFLAGS) $(SDLLIBS) -lib $^ -o $@
