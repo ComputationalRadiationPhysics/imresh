@@ -25,7 +25,11 @@
 
 #include "sdlcommon.h"
 
-namespace sdlcommon {
+
+namespace imresh
+{
+namespace sdlcommon
+{
 
 
 void SDL_check
@@ -456,3 +460,4 @@ int SDL_RenderPopColor( SDL_Renderer * const & rpRenderer )
 
 
 } // namespace sdlcommon
+} // namespace imresh

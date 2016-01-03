@@ -257,7 +257,7 @@ public:
         delete[] mBlurred;
     }
 
-    void render( SDL_Renderer * rpRenderer )
+    void render( SDL_Renderer * rpRenderer ) const
     {
         using namespace sdlcommon;
 
@@ -309,7 +309,7 @@ public:
         {
             const unsigned maxWidth = mPlotPositions[10].w;
             const unsigned size = std::min( maxWidth, (unsigned) mReconstructedErrors.size() );
-            float * data = &mReconstructedErrors[0];
+            const float * data = &mReconstructedErrors[0];
             if ( size == maxWidth )
                 data += mReconstructedErrors.size()-maxWidth;
 
@@ -365,7 +365,7 @@ public:
                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftw_execute(fft);
             fftw_destroy_plan(fft);
-            fftShift( autocorr, Nx,Ny );
+            //fftShift( autocorr, Nx,Ny );
         }
         else if ( mCurrentFrame == 4 )
         {
@@ -467,49 +467,28 @@ public:
             {
                 std::cout << "Update Mask with sigma="<<mSigma<<"\n";
 
-                /* blur IFT[ G'(x)**2 ] not g'=IFT[G'(x)] !! */
-                fftw_complex * tmp = fftw_alloc_complex( Nx*Ny );
-                #if false
-                    /* square G' */
-                    for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    {
-                        const float & re = GPrime[i][0]; /* Re */
-                        const float & im = GPrime[i][1]; /* Im */
-                        tmp[i][0] = re*re + im*im; /* Re */
-                        tmp[i][1] = 0;  /* Im */
-                    }
-                    /* IFT squared G' */
-                    fftw_plan fft = fftw_plan_dft_2d( Nx,Ny, tmp, tmp,
-                        FFTW_BACKWARD, FFTW_ESTIMATE );
-                    fftw_execute(fft);
-                    fftw_destroy_plan(fft);
-                    /* shift real space variant, may not be necessary ... */
-                    fftShift( tmp, Nx,Ny );
-                #else
-                    /* square g' */
-                    for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    {
-                        const float & re = gPrime[i][0]; /* Re */
-                        const float & im = gPrime[i][1]; /* Im */
-                        tmp[i][0] = re*re + im*im; /* Re */
-                        tmp[i][1] = 0;  /* Im */
-                    }
-                #endif
-                /* copy result into float array, because blur can't handle
-                 * fftw_complex array */
+                /* blur |g'| (normally g' should be real!, so |.| not
+                 * necessary) */
+                #pragma omp parallel for
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
-                    mBlurred[i] = tmp[i][0];
-                /* blur IFT[ G'(x)**2 ] */
+                {
+                    const float & re = gPrime[i][0]; /* Re */
+                    const float & im = gPrime[i][1]; /* Im */
+                    mBlurred[i] = sqrtf( re*re + im*im );
+                }
                 gaussianBlur( mBlurred, Nx, Ny, mSigma );
 
-                /* make mask from autocorrelation */
-                const float absMax = vectorMaxAbs( mBlurred, Nx*Ny );
+                float absMax = 0;
+                #pragma omp parallel for reduction( max : absMax )
+                for ( unsigned i = 0; i < Nx*Ny; ++i )
+                    absMax = fmax( absMax, mBlurred[i] );
+
+                /* make mask */
                 memcpy( mMask, mBlurred, Nx*Ny*sizeof(mMask[0]) );
                 for ( unsigned i = 0; i < Nx*Ny; ++i )
                     mMask[i] = mMask[i] < intensityCutOff*absMax ? 0 : 1;
 
                 mSigma = std::max( 0.5, (1-0.01)*mSigma );
-                fftw_free(tmp);
             }
 
             /* buffer domain gamma where g' does not satisfy object constraints */

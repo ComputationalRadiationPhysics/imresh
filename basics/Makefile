@@ -12,14 +12,14 @@ CFLAGS=-g -fopenmp -std=c++11 $$(sdl2-config --cflags) $(INC) $(WARNINGS)
 
 
 
-.PHONY: clean all colors/colors.a
+
+.PHONY: clean all colors/colors.a testGaussian.o testGaussian2d.o testDft.o testFftw.o testColors.o cudaBasics.a basics.a colors/colors.a gaussian.o sdlcommon.o sdlplot.o complexPlot.o cudacommon.o cudaGaussian.o dft.o matrix.o vectorReduce.o
 
 all: basics.a cudaBasics.a mainTestAll.exe mainUnderstandShrinkWrap.exe
 
 clean:
 	rm -f main.exe *.o *.a
 	make -C colors clean
-
 
 
 colors/colors.a:
@@ -59,6 +59,7 @@ cudaBasics.a: cudaGaussian.o cudacommon.o
 
 basics.a: gaussian.o complexPlot.o colors/colors.a sdlplot.o sdlcommon.o \
  dft.o matrix.o vectorReduce.o
+	rm -f $@
 	ar rcsT $@ $^
 
 
@@ -83,10 +84,10 @@ testColors.o: tests/testColors.cpp tests/testColors.h sdlcommon.o colors/colors.
 mainTestAll.exe: mainTestAll.cpp basics.a cudaBasics.a \
 		  math/fouriertransform/dcft.h math/fouriertransform/dcft.cpp \
 		  tests/testDcft.cpp tests/testSdlPlot.cpp \
-		  testDft.o testFftw.o testGaussian.o testGaussian2d.o
+		  testDft.o testFftw.o testGaussian.o testGaussian2d.o testColors.o
 	rm -f $@
-	nvcc $(NVCCFLAGS) $< $(SDLLIBS) -lfftw3 \
-	testGaussian.o testDft.o testFftw.o testGaussian2d.o testColors.o cudaBasics.a basics.a -o $@
+	nvcc $(NVCCFLAGS) $< \
+	testGaussian.o testDft.o testFftw.o testGaussian2d.o testColors.o cudaBasics.a basics.a $(SDLLIBS) -lfftw3 -o $@
 
 mainUnderstandShrinkWrap.exe: mainUnderstandShrinkWrap.cpp \
 		gaussian.o sdlplot.o sdlcommon.o \

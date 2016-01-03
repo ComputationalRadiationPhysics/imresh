@@ -39,7 +39,12 @@
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 
-namespace sdlcommon {
+
+namespace imresh
+{
+namespace sdlcommon
+{
+
 
     void SDL_check
     (
@@ -219,4 +224,6 @@ namespace sdlcommon {
     /* restore the last saved rendering color of rpRenderer */
     int SDL_RenderPopColor ( SDL_Renderer * const & rpRenderer );
 
+
 } // namespace sdlcommon
+} // namespace imresh
