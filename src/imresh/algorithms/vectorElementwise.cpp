@@ -74,19 +74,34 @@ namespace algorithms
     }
 
     /* explicitely instantiate needed data types */
-    template< class T_PREC, class T_COMPLEX > void __df1( void )
-    {
-        complexNormElementwise<T_PREC,T_COMPLEX>( NULL, NULL, 0 );
-        applyComplexModulus<T_COMPLEX,T_PREC>( NULL, NULL, NULL, 0 );
-    }
-    template<class T_COMPLEX> void __df0( void )
-    {
-        __df1<float ,T_COMPLEX>();
-        __df1<double,T_COMPLEX>();
-    }
-    template void __df0<fftw_complex >();
-    template void __df0<fftwf_complex>();
 
+    template void complexNormElementwise<float,fftwf_complex>
+    (
+        float * const & rDataTarget,
+        const fftwf_complex * const & rDataSource,
+        const unsigned & rnData
+    );
+    template void complexNormElementwise<double,fftw_complex>
+    (
+        double * const & rDataTarget,
+        const fftw_complex * const & rDataSource,
+        const unsigned & rnData
+    );
+
+    template void applyComplexModulus<fftwf_complex,float>
+    (
+        fftwf_complex * const & rDataTarget,
+        const fftwf_complex * const & rDataSource,
+        const float * const & rComplexModulus,
+        const unsigned & rnData
+    );
+    template void applyComplexModulus<fftw_complex,double>
+    (
+        fftw_complex * const & rDataTarget,
+        const fftw_complex * const & rDataSource,
+        const double * const & rComplexModulus,
+        const unsigned & rnData
+    );
 
 } // namespace algorithms
 } // namespace imresh

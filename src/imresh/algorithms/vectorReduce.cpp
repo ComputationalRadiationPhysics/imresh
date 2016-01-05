@@ -91,15 +91,52 @@ namespace algorithms
 
 
     /* explicitely instantiate needed data types */
-    template<class T> void dummyFunction( void )
-    {
-        vectorMaxAbsDiff<T>( NULL, NULL, 0 );
-        vectorMaxAbs<T>( NULL, 0 );
-        vectorMax<T>( NULL, 0 );
-        vectorMin<T>( NULL, 0 );
-    }
-    template void dummyFunction<float>();
-    template void dummyFunction<double>();
+
+    template float vectorMaxAbsDiff<float>
+    (
+        float * const & rData1,
+        float * const & rData2,
+        const unsigned & rnData
+    );
+    template double vectorMaxAbsDiff<double>
+    (
+        double * const & rData1,
+        double * const & rData2,
+        const unsigned & rnData
+    );
+
+    template float vectorMaxAbs<float>
+    (
+        float * const & rData,
+        const unsigned & rnData
+    );
+    template double vectorMaxAbs<double>
+    (
+        double * const & rData,
+        const unsigned & rnData
+    );
+
+    template float vectorMax<float>
+    (
+        float * const & rData,
+        const unsigned & rnData
+    );
+    template double vectorMax<double>
+    (
+        double * const & rData,
+        const unsigned & rnData
+    );
+
+    template float vectorMin<float>
+    (
+        float * const & rData,
+        const unsigned & rnData
+    );
+    template double vectorMin<double>
+    (
+        double * const & rData,
+        const unsigned & rnData
+    );
 
 
 } // namespace algorithms

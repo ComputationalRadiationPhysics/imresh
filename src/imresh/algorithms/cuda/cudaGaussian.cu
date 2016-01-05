@@ -539,8 +539,84 @@ template<class T_PREC> void __cudaGaussianInstantiate(void)
 }
 
 /* @todo: multiple instantations doesn't work, because of extern __shared__ !!!!!! */
-template void __cudaGaussianInstantiate<float>(void);
-//template void __cudaGaussianInstantiate<double>(void);
+
+    template void cudaApplyKernel<float>
+    (
+        float * const & rData,
+        const unsigned & rnData,
+        const float * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+    /*
+    template void cudaApplyKernel<double>
+    (
+        double * const & rData,
+        const unsigned & rnData,
+        const double * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+    */
+
+    template void cudaGaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );*/
+
+    template void cudaGaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
+
+
+    template void cudaGaussianBlurVertical<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlurVertical<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
+
+    template void cudaGaussianBlurHorizontal<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlurHorizontal <double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
 
 
 } // namespace cuda

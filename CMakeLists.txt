@@ -16,9 +16,9 @@ find_package(OpenMP REQUIRED)
 find_package(FFTW REQUIRED)
 
 if(IMRESH_DEBUG)
-    list(APPEND CMAKE_CXX_FLAGS "-g -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
+    list(APPEND CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
 else(IMRESH_DEBUG)
-    list(APPEND CMAKE_CXX_FLAGS "-std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
+    list(APPEND CMAKE_CXX_FLAGS "-O1 -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
 endif(IMRESH_DEBUG)
 
 if(BUILD_EXAMPLES)

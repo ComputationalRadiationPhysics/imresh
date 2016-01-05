@@ -542,19 +542,97 @@ namespace libs
     /* Explicitely instantiate certain template arguments to make an object
      * file. Furthermore this saves space, as we don't need to write out the
      * data types of all functions to instantiate */
-    template< class T >
-    void __instantiateAllGaussian( T * arg )
-    {
-        applyKernel           <T>( NULL, 0, NULL, 0, 0 );
-        gaussianBlur          <T>( NULL, 0, 0 );
-        gaussianBlur          <T>( NULL, 0, 0, 0.0 );
-        //gaussianBlur          <T>( NULL, std::vector<unsigned>(3), 0.0 );
-        gaussianBlurHorizontal<T>( NULL, 0, 0, 0.0 );
-        gaussianBlurVertical  <T>( NULL, 0, 0, 0.0 );
-    }
-    template void __instantiateAllGaussian<float >( float  * );
-    template void __instantiateAllGaussian<double>( double * );
 
+    template void applyKernel<float>
+    (
+        float * const & rData,
+        const unsigned & rnData,
+        const float * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+    template void applyKernel<double>
+    (
+        double * const & rData,
+        const unsigned & rnData,
+        const double * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+
+    template void gaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );
+    template void gaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );
+
+    template void gaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    template void gaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+
+    template void gaussianBlurVertical<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    template void gaussianBlurVertical<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    template int calcGaussianKernel<float>
+    (
+        const double & rSigma,
+        float * const & rWeights,
+        const unsigned & rnWeights,
+        const double & rMinAbsoluteError
+    );
+    template int calcGaussianKernel<double>
+    (
+        const double & rSigma,
+        double * const & rWeights,
+        const unsigned & rnWeights,
+        const double & rMinAbsoluteError
+    );
+
+    template void gaussianBlurHorizontal<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    template void gaussianBlurHorizontal <double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
 
 } // namespace libs
 } // namespace imresh
