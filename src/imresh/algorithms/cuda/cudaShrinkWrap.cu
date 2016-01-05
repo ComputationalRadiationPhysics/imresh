@@ -23,8 +23,8 @@
  */
 
 
-#include "cudaShrinkWrap.h"
-#include "cudacommon.h"
+#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudacommon.h"
 
 
 namespace imresh

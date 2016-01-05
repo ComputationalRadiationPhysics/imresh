@@ -32,15 +32,16 @@
 #include <iostream>
 #include <vector>
 #include <fftw3.h>
-#include "gaussian.h"
-#include "hybridInputOutput.h" // calculateHioError
-#include "vectorReduce.h"
-#include "vectorElementwise.h"
+#include "libs/gaussian.hpp"
+#include "libs/hybridInputOutput.hpp" // calculateHioError
+#include "algorithms/vectorReduce.hpp"
+#include "algorithms/vectorElementwise.hpp"
 
 
 namespace imresh
 {
-
+namespace algorithms
+{
 
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)
@@ -72,4 +73,5 @@ namespace imresh
     );
 
 
+} // namespace algorithms
 } // namespace imresh

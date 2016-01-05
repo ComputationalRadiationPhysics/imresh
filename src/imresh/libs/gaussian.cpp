@@ -23,9 +23,11 @@
  */
 
 
-#include "gaussian.h"
+#include "gaussian.hpp"
 
 
+namespace imresh
+{
 namespace libs
 {
 
@@ -535,7 +537,7 @@ namespace libs
         gaussianBlurHorizontal( rData,rnDataX,rnDataY,rSigma );
         gaussianBlurVertical  ( rData,rnDataX,rnDataY,rSigma );
     }
-    
+
 
     /* Explicitely instantiate certain template arguments to make an object
      * file. Furthermore this saves space, as we don't need to write out the
@@ -555,3 +557,4 @@ namespace libs
 
 
 } // namespace libs
+} // namespace imresh

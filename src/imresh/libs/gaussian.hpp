@@ -37,6 +37,8 @@
 #include <vector>
 
 
+namespace imresh
+{
 namespace libs
 {
 
@@ -144,7 +146,7 @@ namespace libs
         const unsigned & rnDataY,
         const double & rSigma
     );
-    
+
 
     template<class T_PREC>
     void gaussianBlurHorizontal
@@ -155,7 +157,7 @@ namespace libs
         const double & rSigma
     );
 
-    
+
     template<class T_PREC>
     void gaussianBlurVertical
     (
@@ -167,3 +169,4 @@ namespace libs
 
 
 } // namespace libs
+} // namespace imresh

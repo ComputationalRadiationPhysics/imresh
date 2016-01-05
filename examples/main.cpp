@@ -23,50 +23,22 @@
  */
 
 
-#pragma once
+#include "createAtomCluster.hpp"
+#include "libs/diffractionIntensity.hpp"
+//#include "algorithms/shrinkWrap.hpp"
+#include "algorithms/cuda/cudaShrinkWrap.h"
 
-#include <algorithm>  // max
-#include <cmath>
-#include <fftw3.h>
-
-
-namespace imresh
+int main( void )
 {
+    std::vector<unsigned> imageSize { 160, 160 };
+    float * pAtomCluster = examples::createAtomCluster( imageSize );
+    imresh::libs::diffractionIntensity( pAtomCluster, imageSize );
+    //imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
+    imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
+    /* pAtomCluster now holds the original image again (with some deviation)
+     * you could compare the current state with the data returned by
+     * createAtomCluster now */
+    delete[] pAtomCluster;
 
-
-    /**
-     * Calculate the maximum absolute difference between to arrays
-     *
-     * Useful for comparing two vectors of floating point numbers
-     **/
-    template<class T>
-    T vectorMaxAbsDiff
-    (
-        T * const & rData1,
-        T * const & rData2,
-        const unsigned & rnData
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        T * const & rData,
-        const unsigned & rnData
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        T * const & rData,
-        const unsigned & rnData
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        T * const & rData,
-        const unsigned & rnData
-    );
-
-
-} // namespace imresh
+    return 0;
+}

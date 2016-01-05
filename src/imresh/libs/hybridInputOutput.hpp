@@ -25,37 +25,33 @@
 
 #pragma once
 
-
-#ifndef NDEBUG
-#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
-#else
-#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
-#endif
-
-
 #include <cstddef>    // NULL
+#include <cstdint>    // uint8_t
+#include <climits>    // INT_MAX
 #include <cstring>    // memcpy
+#include <cmath>      // sqrtf
+#include <complex>
 #include <cassert>
-#include <cstdint>    // uint64_t
-#include <cmath>
+#include <cfloat>     // FLT_EPSILON
+#include <iostream>
 #include <vector>
-#include <cuda.h>     // atomicCAS
-#include <cufft.h>
-#include "algorithms/cuda/cudaGaussian.h"
-#if DEBUG_CUDASHRINKWRAP == 1
-#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
-#    include "algorithms/vectorReduce.hpp"
-#    include "algorithms/vectorElementwise.hpp"
-#endif
+#include <omp.h>      // omp_get_num_procs, omp_set_num_procs
+#include <fftw3.h>
+#include "libs/vectorIndex.hpp"
 
 
 namespace imresh
 {
-namespace algorithms
+namespace libs
 {
-namespace cuda
-{
-
+    template< class T_COMPLEX, class T_MASK_ELEMENT >
+    float calculateHioError
+    (
+        const T_COMPLEX * const & gPrime,
+        const T_MASK_ELEMENT * const & rIsMasked,
+        const unsigned & nElements,
+        const bool & rInvertMask = false
+    );
 
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)
@@ -65,28 +61,32 @@ namespace cuda
      *
      * @param[in]  rIoData measured (phaseless) intensity distribution whose
      *             phase shrinkWrap will reconstruct
+     * @param[in]  rMask Must be of the same size as rIoData. 0 elements denote
+     *             that the object isn't here. 1 denotes the object. The
+     *             solution returned will have the property that:
+     *                 rIoData * rMask == rIoData
+     *             except for rounding errors or if the algorithm did not
+     *             converge sufficiently.
+     * @param[in]  rSize width, height, depth, ... of rIoData and rMask
+     * @param[in]  rnHioCycles maximum cycles to calculate. Use with care,
+     *             because the returned 'solution' may not have converged
+     *             enough!
      * @param[in]  rnCores Number of Cores to utilize in parallel.
-     *             (If 0 then it tries to choose automatically)
+     *             If 0, then the value returned by omp_get_num_procs will
+     *             be used.
      * @param[out] rIoData will hold the reconstructed object. Currently
      *             only positive real valued objects are supported.
      * @return 0 on success, else error or warning codes.
      **/
-    int cudaShrinkWrap
+    int hybridInputOutput
     (
         float * const & rIoData,
+        const uint8_t * const & rMask,
         const std::vector<unsigned> & rSize,
-        unsigned rnCycles = 20,
-        float rTargetError = 1e-5,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
-        float rSigmaChange = 0.01,
-        unsigned rnHioCycles = 20,
-        unsigned rnCores = 1
+        unsigned rnCycles = UINT_MAX,
+        float rTargetErr = 1e-6,
+        float rBeta = 0.9,
+        unsigned rnCores = 0
     );
-
-
-} // namespace cuda
-} // namespace algorithms
+} // namespace libs
 } // namespace imresh

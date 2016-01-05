@@ -25,27 +25,35 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include <vector>
-#include <cstdlib>  // srand, rand
-#include "gaussian.h"
+#include <algorithm>  // max
+#include <cmath>
+#include <fftw3.h>
 
 
-namespace examples
+namespace imresh
+{
+namespace algorithms
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float * createAtomCluster
+    template< class T_PREC, class T_COMPLEX >
+    void complexNormElementwise
     (
-        const std::vector<unsigned> & rSize
+        T_PREC * const & rDataTarget,
+        const T_COMPLEX * const & rDataSource,
+        const unsigned & rnData
     );
 
 
-} // namespace examples
+    template< class T_COMPLEX, class T_PREC >
+    void applyComplexModulus
+    (
+        T_COMPLEX * const & rDataTarget,
+        const T_COMPLEX * const & rDataSource,
+        const T_PREC * const & rComplexModulus,
+        const unsigned & rnData
+    );
+
+
+} // namespace algorithms
+} // namespace imresh

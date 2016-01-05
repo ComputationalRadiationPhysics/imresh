@@ -23,8 +23,8 @@
  */
 
 
-#include "cudaGaussian.h"
-#include "cudacommon.h"
+#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudacommon.h"
 
 
 namespace imresh
@@ -218,7 +218,7 @@ void cudaGaussianBlur
 {
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
     cudaApplyKernel( rdpData, rnData, (T_PREC*) pKernel, kernelSize );
 }
@@ -234,7 +234,7 @@ void cudaGaussianBlurHorizontal
 {
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
 
     /* upload kernel to GPU */
@@ -477,7 +477,7 @@ void cudaGaussianBlurVertical
     /* calculate Gaussian kernel */
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
     assert( kernelSize % 2 == 1 );
 

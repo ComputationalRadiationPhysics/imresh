@@ -27,9 +27,11 @@
 
 #include <vector>
 #include <cmath>     // sqrtf
-#include "vectorIndex.h"
+#include "libs/vectorIndex.hpp"
 
 
+namespace imresh
+{
 namespace libs
 {
 
@@ -74,3 +76,4 @@ namespace libs
 
 
 } // namespace libs
+} // namespace imresh

@@ -23,46 +23,29 @@
  */
 
 
-#include "diffractionIntensity.h"
-#include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
+#pragma once
+
+#include <cstdlib>  // srand, RAND_MAX, rand
+#include <cmath>    // fmin, sqrtf
+#include <vector>
+#include <cstdlib>  // srand, rand
+#include "libs/gaussian.hpp"
 
 
-namespace libs
+namespace examples
 {
 
 
-    void diffractionIntensity
+    /**
+     * Create a sample data of two atom clusters
+     *
+     * @param[in] rSize image dimensions
+     * @return pointer to allocated data. Must be deallocated with delete[]
+     **/
+    float * createAtomCluster
     (
-        float * const & rIoData,
         const std::vector<unsigned> & rSize
-    )
-    {
-        unsigned nElements = 1;
-        for ( const auto & dim : rSize )
-            nElements *= dim;
-        /* @ see http://www.fftw.org/doc/Precision.html */
-        auto tmp = new fftwf_complex[nElements];
-
-        for ( unsigned i = 0; i < nElements; ++i )
-        {
-            tmp[i][0] = rIoData[i];
-            tmp[i][1] = 0;
-        }
-        fftwf_plan ft = fftwf_plan_dft_2d( rSize[1],rSize[0], tmp, tmp,
-            FFTW_FORWARD, FFTW_ESTIMATE );
-        fftwf_execute( ft );
-        fftwf_destroy_plan( ft );
-
-        for ( unsigned i = 0; i < nElements; ++i )
-        {
-            const float & re = tmp[i][0]; /* Re */
-            const float & im = tmp[i][1]; /* Im */
-            const float norm = sqrtf( re*re + im*im );
-            rIoData[ i /*fftShiftIndex(i,rSize)*/ ] = norm;
-        }
-
-        delete[] tmp;
-    }
+    );
 
 
-} // diffractionIntensity
+} // namespace examples

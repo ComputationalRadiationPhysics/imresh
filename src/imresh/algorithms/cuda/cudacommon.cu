@@ -23,7 +23,7 @@
  */
 
 
-#include "cudacommon.h"
+#include "algorithms/cuda/cudacommon.h"
 
 
 namespace imresh

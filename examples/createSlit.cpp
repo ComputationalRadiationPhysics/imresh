@@ -23,11 +23,9 @@
  */
 
 
-#include "createSlit.h"
+#include "createSlit.hpp"
 
 
-namespace imresh
-{
 namespace examples
 {
 
@@ -52,4 +50,3 @@ float * createVerticalSingleSlit
 
 
 } // namespace examples
-} // namespace imresh

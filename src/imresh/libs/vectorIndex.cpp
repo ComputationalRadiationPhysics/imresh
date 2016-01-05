@@ -23,9 +23,11 @@
  */
 
 
-#include "vectorIndex.h"
+#include "vectorIndex.hpp"
 
 
+namespace imresh
+{
 namespace libs
 {
 
@@ -86,7 +88,7 @@ namespace libs
         return vecIndex;
     }
 
-    
+
     unsigned fftShiftIndex
     (
         const unsigned & rLinearIndex,
@@ -105,3 +107,4 @@ namespace libs
 
 
 } // namespace libs
+} // namespace imresh

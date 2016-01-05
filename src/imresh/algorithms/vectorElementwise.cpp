@@ -23,10 +23,12 @@
  */
 
 
-#include "vectorReduce.h"
+#include "vectorReduce.hpp"
 
 
 namespace imresh
+{
+namespace algorithms
 {
 
 
@@ -86,4 +88,5 @@ namespace imresh
     template void __df0<fftwf_complex>();
 
 
+} // namespace algorithms
 } // namespace imresh

@@ -23,7 +23,7 @@
  */
 
 
-#include "createAtomCluster.h"
+#include "createAtomCluster.hpp"
 
 
 namespace examples
@@ -52,7 +52,7 @@ namespace examples
         const float noiseAmplitude = 0.00;
         for ( unsigned i = 0; i < nElements; ++i )
             data[i] = 0.7*noiseAmplitude * rand() / (float) RAND_MAX;
-        libs::gaussianBlur( data, Nx, Ny, 1.5 /*sigma in pixels*/ );
+        imresh::libs::gaussianBlur( data, Nx, Ny, 1.5 /*sigma in pixels*/ );
         /* add more fine grained noise in a second step */
         for ( unsigned i = 0; i < nElements; ++i )
             data[i] += 0.3*noiseAmplitude * rand() / (float) RAND_MAX;

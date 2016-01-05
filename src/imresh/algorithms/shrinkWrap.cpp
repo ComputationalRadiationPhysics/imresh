@@ -23,10 +23,12 @@
  */
 
 
-#include "shrinkWrap.h"
+#include "algorithms/shrinkWrap.hpp"
 
 
 namespace imresh
+{
+namespace algorithms
 {
 
 
@@ -253,7 +255,7 @@ namespace imresh
             } // HIO loop
 
             /* check if we are done */
-            const float currentError = calculateHioError( curData /*g'*/, isMasked, nElements );
+            const float currentError = imresh::libs::calculateHioError( curData /*g'*/, isMasked, nElements );
             std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                       << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
                       << "\n";
@@ -275,5 +277,5 @@ namespace imresh
         return 0;
     }
 
-
+} // namespace algorithms
 } // namespace imresh
