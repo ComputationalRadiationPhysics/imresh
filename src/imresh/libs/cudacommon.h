@@ -23,26 +23,23 @@
  */
 
 
-#include "algorithms/cuda/cudacommon.h"
+#pragma once
 
+#include <chrono>
+#include <string>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+
+#define CUDA_ERROR(X) imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
-namespace algorithms
-{
-namespace cuda
+namespace libs
 {
 
 
-    void checkCudaError
-    ( const cudaError_t rValue, const char * file, int line )
-    {
-        if ( (rValue) != cudaSuccess )
-        printf( "CUDA error in %s line:%i : %s\n",
-                file, line, cudaGetErrorString(rValue) );
-    }
+    void checkCudaError(const cudaError_t rValue, const char * file, int line );
 
 
-} // namespace cuda
-} // namespace algorithms
+} // namespace libs
 } // namespace imresh

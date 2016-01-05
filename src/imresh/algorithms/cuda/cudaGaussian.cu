@@ -24,7 +24,7 @@
 
 
 #include "algorithms/cuda/cudaGaussian.h"
-#include "algorithms/cuda/cudacommon.h"
+#include "libs/cudacommon.h"
 
 
 namespace imresh
