@@ -14,6 +14,10 @@ To compile this library you need
 
 * [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
 
+* OpenMP
+
+* FFTW3 (single precision build)
+
 ### Build options
 
 * `-DCMAKE_INSTALL_PREFIX`
