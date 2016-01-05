@@ -10,7 +10,7 @@ To compile this library you need
 
 * CUDA
 
-* CMake (`2.8.5+`)
+* CMake (`3.4.1+`)
 
 * [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
 
@@ -75,3 +75,7 @@ To compile this library you need
 
     Update your fftw library or manually apply the patch shown [here](https://github.com/FFTW/fftw3/commit/07ef78dc1b273a40fb4f7db1797d12d3423b1f40),
     i.e. add `|| defined(__CUDACC__)` to the faulty line in the header.
+
+* `stddef.h(432): error: identifier "nullptr" is undefined`
+
+    Your CMake version is too old.
