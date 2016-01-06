@@ -23,8 +23,8 @@
  */
 
 
-#include "cudaGaussian.h"
-#include "cudacommon.h"
+#include "algorithms/cuda/cudaGaussian.h"
+#include "libs/cudacommon.h"
 
 
 namespace imresh
@@ -218,7 +218,7 @@ void cudaGaussianBlur
 {
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
     cudaApplyKernel( rdpData, rnData, (T_PREC*) pKernel, kernelSize );
 }
@@ -234,7 +234,7 @@ void cudaGaussianBlurHorizontal
 {
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
 
     /* upload kernel to GPU */
@@ -477,7 +477,7 @@ void cudaGaussianBlurVertical
     /* calculate Gaussian kernel */
     const int nKernelElements = 64;
     T_PREC pKernel[64];
-    const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+    const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
     assert( kernelSize <= nKernelElements );
     assert( kernelSize % 2 == 1 );
 
@@ -539,8 +539,84 @@ template<class T_PREC> void __cudaGaussianInstantiate(void)
 }
 
 /* @todo: multiple instantations doesn't work, because of extern __shared__ !!!!!! */
-template void __cudaGaussianInstantiate<float>(void);
-//template void __cudaGaussianInstantiate<double>(void);
+
+    template void cudaApplyKernel<float>
+    (
+        float * const & rData,
+        const unsigned & rnData,
+        const float * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+    /*
+    template void cudaApplyKernel<double>
+    (
+        double * const & rData,
+        const unsigned & rnData,
+        const double * const & rWeights,
+        const unsigned & rnWeights,
+        const unsigned & rnThreads
+    );
+    */
+
+    template void cudaGaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const double & rSigma
+    );*/
+
+    template void cudaGaussianBlur<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlur<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
+
+
+    template void cudaGaussianBlurVertical<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlurVertical<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
+
+    template void cudaGaussianBlurHorizontal<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    /*template void cudaGaussianBlurHorizontal <double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );*/
 
 
 } // namespace cuda

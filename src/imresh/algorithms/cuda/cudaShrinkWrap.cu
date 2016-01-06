@@ -23,8 +23,8 @@
  */
 
 
-#include "cudaShrinkWrap.h"
-#include "cudacommon.h"
+#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "libs/cudacommon.h"
 
 
 namespace imresh
@@ -554,14 +554,14 @@ namespace cuda
     (
         float * const & rIntensity,
         const std::vector<unsigned> & rSize,
-        unsigned rnHioCycles,
+        unsigned rnCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnCycles,
+        unsigned rnHioCycles,
         unsigned rnCores
     )
     {
@@ -603,29 +603,10 @@ namespace cuda
         CUDA_ERROR( cudaMalloc( (void**)&dpIntensity, sizeof(dpIntensity[0])*nElements ) );
         CUDA_ERROR( cudaMalloc( (void**)&dpIsMasked , sizeof(dpIsMasked [0])*nElements ) );
         CUDA_ERROR( cudaMemcpy( dpIntensity, rIntensity, sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice ) );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            std::cout << "allocated " << sizeof(dpIntensity[0])*nElements << " bytes for intensity\n";
-            float relErr;
-            static_assert( 2*sizeof(float) == sizeof(cufftComplex), "" );
-            relErr = compareCpuWithGpuArray( (float*) rIntensity, (float*) dpIntensity, nElements );
-            std::cout << "average relative error between:\n";
-            std::cout << "  input intensity <-> GPU intensity : " << relErr << "\n";
-#       endif
 
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
         cufftPlan2d( &ftPlan, Nx, Ny, CUFFT_C2C );
-
-#       if DEBUG_CUDASHRINKWRAP == 1
-            fftwf_complex * const curData   = fftwf_alloc_complex( nElements );
-            fftwf_complex * const gPrevious = fftwf_alloc_complex( nElements );
-            auto const isMasked = new float[nElements];
-
-            auto toRealSpace = fftwf_plan_dft( rSize.size(),
-                (int*) &rSize[0], curData, curData, FFTW_BACKWARD, FFTW_ESTIMATE );
-            auto toFreqSpace = fftwf_plan_dft( rSize.size(),
-                (int*) &rSize[0], gPrevious, curData, FFTW_FORWARD, FFTW_ESTIMATE );
-#       endif
 
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see
@@ -633,74 +614,19 @@ namespace cuda
         const unsigned nThreads = 512;
         const unsigned nBlocks  = ceil( (float) nElements / nThreads );
         cudaKernelCopyToRealPart<<< nBlocks, nThreads >>>( dpCurData, dpIntensity, nElements );
-#       if DEBUG_CUDASHRINKWRAP == 1
-#           pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                curData[i][0] = rIntensity[i]; /* Re */
-                curData[i][1] = 0;
-            }
-            relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-            std::cout << "  intensity <-> GPU intensity (complex real part) : " << relErr << "\n";
-#       endif
 
         cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
         cudaKernelComplexNormElementwise<<< nBlocks, nThreads >>>( dpIsMasked, dpCurData, nElements );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            fftwf_execute( toRealSpace );
-            relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-            std::cout << "  FT[intensity] <-> GPU FT[intensity] : " << relErr << "\n";
-
-            complexNormElementwise( isMasked, curData, nElements );
-            relErr = compareCpuWithGpuArray( (float*) isMasked, (float*) dpIsMasked, nElements );
-            std::cout << "  Mask <-> GPU Mask (from norm) : " << relErr << "\n";
-#       endif
         //cudaFftShift( dpIsMasked, Nx,Ny );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            //fftShift( isMasked, Nx,Ny );
-            //gaussianBlur( isMasked, Nx, Ny, sigma );
-            //relErr = compareCpuWithGpuArray( (float*) isMasked, (float*) dpIsMasked, 2*nElements );
-            //std::cout << "  Mask <-> GPU Mask (fft shifted) : " << relErr << "\n";
-#       endif
         cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            //fftShift( isMasked, Nx,Ny );
-            gaussianBlur( isMasked, Nx, Ny, sigma );
-            relErr = compareCpuWithGpuArray( (float*) isMasked, (float*) dpIsMasked, nElements );
-            std::cout << "  Mask <-> GPU Mask (blurred) : " << relErr << "\n";
-#       endif
 
         /* apply threshold to make binary mask */
         const float maskedAbsMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
         const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
         cudaKernelCutOff<<<nBlocks,nThreads>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            {
-            const auto absMax = vectorMax( isMasked, nElements );
-            std::cout << "  maskedAbsMax <-> GPU maskedAbsMax : "
-                      << absMax << " <-> " << maskedAbsMax << "\n";
-
-            const float threshold = rIntensityCutOffAutoCorel * absMax;
-#           pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-                isMasked[i] = isMasked[i] < threshold ? 1 : 0;
-            }
-            relErr = compareCpuWithGpuArray( (float*) isMasked, (float*) dpIsMasked, nElements );
-            std::cout << "  Mask <-> GPU Mask (thresholded) : " << relErr << "\n";
-#       endif
 
         /* copy original image into fftw_complex array @todo: add random phase */
         cudaKernelCopyToRealPart<<< nBlocks, nThreads >>>( dpCurData, dpIntensity, nElements );
-#       if DEBUG_CUDASHRINKWRAP == 1
-#           pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                curData[i][0] = rIntensity[i]; /* Re */
-                curData[i][1] = 0;
-            }
-            relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-            std::cout << "  intensity <-> GPU intensity (g initialization) : " << relErr << "\n";
-#       endif
 
         /* in the first step the last value for g is to be approximated
          * by g'. The last value for g, called g_k is needed, because
@@ -708,16 +634,6 @@ namespace cuda
          * because the fft is needed */
         cudaMemcpy( dpgPrevious, dpCurData, sizeof(dpCurData[0]) * nElements,
                     cudaMemcpyDeviceToDevice );
-#       if DEBUG_CUDASHRINKWRAP == 1
-#           pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-            {
-                gPrevious[i][0] = curData[i][0];
-                gPrevious[i][1] = curData[i][1];
-            }
-            relErr = compareCpuWithGpuArray( (float*) gPrevious, (float*) dpgPrevious, 2*nElements );
-            std::cout << "  g_previous <-> GPU g_previous (initialization) : " << relErr << "\n";
-#       endif
 
         /* repeatedly call HIO algorithm and change mask */
         for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
@@ -734,23 +650,6 @@ namespace cuda
             const float threshold = rIntensityCutOff * absMax;
             cudaKernelCutOff<<<nBlocks,nThreads>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
-#           if DEBUG_CUDASHRINKWRAP == 1
-            {
-                complexNormElementwise( isMasked, curData, nElements );
-                gaussianBlur( isMasked, Nx, Ny, sigma );
-                const auto absMaxCpu = vectorMax( isMasked, nElements );
-                std::cout << "  maskedAbsMax <-> GPU maskedAbsMax : "
-                          << absMaxCpu << " <-> " << absMax << "\n";
-
-                const float threshold = rIntensityCutOff * absMaxCpu;
-                #pragma omp parallel for
-                for ( unsigned i = 0; i < nElements; ++i )
-                    isMasked[i] = isMasked[i] < threshold ? 1 : 0;
-                relErr = compareCpuWithGpuArray( (float*) isMasked, (float*) dpIsMasked, nElements );
-                std::cout << "  Mask <-> GPU Mask (thresholded) : " << relErr << "\n";
-            }
-#           endif
-
             /* update the blurring sigma */
             sigma = fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
 
@@ -760,48 +659,14 @@ namespace cuda
                 cudaKernelApplyHioDomainConstraints<<<nBlocks,nThreads>>>
                     ( dpgPrevious, dpCurData, dpIsMasked, nElements, rHioBeta );
 
-#               if DEBUG_CUDASHRINKWRAP == 1
-#                   pragma omp parallel for
-                    for ( unsigned i = 0; i < nElements; ++i )
-                    {
-                        if ( isMasked[i] == 1 or /* g' */ curData[i][0] < 0 )
-                        {
-                            gPrevious[i][0] -= rHioBeta * curData[i][0];
-                            gPrevious[i][1] -= rHioBeta * curData[i][1];
-                        }
-                        else
-                        {
-                            gPrevious[i][0] = curData[i][0];
-                            gPrevious[i][1] = curData[i][1];
-                        }
-                    }
-                    relErr = compareCpuWithGpuArray( (float*) gPrevious, (float*) dpgPrevious, 2*nElements );
-                    std::cout << "  g <-> GPU g (domain constraints applied) : " << relErr << "\n";
-#               endif
-
                 /* Transform new guess g for f back into frequency space G' */
                 cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD );
-#               if DEBUG_CUDASHRINKWRAP == 1
-                    fftwf_execute( toFreqSpace );
-                    relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-                    std::cout << "  FT[g] <-> GPU FT[g] : " << relErr << "\n";
-#               endif
 
                 /* Replace absolute of G' with measured absolute |F| */
                 cudaKernelApplyComplexModulus<<<nBlocks,nThreads>>>
                     ( dpCurData, dpCurData, dpIntensity, nElements );
-#               if DEBUG_CUDASHRINKWRAP == 1
-                    applyComplexModulus( curData, curData, rIntensity, nElements );
-                    relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-                    std::cout << "  G' <-> GPU G' (applied intensity norm) : " << relErr << "\n";
-#               endif
 
                 cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
-#               if DEBUG_CUDASHRINKWRAP == 1
-                    fftwf_execute( toRealSpace );
-                    relErr = compareCpuWithGpuArray( (float*) curData, (float*) dpCurData, 2*nElements );
-                    std::cout << "  g' <-> GPU g' (transformed) : " << relErr << "\n";
-#               endif
             } // HIO loop
 
             /* check if we are done */
@@ -823,13 +688,6 @@ namespace cuda
         CUDA_ERROR( cudaFree( dpgPrevious ) );
         CUDA_ERROR( cudaFree( dpIntensity ) );
         CUDA_ERROR( cudaFree( dpIsMasked  ) );
-#       if DEBUG_CUDASHRINKWRAP == 1
-            fftwf_destroy_plan( toFreqSpace );
-            fftwf_destroy_plan( toRealSpace );
-            fftwf_free( curData  );
-            fftwf_free( gPrevious);
-            delete[] isMasked;
-#       endif
 
         return 0;
     }

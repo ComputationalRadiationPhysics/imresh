@@ -25,37 +25,23 @@
 
 #pragma once
 
-
-#ifndef NDEBUG
-#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
-#else
-#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
-#endif
-
-
 #include <cstddef>    // NULL
 #include <cstring>    // memcpy
 #include <cassert>
-#include <cstdint>    // uint64_t
 #include <cmath>
+#include <iostream>
 #include <vector>
-#include <cuda.h>     // atomicCAS
-#include <cufft.h>
-#include "algorithms/cuda/cudaGaussian.h"
-#if DEBUG_CUDASHRINKWRAP == 1
-#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
-#    include "algorithms/vectorReduce.hpp"
-#    include "algorithms/vectorElementwise.hpp"
-#endif
+#include <fftw3.h>
+#include "libs/gaussian.hpp"
+#include "libs/hybridInputOutput.hpp" // calculateHioError
+#include "algorithms/vectorReduce.hpp"
+#include "algorithms/vectorElementwise.hpp"
 
 
 namespace imresh
 {
 namespace algorithms
 {
-namespace cuda
-{
-
 
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)
@@ -71,7 +57,7 @@ namespace cuda
      *             only positive real valued objects are supported.
      * @return 0 on success, else error or warning codes.
      **/
-    int cudaShrinkWrap
+    int shrinkWrap
     (
         float * const & rIoData,
         const std::vector<unsigned> & rSize,
@@ -87,6 +73,5 @@ namespace cuda
     );
 
 
-} // namespace cuda
 } // namespace algorithms
 } // namespace imresh
