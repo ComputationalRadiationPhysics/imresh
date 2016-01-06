@@ -27,9 +27,14 @@
 #include "libs/diffractionIntensity.hpp"
 //#include "algorithms/shrinkWrap.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.h"
+#include "io/taskQueue.hpp"
 
 int main( void )
 {
+    int* h_mem;
+    h_mem = (int*) malloc(sizeof(int) * 100);
+    auto tq = new imresh::io::taskQueue( );
+    tq->addTask(h_mem, sizeof(int) * 100);
     std::vector<unsigned> imageSize { 160, 160 };
     float * pAtomCluster = examples::createAtomCluster( imageSize );
     imresh::libs::diffractionIntensity( pAtomCluster, imageSize );

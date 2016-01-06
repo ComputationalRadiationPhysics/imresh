@@ -22,38 +22,43 @@
  * SOFTWARE.
  */
 
-#include <cuda_runtime.h>           // cudaEvent_t
 #include <list>                     // std::list
-#include <mutex>                    // std::mutex
 
 namespace imresh
 {
 namespace io
 {
-    std::mutex mtx;
-    std::list<cudaEvent_t> eventList;
+    extern "C"
+    {
+        void addTaskAsync(
+            int* _h_mem,
+            int _size
+        );
 
-    /*
-     * Inserts a new task into the task queue.
-     *
-     * The task will be added to the next CUDA stream available. This is done
-     * asynchronously.
-     *
-     * @param _h_mem Pointer to the host memory. This has to be pinned
-     * memory allocated with cudaMallocHost.
-     * @param _size Size of the host data.
-     */
-    void addTask(
-        int* _h_mem,
-        int _size
-    );
+        void fillStreamList( );
+        void listenForEvents( );
+    }
 
-    static void addTaskAsync(
-        int* _h_mem,
-        int _size
-    );
 
-    static void listenForEvents( );
+    class taskQueue
+    {
+    public:
+        taskQueue( );
+
+        /*
+         * Inserts a new task into the task queue.
+         *
+         * The task will be added to the next CUDA stream available. This is done
+         * asynchronously.
+         *
+         * @param _h_mem Pointer to the host memory. This has to be pinned
+         * memory allocated with cudaMallocHost.
+         * @param _size Size of the host data.
+         */
+        void addTask(
+            int* _h_mem,
+            int _size
+        );
     };
 } // namespace io
 } // namespace imresh

@@ -17,6 +17,7 @@ find_package(FFTW REQUIRED)
 
 if(IMRESH_DEBUG)
     list(APPEND CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
+    add_definitions("-DIMRESH_DEBUG")
 else(IMRESH_DEBUG)
     list(APPEND CMAKE_CXX_FLAGS "-O1 -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
 endif(IMRESH_DEBUG)
