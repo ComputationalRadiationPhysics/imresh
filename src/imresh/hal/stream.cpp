@@ -22,23 +22,40 @@
  * SOFTWARE.
  */
 
-#pragma once
+#include <cuda_runtime.h>
+#ifdef IMRESH_DEBUG
+#   include <iostream>
+#endif
 
-#include <cuda_runtime.h>       // cudaStream_t
-#include <list>                 // std::list
+#include "hal/stream.hpp"
+#include "libs/cudacommon.h"
 
 namespace imresh
 {
 namespace hal
 {
-    std::list<imresh::hal::stream> streamList;
-
-    struct stream
+    void fillStreamList( )
     {
-        int device,
-        cudaStream_t str;
-    };
+        int deviceCount;
+        CUDA_ERROR( cudaGetDeviceCount( &deviceCount ) );
 
-    void fillStreamList( );
+        for( int i = 0; i < deviceCount; i++ )
+        {
+            cudaDeviceProp prop;
+            CUDA_ERROR( cudaGetDeviceProperties( &prop, i ) );
+
+            for( int j = 0; j < prop.multiProcessorCount; j++ )
+            {
+                stream str;
+                str.device = i;
+                CUDA_ERROR( cudaStreamCreate( &str.str ) );
+                streamList.push_end( str );
+#               ifdef IMRESH_DEBUG
+                    std::cout << "imresh::hal::fillStreamList(): Created stream "
+                        << j << " on device " << i << std::endl;
+#               endif
+            }
+        }
+    }
 } // namespace hal
 } // namespace imresh
