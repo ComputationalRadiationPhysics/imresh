@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <functional>               // std::function
 #include <thread>                   // std::thread
 
 #include "io/taskQueue.hpp"
@@ -37,10 +38,11 @@ namespace io
 
     void taskQueue::addTask(
         int* _h_mem,
-        int _size
+        int _size,
+        std::function<void(int*,int)> _writeOutFunc
     )
     {
-        std::thread( addTaskAsync, _h_mem, _size).detach( );
+        std::thread( addTaskAsync, _h_mem, _size, _writeOutFunc).detach( );
     }
 } // namespace io
 } // namespace imresh
