@@ -8,9 +8,11 @@ Shrink-Wrap Imaginar Coefficient Reconstruction Algorithm
 
 To compile this library you need
 
-* CUDA
+* C++ Compiler (with `c++11` support)
 
-* CMake (`3.4.1+`)
+* CUDA (`7.5+`)
+
+* CMake (`3.3+`)
 
 * [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
 

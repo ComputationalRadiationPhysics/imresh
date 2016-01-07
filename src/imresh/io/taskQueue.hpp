@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <functional>               // std::function
 #include <list>                     // std::list
 
 namespace imresh
@@ -32,11 +33,11 @@ namespace io
     {
         void addTaskAsync(
             int* _h_mem,
-            int _size
+            int _size,
+            std::function<void(int*,int)> _writeOutFunc
         );
 
         void fillStreamList( );
-        void listenForEvents( );
     }
 
 
@@ -57,7 +58,8 @@ namespace io
          */
         void addTask(
             int* _h_mem,
-            int _size
+            int _size,
+            std::function<void(int*,int)> _writeOutFunc
         );
     };
 } // namespace io
