@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.5)
+cmake_minimum_required(VERSION 3.4.1)
 project(imresh)
 
 # Options
@@ -38,10 +38,10 @@ if(BUILD_DOC)
 endif()
 
 if(IMRESH_DEBUG)
-    list(APPEND CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
 else()
-    list(APPEND CMAKE_CXX_FLAGS "-O1 -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -DNEDBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
 
 if(BUILD_EXAMPLES)
@@ -66,3 +66,5 @@ cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${FFTW_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
