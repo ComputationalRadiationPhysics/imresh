@@ -23,6 +23,7 @@
  */
 
 #include <functional>
+#include <iostream>
 
 #include "createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
@@ -30,17 +31,21 @@
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "io/taskQueue.hpp"
 
-void writeOut( int* mem, int size )
+void writeOut( float* mem, int size )
 {
-    //std::cout << &mem << std::endl;
+    std::cout << &mem << std::endl;
 }
 
 int main( void )
 {
-    int* h_mem;
-    h_mem = (int*) malloc(sizeof(int) * 100);
+    float* h_mem;
+    h_mem = (float*) calloc(1, sizeof(int) * 100);
+    std::function<void(float*,int)> writeOutFunc = writeOut;
+
     auto tq = new imresh::io::taskQueue( );
-    tq->addTask(h_mem, sizeof(int) * 100, (std::function<void(int*,int)>) writeOut);
+    tq->addTask(h_mem, sizeof(int) * 100, writeOutFunc);
+
+
     std::vector<unsigned> imageSize { 160, 160 };
     float * pAtomCluster = examples::createAtomCluster( imageSize );
     imresh::libs::diffractionIntensity( pAtomCluster, imageSize );

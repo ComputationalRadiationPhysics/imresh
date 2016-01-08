@@ -32,9 +32,9 @@ namespace io
     extern "C"
     {
         void addTaskAsync(
-            int* _h_mem,
+            float* _h_mem,
             int _size,
-            std::function<void(int*,int)> _writeOutFunc
+            std::function<void(float*,int)> _writeOutFunc
         );
 
         void fillStreamList( );
@@ -44,9 +44,12 @@ namespace io
     class taskQueue
     {
     public:
+        /**
+         * Standard constructor.
+         */
         taskQueue( );
 
-        /*
+        /**
          * Inserts a new task into the task queue.
          *
          * The task will be added to the next CUDA stream available. This is done
@@ -57,9 +60,9 @@ namespace io
          * @param _size Size of the host data.
          */
         void addTask(
-            int* _h_mem,
+            float* _h_mem,
             int _size,
-            std::function<void(int*,int)> _writeOutFunc
+            std::function<void(float*,int)> _writeOutFunc
         );
     };
 } // namespace io

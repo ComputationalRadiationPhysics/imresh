@@ -37,9 +37,9 @@ namespace io
     }
 
     void taskQueue::addTask(
-        int* _h_mem,
+        float* _h_mem,
         int _size,
-        std::function<void(int*,int)> _writeOutFunc
+        std::function<void(float*,int)> _writeOutFunc
     )
     {
         std::thread( addTaskAsync, _h_mem, _size, _writeOutFunc).detach( );
