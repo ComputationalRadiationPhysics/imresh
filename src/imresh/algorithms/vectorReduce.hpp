@@ -27,6 +27,7 @@
 
 #include <algorithm>  // max
 #include <cmath>
+#include <limits>     // lowest, max
 #include <fftw3.h>
 
 
@@ -44,29 +45,36 @@ namespace algorithms
     template<class T>
     T vectorMaxAbsDiff
     (
-        T * const & rData1,
-        T * const & rData2,
+        const T * const & rData1,
+        const T * const & rData2,
         const unsigned & rnData
     );
 
     template<class T>
     T vectorMaxAbs
     (
-        T * const & rData,
+        const T * const & rData,
         const unsigned & rnData
     );
 
     template<class T>
     T vectorMax
     (
-        T * const & rData,
+        const T * const & rData,
         const unsigned & rnData
     );
 
     template<class T>
     T vectorMin
     (
-        T * const & rData,
+        const T * const & rData,
+        const unsigned & rnData
+    );
+
+    template<class T>
+    T vectorSum
+    (
+        const T * const & rData,
         const unsigned & rnData
     );
 

@@ -3,8 +3,6 @@ set(CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
 
 
 if(RUN_TESTS)
-    message("Building tests, srcdir=${PROJECT_SOURCE_DIR}, flags=${CMAKE_CXX_FLAGS}")
-
     add_executable("testVectorIndex" ${PROJECT_SOURCE_DIR}/tests/testVectorIndex.cpp)
     target_link_libraries("testVectorIndex" ${PROJECT_NAME})
 
@@ -14,4 +12,7 @@ if(RUN_TESTS)
     enable_testing()
     add_test(NAME testVectorIndex COMMAND testVectorIndex)
     add_test(NAME testVectorReduce COMMAND testVectorReduce)
+
+    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+                  DEPENDS testVectorIndex testVectorReduce)
 endif()
