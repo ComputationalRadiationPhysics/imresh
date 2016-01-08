@@ -22,8 +22,10 @@
  * SOFTWARE.
  */
 
-#include <functional>
-#include <iostream>
+#include <functional>       // std::function
+#include <iostream>         // std::cout, std::endl
+#include <string>           // std::string
+#include <utility>          // std::pair
 
 #include "createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
@@ -31,7 +33,11 @@
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "io/taskQueue.hpp"
 
-void writeOut( float* mem, int size )
+void writeOut(
+    float* mem,
+    std::pair<unsigned int,unsigned int> size,
+    std::string filename
+)
 {
     std::cout << &mem << std::endl;
 }
@@ -40,7 +46,7 @@ int main( void )
 {
     float* h_mem;
     h_mem = (float*) calloc(1, sizeof(int) * 100);
-    std::function<void(float*,int)> writeOutFunc = writeOut;
+    std::function<void(float*,std::pair<unsigned int,unsigned int>,std::string)> writeOutFunc = writeOut;
 
     auto tq = new imresh::io::taskQueue( );
     tq->addTask(h_mem, sizeof(int) * 100, writeOutFunc);

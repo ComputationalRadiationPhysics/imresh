@@ -22,8 +22,7 @@
  * SOFTWARE.
  */
 
-#include <functional>               // std::function
-#include <list>                     // std::list
+#include <splash/splash.h>
 #include <string>                   // std::string
 #include <utility>                  // std::pair
 
@@ -31,46 +30,17 @@ namespace imresh
 {
 namespace io
 {
-    extern "C"
+namespace writeOutFuncs
+{
+    void writeOutHDF5(
+        float* _mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::string _filename
+    )
     {
-        void addTaskAsync(
-            float* _h_mem,
-            int _size,
-            std::function<void(float*,std::pair<unsigned int,unsigned int>,
-                std::string)> _writeOutFunc,
-            std::string _filename
-        );
-
-        void fillStreamList( );
+        // TODO
     }
-
-
-    class taskQueue
-    {
-    public:
-        /**
-         * Standard constructor.
-         */
-        taskQueue( );
-
-        /**
-         * Inserts a new task into the task queue.
-         *
-         * The task will be added to the next CUDA stream available. This is done
-         * asynchronously.
-         *
-         * @param _h_mem Pointer to the host memory. This has to be pinned
-         * memory allocated with cudaMallocHost.
-         * @param _size Size of the host data.
-         * @param _writeOutFunc The function to use to write the processed data.
-         */
-        void addTask(
-            float* _h_mem,
-            int _size,
-            std::function<void(float*,std::pair<unsigned int,unsigned int>,
-                std::string)> _writeOutFunc,
-            std::string _filename = "imresh"
-        );
-    };
+} // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh
+
