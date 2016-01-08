@@ -67,4 +67,24 @@ cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${FFTW_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
+# Tests and Benchmarks
+set(CMAKE_CXX_FLAGS "-std=c++11 ${OpenMP_CXX_FLAGS}")
+include_directories( ${PROJECT_SOURCE_DIR}/tests )
+if(RUN_TESTS)
+    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp )
+    add_library("tests" ${TEST_SOURCE_FILES})
+    target_link_libraries("tests")
+
+    add_executable("testVectorIndex" ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp)
+    target_link_libraries("testVectorIndex" ${PROJECT_NAME} "tests")
+
+    add_executable("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp)
+    target_link_libraries("testVectorReduce" ${PROJECT_NAME} "tests")
+
+    enable_testing()
+    add_test(NAME testVectorIndex COMMAND testVectorIndex)
+    add_test(NAME testVectorReduce COMMAND testVectorReduce)
+
+    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+                  DEPENDS testVectorIndex testVectorReduce)
+endif()
