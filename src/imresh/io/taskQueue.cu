@@ -70,7 +70,9 @@ namespace io
     extern "C" void addTaskAsync(
         float* _h_mem,
         int _size,
-        std::function<void(float*,int)> _writeOutFunc
+        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+            std::string)> _writeOutFunc,
+        std::string _filename
     )
     {
         // Lock the mutex so no other thread intermediatly changes the device
@@ -99,7 +101,7 @@ namespace io
         CUDA_ERROR( cudaMemcpyAsync( _h_mem, d_mem, _size, cudaMemcpyDeviceToHost, str ) );
         mtx.unlock( );
 
-        _writeOutFunc(_h_mem, _size);
+        _writeOutFunc(_h_mem, size, _filename);
     }
 
     /**

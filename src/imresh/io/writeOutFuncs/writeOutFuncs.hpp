@@ -22,32 +22,25 @@
  * SOFTWARE.
  */
 
-#include <functional>               // std::function
-#include <string>                   // std::string
-#include <thread>                   // std::thread
-#include <utility>                  // std::pair
-
-#include "io/taskQueue.hpp"
+#include <string>               // std::string
+#include <utility>              // std::pair
 
 namespace imresh
 {
 namespace io
 {
-    taskQueue::taskQueue( )
-    {
-        fillStreamList( );
-    }
-
-    void taskQueue::addTask(
-        float* _h_mem,
-        int _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc,
+namespace writeOutFuncs
+{
+    /**
+     * Write out data using HDF5.
+     *
+     * This is done using libSplash.
+     */
+    void writeOutHDF5(
+        float* _mem,
+        std::pair<unsigned int,unsigned int> _size,
         std::string _filename
-    )
-    {
-        std::thread( addTaskAsync, _h_mem, _size, _writeOutFunc, _filename )
-            .detach( );
-    }
+    );
+} // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh
