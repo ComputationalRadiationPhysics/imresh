@@ -22,6 +22,7 @@ if(BUILD_DOC)
         set(DOXYGEN_INPUT_PRE ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
         set(DOXYGEN_INPUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
         set(DOXYGEN_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html)
+        set(DOXY_MAIN_PAGE ${PROJECT_SOURCE_DIR}/README.md)
         configure_file(${DOXYGEN_INPUT_PRE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
         add_custom_command(OUTPUT ${DOXYGEN_OUTPUT}
                            COMMAND ${CMAKE_COMMAND} -E echo_append "Building API Documentation..."

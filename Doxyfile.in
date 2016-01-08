@@ -1,18 +1,19 @@
 PROJECT_NAME           = "@CMAKE_PROJECT_NAME@"
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
-INPUT                  = @doxy_main_page@ \
-                         @PROJECT_SOURCE_DIR@/src/ \
-                         @PROJECT_BINARY_DIR@/src/
+INPUT                  = "@PROJECT_SOURCE_DIR@/src/" \
+                         "@PROJECT_BINARY_DIR@/src/" \
+                         "@DOXY_MAIN_PAGE@"
 FILE_PATTERNS          = *.h \
                          *.hpp \
                          *.cu \
                          *.cpp
 RECURSIVE              = YES
-USE_MDFILE_AS_MAINPAGE = @doxy_main_page@
+USE_MDFILE_AS_MAINPAGE = "@DOXY_MAIN_PAGE@"
 EXTENSION_MAPPING      = cu=C
 BUILTIN_STL_SUPPORT    = YES
 EXTRACT_ALL            = YES
 EXTRACT_STATIC         = YES
 GENERATE_LATEX         = NO
 JAVADOC_AUTOBRIEF      = YES
+EXTRA_PACKAGES         = amsmath amsfonts
