@@ -38,6 +38,10 @@ To compile this library you need
 
     Adds at least debugging symbols to the code.
 
+* `-DBUILD_DOC` (default on)
+
+    Build the Doxygen documentation.
+
 ### Building
 
 1. Create a build directory
