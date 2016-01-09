@@ -83,7 +83,7 @@ namespace algorithms
 
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "vector length : cudaVectorMax | vectorMax | cudaVectorMin | vectorMin\n";
+        std::cout << "vector length : cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
         using namespace imresh::tests;
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
@@ -100,7 +100,35 @@ namespace algorithms
             pData[iObviousValuePos] = obviousMaximum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-            /* time CUDA */
+            /* time CUDA shared memory version */
+            minTime = FLT_MAX;
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
+            {
+                cudaEventRecord( start );
+                auto cudaMax = cudaVectorMaxSharedMemory( dpData, nElements );
+                cudaEventRecord( stop );
+                cudaEventSynchronize( stop );
+                cudaEventElapsedTime( &milliseconds, start, stop );
+                minTime = fmin( minTime, milliseconds );
+                assert( cudaMax == obviousMaximum );
+            }
+            std::cout << std::setw(8) << minTime << " |" << std::flush;
+
+            /* time CUDA shared memory version + warp reduce */
+            minTime = FLT_MAX;
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
+            {
+                cudaEventRecord( start );
+                auto cudaMax = cudaVectorMaxSharedMemoryWarps( dpData, nElements );
+                cudaEventRecord( stop );
+                cudaEventSynchronize( stop );
+                cudaEventElapsedTime( &milliseconds, start, stop );
+                minTime = fmin( minTime, milliseconds );
+                assert( cudaMax == obviousMaximum );
+            }
+            std::cout << std::setw(8) << minTime << " |" << std::flush;
+
+            /* time CUDA (warp reduce)*/
             minTime = FLT_MAX;
             for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
             {

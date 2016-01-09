@@ -98,8 +98,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int64_t nTotalThreads = gridDim.x * blockDim.x;
+        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         T_PREC localReduced = T_PREC(rInitValue);
@@ -113,12 +113,102 @@ namespace cuda
             smReduced = T_PREC(rInitValue);
         __syncthreads();
 
-        //atomicMax( &smReduced, localReduced );
         atomicFunc( &smReduced, localReduced, f );
 
         __syncthreads();
         if ( threadIdx.x == 0 )
             atomicFunc( rdpResult, smReduced, f );
+    }
+
+
+    /**
+     * benchmarks suggest that this kernel is twice as fast as
+     * kernelVectorReduceShared
+     **/
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceSharedMemoryWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        const T_PREC rInitValue
+    )
+    {
+        assert( blockDim.y == 1 );
+        assert( blockDim.z == 1 );
+        assert( gridDim.y  == 1 );
+        assert( gridDim.z  == 1 );
+
+        const int64_t nTotalThreads = gridDim.x * blockDim.x;
+        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        assert( i < nTotalThreads );
+
+        T_PREC localReduced = T_PREC(rInitValue);
+        for ( ; i < rnData; i += nTotalThreads )
+            localReduced = f( localReduced, rdpData[i] );
+
+        /**
+         * reduce per warp:
+         * With __shfl_down we can read the register values of other lanes in
+         * a warp. In the first iteration lane 0 will add to it's value the
+         * value of lane 16, lane 1 from lane 17 and so in.
+         * In the next step lane 0 will add the result from lane 8.
+         * In the end lane 0 will have the reduced value.
+         * @see http://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
+         **/
+        constexpr int warpSize = 32;
+        const int64_t laneId = threadIdx.x % warpSize;
+        for ( int64_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
+            localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
+
+        __shared__ T_PREC smReduced;
+        /* master thread of every block shall set shared mem variable to 0 */
+        __syncthreads();
+        if ( threadIdx.x == 0 )
+            smReduced = T_PREC(rInitValue);
+        __syncthreads();
+
+        if ( laneId == 0 )
+            atomicFunc( &smReduced, localReduced, f );
+
+        __syncthreads();
+        if ( threadIdx.x == 0 )
+            atomicFunc( rdpResult, smReduced, f );
+    }
+
+
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        const T_PREC rInitValue
+    )
+    {
+        assert( blockDim.y == 1 );
+        assert( blockDim.z == 1 );
+        assert( gridDim.y  == 1 );
+        assert( gridDim.z  == 1 );
+
+        const int64_t nTotalThreads = gridDim.x * blockDim.x;
+        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        assert( i < nTotalThreads );
+
+        T_PREC localReduced = T_PREC(rInitValue);
+        for ( ; i < rnData; i += nTotalThreads )
+            localReduced = f( localReduced, rdpData[i] );
+
+        /* reduce per warp */
+        constexpr int warpSize = 32;
+        const int64_t laneId = threadIdx.x % warpSize;
+        for ( int64_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
+            localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
+
+        if ( laneId == 0 )
+            atomicFunc( rdpResult, localReduced, f );
     }
 
 
@@ -149,7 +239,73 @@ namespace cuda
         CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
         CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
 
+        kernelVectorReduceWarps<<<nBlocks,nThreads>>>
+            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
+
+        CUDA_ERROR( cudaDeviceSynchronize() );
+        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
+
+        CUDA_ERROR( cudaFree( dpReducedValue ) );
+
+        return reducedValue;
+    }
+
+
+    template<class T_PREC, class T_FUNC>
+    T_PREC cudaReduceSharedMemory
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements,
+        T_FUNC f,
+        const T_PREC rInitValue
+    )
+    {
+        /* the more threads we have the longer the reduction will be
+         * done inside shared memory instead of global memory */
+        const unsigned nThreads = 256;
+        const unsigned nBlocks = 256;
+        assert( nBlocks < 65536 );
+
+        T_PREC reducedValue;
+        T_PREC * dpReducedValue;
+        T_PREC initValue = rInitValue;
+
+        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
+        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
+
         kernelVectorReduceShared<<<nBlocks,nThreads>>>
+            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
+
+        CUDA_ERROR( cudaDeviceSynchronize() );
+        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
+
+        CUDA_ERROR( cudaFree( dpReducedValue ) );
+
+        return reducedValue;
+    }
+
+
+    template<class T_PREC, class T_FUNC>
+    T_PREC cudaReduceSharedMemoryWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements,
+        T_FUNC f,
+        const T_PREC rInitValue
+    )
+    {
+        const unsigned nThreads = 256;
+        const unsigned nBlocks = 256;
+        assert( nBlocks < 65536 );
+
+        T_PREC reducedValue;
+        T_PREC * dpReducedValue;
+        T_PREC initValue = rInitValue;
+
+        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
+        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
+
+        kernelVectorReduceSharedMemoryWarps<<<nBlocks,nThreads>>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
         CUDA_ERROR( cudaDeviceSynchronize() );
@@ -194,6 +350,32 @@ namespace cuda
     {
         SumFunctor<T_PREC> sumFunctor;
         return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0) );
+    }
+
+
+    /* These functions only persist for benchmarking purposes to show that
+     * the standard version is the fastest */
+
+    template<class T_PREC>
+    T_PREC cudaVectorMaxSharedMemory
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements
+    )
+    {
+        MaxFunctor<T_PREC> maxFunctor;
+        return cudaReduceSharedMemory( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
+    }
+
+    template<class T_PREC>
+    T_PREC cudaVectorMaxSharedMemoryWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements
+    )
+    {
+        MaxFunctor<T_PREC> maxFunctor;
+        return cudaReduceSharedMemoryWarps( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
     }
 
 
@@ -373,6 +555,21 @@ namespace cuda
         const float * const & rdpIsMasked,
         const unsigned & rnElements,
         const bool & rInvertMask
+    );
+
+
+    template
+    float cudaVectorMaxSharedMemory<float>
+    (
+        const float * const rdpData,
+        const unsigned rnElements
+    );
+
+    template
+    float cudaVectorMaxSharedMemoryWarps<float>
+    (
+        const float * const rdpData,
+        const unsigned rnElements
     );
 
 

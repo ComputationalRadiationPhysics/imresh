@@ -112,6 +112,21 @@ namespace cuda
     );
 
 
+    template<class T_PREC>
+    T_PREC cudaVectorMaxSharedMemory
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements
+    );
+
+    template<class T_PREC>
+    T_PREC cudaVectorMaxSharedMemoryWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnElements
+    );
+
+
 } // namespace cuda
 } // namespace algorithms
 } // namespace imresh

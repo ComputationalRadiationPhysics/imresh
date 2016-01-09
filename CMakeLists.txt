@@ -43,6 +43,7 @@ if(IMRESH_DEBUG)
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -DNEDBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
+list(APPEND CUDA_NVCC_FLAGS "-arch=sm_30")
 
 if(BUILD_EXAMPLES)
     file(GLOB_RECURSE EXAMPLES_SOURCE_FILES ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.hpp)
