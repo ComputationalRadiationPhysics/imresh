@@ -15,3 +15,6 @@
 //createHalfSphere3d
 //createCone3d
 //createHalfCone3d
+
+
+simplify by making gaussian peridoic (should also be more correct, because foruier transform is periodic!)

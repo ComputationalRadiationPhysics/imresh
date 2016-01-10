@@ -41,21 +41,21 @@ namespace cuda
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
         { if (a<b) return a; else return b; }
     };
     template<class T> struct MaxFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
         { if (a>b) return a; else return b; }
     };
 
 
     template<class T_PREC, class T_FUNC>
-    __device__ T_PREC atomicFunc
+    __device__ inline void atomicFunc
     (
         T_PREC * const rdpTarget,
         const T_PREC rValue,
@@ -75,12 +75,49 @@ namespace cuda
         do
         {
             assumed = old;
+
+            /* If the reduced value doesn't change, then we don't need to hinder
+             * other threads with atomicCAS. This additional check may prove a
+             * bottleneck, if this is rarely the case, e.g. for sum and no 0s or
+             * for max and an ordered list, where the largest is the last
+             * element. In tests this more often slowed down the calcualtion
+            //if ( f( __int_as_float(assumed), rValue ) == assumed )
+            //    break;
+
+            /* compare and swap after the value was read with assumend, return
+             * old value, if assumed isn't anymore the value at rdpTarget,
+             * then we will have to try again to write it */
             old = atomicCAS( (int*) rdpTarget, assumed,
                 __float_as_int( f( __int_as_float(assumed), rValue ) ) );
-        } while ( assumed != old );
-
-        return __int_as_float( old );
+        }
+        while ( assumed != old );
     }
+
+
+    template<>
+    __device__ inline void atomicFunc<int,MaxFunctor<int>>
+    (
+        int * const rdpTarget,
+        const int rValue,
+        MaxFunctor<int> f
+    )
+    {
+        atomicMax( rdpTarget, rValue );
+    }
+
+
+    /*
+    // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
+    template<>
+    __device__ inline void atomicFunc<float,MaxFunctor<float>>
+    (
+        float * const rdpTarget,
+        const float rValue,
+        MaxFunctor<float> f
+    )
+    {
+        atomicMax( (int*)rdpTarget, __float_as_int(rValue) );
+    }*/
 
 
     template<class T_PREC, class T_FUNC>

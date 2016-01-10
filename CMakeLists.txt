@@ -41,7 +41,7 @@ if(IMRESH_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1 -DNEDBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
 list(APPEND CUDA_NVCC_FLAGS "-arch=sm_30")
 

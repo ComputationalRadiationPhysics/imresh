@@ -56,7 +56,7 @@ namespace algorithms
 
         srand(350471643);
         for ( unsigned i = 0; i < nMaxElements; ++i )
-            pData[i] = (float) rand() / RAND_MAX;
+            pData[i] = ( (float) rand() / RAND_MAX ) - 0.5f;
         float * dpData;
         CUDA_ERROR( cudaMalloc( (void**)&dpData, nMaxElements*sizeof(dpData[0]) ) );
         CUDA_ERROR( cudaMemcpy( dpData, pData, nMaxElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
