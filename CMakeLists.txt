@@ -5,6 +5,7 @@ project(imresh)
 option(RUN_TESTS OFF)
 option(BUILD_EXAMPLES OFF)
 option(IMRESH_DEBUG OFF)
+option(BUILD_DOC ON)
 
 # General definitions
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -15,8 +16,28 @@ find_package(Splash REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(FFTW REQUIRED)
 
+if(BUILD_DOC)
+    find_package(Doxygen)
+    if(DOXYGEN_FOUND)
+        set(DOXYGEN_INPUT_PRE ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
+        set(DOXYGEN_INPUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+        set(DOXYGEN_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html)
+        set(DOXY_MAIN_PAGE ${PROJECT_SOURCE_DIR}/README.md)
+        configure_file(${DOXYGEN_INPUT_PRE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
+        add_custom_command(OUTPUT ${DOXYGEN_OUTPUT}
+                           COMMAND ${CMAKE_COMMAND} -E echo_append "Building API Documentation..."
+                           COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_INPUT}
+                           COMMAND ${CMAKE_COMMAND} -E echo "Done."
+                           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                           DEPENDS ${DOXYGEN_INPUT})
+        add_custom_target(doc ALL DEPENDS ${DOXYGEN_OUTPUT})
+        install(DIRECTORY ${DOXYGEN_OUTPUT} DESTINATION share/doc)
+    endif()
+endif()
+
 if(IMRESH_DEBUG)
     list(APPEND CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
+    add_definitions("-DIMRESH_DEBUG")
 else(IMRESH_DEBUG)
     list(APPEND CMAKE_CXX_FLAGS "-O1 -std=c++11 -fPIC ${OpenMP_CXX_FLAGS}")
 endif(IMRESH_DEBUG)
