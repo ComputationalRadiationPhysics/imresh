@@ -69,7 +69,7 @@ namespace io
      */
     extern "C" void addTaskAsync(
         float* _h_mem,
-        int _size,
+        std::pair<unsigned int,unsigned int> _size,
         std::function<void(float*,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename
@@ -90,18 +90,14 @@ namespace io
 
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
-        CUDA_ERROR( cudaMalloc( (int**)& d_mem, _size ) );
-        CUDA_ERROR( cudaMemcpyAsync( d_mem, _h_mem, _size, cudaMemcpyHostToDevice, str ) );
 
         // Call shrinkWrap in the selected stream on the selected device.
-        std::pair<unsigned,unsigned> size ( 10, 10 );
-        imresh::algorithms::cuda::shrinkWrap( _h_mem, size, str );
+        imresh::algorithms::cuda::shrinkWrap( _h_mem, _size, str );
 
         // Copy memory back
-        CUDA_ERROR( cudaMemcpyAsync( _h_mem, d_mem, _size, cudaMemcpyDeviceToHost, str ) );
         mtx.unlock( );
 
-        _writeOutFunc(_h_mem, size, _filename);
+        _writeOutFunc(_h_mem, _size, _filename);
     }
 
     /**

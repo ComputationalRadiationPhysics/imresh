@@ -32,6 +32,7 @@
 //#include "algorithms/shrinkWrap.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "io/taskQueue.hpp"
+#include "io/readInFuncs/readInFuncs.hpp"
 
 void writeOut(
     float* mem,
@@ -44,12 +45,11 @@ void writeOut(
 
 int main( void )
 {
-    float* h_mem;
-    h_mem = (float*) calloc(1, sizeof(int) * 100);
+    auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
     std::function<void(float*,std::pair<unsigned int,unsigned int>,std::string)> writeOutFunc = writeOut;
 
     auto tq = new imresh::io::taskQueue( );
-    tq->addTask(h_mem, sizeof(int) * 100, writeOutFunc);
+    tq->addTask(file.first, file.second, writeOutFunc);
 
 
     std::vector<unsigned> imageSize { 160, 160 };

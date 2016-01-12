@@ -34,6 +34,16 @@ namespace io
 {
 namespace writeOutFuncs
 {
+    void justFree(
+        float* _mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::string _filename
+    )
+    {
+        delete _mem;
+        _mem = NULL;
+    }
+
 #   ifdef USE_SPLASH
         void writeOutHDF5(
             float* _mem,

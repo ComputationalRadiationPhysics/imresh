@@ -35,7 +35,7 @@ namespace io
     {
         void addTaskAsync(
             float* _h_mem,
-            int _size,
+            std::pair<unsigned int,unsigned int> _size,
             std::function<void(float*,std::pair<unsigned int,unsigned int>,
                 std::string)> _writeOutFunc,
             std::string _filename
@@ -66,7 +66,7 @@ namespace io
          */
         void addTask(
             float* _h_mem,
-            int _size,
+            std::pair<unsigned int,unsigned int> _size,
             std::function<void(float*,std::pair<unsigned int,unsigned int>,
                 std::string)> _writeOutFunc,
             std::string _filename = "imresh"

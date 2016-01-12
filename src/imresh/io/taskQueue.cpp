@@ -40,7 +40,7 @@ namespace io
 
     void taskQueue::addTask(
         float* _h_mem,
-        int _size,
+        std::pair<unsigned int,unsigned int> _size,
         std::function<void(float*,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename

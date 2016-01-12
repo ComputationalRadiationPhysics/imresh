@@ -29,32 +29,16 @@ namespace imresh
 {
 namespace io
 {
-namespace writeOutFuncs
+namespace readInFuncs
 {
     /**
-     * Just free the pointer and delete the memory.
+     * Simple function for reading txt files.
      *
-     * This function only exists for benchmarking purposes, as it's not dependant
-     * on the filesystem.
+     * They need to store their values as a 2D matrix with spaces as delimiters.
      */
-    void justFree(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::string _filname
+    std::pair<float*,std::pair<unsigned int,unsigned int>> readTxt(
+        std::string _filename
     );
-
-#   ifdef USE_SPLASH
-        /**
-         * Write out data using HDF5.
-         *
-         * This is done using libSplash.
-         */
-        void writeOutHDF5(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> _size,
-            std::string _filename
-        );
-#   endif
-} // namespace writeOutFuncs
+} // namespace readInFuncs
 } // namespace io
 } // namespace imresh
