@@ -29,6 +29,7 @@
 #include <string>
 #include <cuda.h>
 #include <cuda_runtime_api.h>
+#include <cassert>
 
 #define CUDA_ERROR(X) imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 

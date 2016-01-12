@@ -38,6 +38,7 @@ namespace libs
         if ( (rValue) != cudaSuccess )
         printf( "CUDA error in %s line:%i : %s\n",
                 file, line, cudaGetErrorString(rValue) );
+        assert(false);
     }
 
 

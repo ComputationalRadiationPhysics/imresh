@@ -46,11 +46,15 @@ namespace cuda
     };
     template<class T> struct MinFunctor {
         __device__ __host__ inline T operator() ( const T & a, const T & b )
-        { if (a<b) return a; else return b; }
+        { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
         __device__ __host__ inline T operator() ( const T & a, const T & b )
         { if (a>b) return a; else return b; }
+    };
+    template<> struct MaxFunctor<float> {
+        __device__ __host__ inline float operator() ( const float & a, const float & b )
+        { return fmax(a,b); }
     };
 
 
@@ -135,8 +139,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int64_t nTotalThreads = gridDim.x * blockDim.x;
-        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         T_PREC localReduced = T_PREC(rInitValue);
@@ -177,8 +181,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int64_t nTotalThreads = gridDim.x * blockDim.x;
-        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         T_PREC localReduced = T_PREC(rInitValue);
@@ -195,8 +199,8 @@ namespace cuda
          * @see http://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
          **/
         constexpr int warpSize = 32;
-        const int64_t laneId = threadIdx.x % warpSize;
-        for ( int64_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
+        const int32_t laneId = threadIdx.x % warpSize;
+        for ( int32_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
             localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
 
         __shared__ T_PREC smReduced;
@@ -230,18 +234,18 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int64_t nTotalThreads = gridDim.x * blockDim.x;
-        int64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         T_PREC localReduced = T_PREC(rInitValue);
         for ( ; i < rnData; i += nTotalThreads )
             localReduced = f( localReduced, rdpData[i] );
 
-        /* reduce per warp */
-        constexpr int warpSize = 32;
-        const int64_t laneId = threadIdx.x % warpSize;
-        for ( int64_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
+        /* reduce per warp (warpSize == 32 assumed) */
+        const int32_t laneId = threadIdx.x % 32;
+        #pragma unroll
+        for ( int32_t warpDelta = 32 / 2; warpDelta > 0; warpDelta /= 2)
             localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
 
         if ( laneId == 0 )
@@ -258,10 +262,10 @@ namespace cuda
         const T_PREC rInitValue
     )
     {
-        const unsigned nThreads = 256;
+        const unsigned nThreads = 128;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         //printf( "nThreads = %i, nBlocks = %i\n", nThreads, nBlocks );
-        const unsigned nBlocks = 256;
+        const unsigned nBlocks = 288;
         /* 256*256 = 65536 concurrent threads should fill most modern graphic
          * cards. E.g. GTX 760 can only handle 12288 runnin concurrently,
          * everything else will be run after some threads finished. The
@@ -448,8 +452,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const uint32_t nTotalThreads = gridDim.x * blockDim.x;
+        uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         float localTotalError    = 0;

@@ -51,7 +51,7 @@ namespace algorithms
         using namespace imresh::algorithms;
         typedef std::vector<float> Vec;
 
-        const unsigned nMaxElements = 16*1024*1024;  // ~4000x4000 pixel
+        const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
         auto pData = new float[nMaxElements];
 
         srand(350471643);
