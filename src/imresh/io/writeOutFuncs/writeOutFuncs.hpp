@@ -43,6 +43,17 @@ namespace writeOutFuncs
         std::string _filname
     );
 
+#   ifdef USE_PNG
+        /**
+         * Writes the reconstructed image to a PNG file.
+         */
+        void writeOutPNG(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        );
+#   endif
+
 #   ifdef USE_SPLASH
         /**
          * Write out data using HDF5.

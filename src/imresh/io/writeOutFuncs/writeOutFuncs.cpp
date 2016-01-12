@@ -22,11 +22,16 @@
  * SOFTWARE.
  */
 
+#ifdef USE_PNG
+#   include <pngwriter.h>
+#endif
 #ifdef USE_SPLASH
 #   include <splash/splash.h>
 #endif
 #include <string>                   // std::string
 #include <utility>                  // std::pair
+
+#include "io/writeOutFuncs/writeOutFuncs.hpp"
 
 namespace imresh
 {
@@ -43,6 +48,29 @@ namespace writeOutFuncs
         delete _mem;
         _mem = NULL;
     }
+
+#   ifdef USE_PNG
+        void writeOutPNG(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        )
+        {
+            pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
+
+            for( auto i = 0; i < _size.first; i++ )
+            {
+                for( auto j = 0; j < _size.second; j++ )
+                {
+                    png.plot( i, j, _mem[(i * _size.second) + j],
+                        _mem[(i * _size.second) + j],
+                        _mem[(i * _size.second) + j] );
+                }
+            }
+
+            png.close( );
+        }
+#   endif
 
 #   ifdef USE_SPLASH
         void writeOutHDF5(

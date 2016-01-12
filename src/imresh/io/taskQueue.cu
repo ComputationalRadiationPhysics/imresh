@@ -78,12 +78,9 @@ namespace io
         // Lock the mutex so no other thread intermediatly changes the device
         // selection
         mtx.lock( );
-        // Device memory pointer
-        int* d_mem;
         // Get the next device and stream to use
-        //auto strm = streamList.front( );
-        stream strm;
-        //streamList.pop_front( );
+        auto strm = streamList.front( );
+        streamList.pop_front( );
         streamList.push_back( strm );
         auto device = strm.device;
         auto str = strm.str;
