@@ -31,16 +31,18 @@ namespace io
 {
 namespace writeOutFuncs
 {
-    /**
-     * Write out data using HDF5.
-     *
-     * This is done using libSplash.
-     */
-    void writeOutHDF5(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::string _filename
-    );
+#   ifdef USE_SPLASH
+        /**
+         * Write out data using HDF5.
+         *
+         * This is done using libSplash.
+         */
+        void writeOutHDF5(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        );
+#   endif
 } // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh

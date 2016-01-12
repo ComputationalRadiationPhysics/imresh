@@ -22,7 +22,9 @@
  * SOFTWARE.
  */
 
-#include <splash/splash.h>
+#ifdef USE_SPLASH
+#   include <splash/splash.h>
+#endif
 #include <string>                   // std::string
 #include <utility>                  // std::pair
 
@@ -32,14 +34,16 @@ namespace io
 {
 namespace writeOutFuncs
 {
-    void writeOutHDF5(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::string _filename
-    )
-    {
-        // TODO
-    }
+#   ifdef USE_SPLASH
+        void writeOutHDF5(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        )
+        {
+            // TODO
+        }
+#   endif
 } // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh
