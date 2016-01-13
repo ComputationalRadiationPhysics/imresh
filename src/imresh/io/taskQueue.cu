@@ -28,6 +28,7 @@
 #endif
 #include <list>                     // std::list
 #include <mutex>                    // std::mutex
+#include <thread>                   // std::thread
 #include <utility>                  // std::pair
 
 #include "algorithms/cuda/cudaShrinkWrap.h"
@@ -47,13 +48,24 @@ namespace io
     };
 
     /**
+     * Mutex to coordinate device usage.
+     */
+    std::mutex mtx;
+    /**
      * List where all streams are stored as imresh::io::stream structs.
      */
     std::list<stream> streamList;
     /**
-     * Mutex to coordinate device usage.
+     * List to store all created threads.
      */
-    std::unique_lock<std::mutex> mtx;
+    std::list<std::thread> threadPool;
+    /**
+     * Maximum size of the thread pool.
+     *
+     * This is determined while imresh::io::fillStreamList() as the number of
+     * available streams.
+     */
+    int threadPoolMaxSize = 0;
 
     /**
      * Function to add a image processing task to the queue.
@@ -95,6 +107,24 @@ namespace io
         mtx.unlock( );
 
         _writeOutFunc( _h_mem, _size, _filename );
+    }
+
+    void addTask(
+        float* _h_mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+            std::string)> _writeOutFunc,
+        std::string _filename
+    )
+    {
+        while( threadPool.size( ) >= threadPoolMaxSize )
+        {
+            threadPool.front( ).join( );
+            threadPool.pop_front( );
+        }
+
+        threadPool.push_back( std::thread( addTaskAsync, _h_mem, _size,
+            _writeOutFunc, _filename ) );
     }
 
     /**
@@ -155,6 +185,20 @@ namespace io
 #       endif
 
         return streamList.size( );
+    }
+
+    void taskQueueInit( )
+    {
+        threadPoolMaxSize = fillStreamList( );
+    }
+
+    void taskQueueDeinit( )
+    {
+        while( threadPool.size( ) > 0 )
+        {
+            threadPool.front( ).join( );
+            threadPool.pop_front( );
+        }
     }
 } // namespace io
 } // namespace imresh

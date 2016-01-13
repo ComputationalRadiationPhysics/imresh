@@ -26,7 +26,7 @@
 #include <string>           // std::string
 #include <utility>          // std::pair
 
-#include "io/taskQueue.hpp"
+#include "io/taskQueue.cu"
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 
@@ -34,11 +34,13 @@ int main( void )
 {
     auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
 
-    auto tq = new imresh::io::taskQueue( );
+    imresh::io::taskQueueInit( );
 
 #   ifdef USE_PNG
-        tq->addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
+        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
 #   endif
+
+    imresh::io::taskQueueDeinit( );
 
     return 0;
 }
