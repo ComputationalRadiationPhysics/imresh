@@ -207,7 +207,7 @@ namespace libs
         const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
         const int nWeights   = 2*nNeighbors + 1;
         assert( nWeights > 0 );
-        if ( (unsigned) nWeights > rnWeights )
+        if ( (unsigned) nWeights > rnWeights or rWeights == NULL )
             return nWeights;
 
         double sumWeightings = 0;

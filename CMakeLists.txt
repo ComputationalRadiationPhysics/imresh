@@ -82,6 +82,9 @@ if(RUN_TESTS)
     add_executable("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp)
     target_link_libraries("testVectorReduce" ${PROJECT_NAME} "tests")
 
+    add_executable("testGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp)
+    target_link_libraries("testGaussian" ${PROJECT_NAME} "tests")
+
     enable_testing()
     add_test(NAME testVectorIndex COMMAND testVectorIndex)
     add_test(NAME testVectorReduce COMMAND testVectorReduce)
