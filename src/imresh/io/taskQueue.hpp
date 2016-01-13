@@ -25,6 +25,7 @@
 #include <functional>               // std::function
 #include <list>                     // std::list
 #include <string>                   // std::string
+#include <thread>
 #include <utility>                  // std::pair
 
 namespace imresh
@@ -41,7 +42,7 @@ namespace io
             std::string _filename
         );
 
-        void fillStreamList( );
+        int fillStreamList( );
     }
 
 
@@ -52,6 +53,13 @@ namespace io
          * Standard constructor.
          */
         taskQueue( );
+
+        /**
+         * Destructor.
+         *
+         * Joins remaining threads.
+         */
+        ~taskQueue( );
 
         /**
          * Inserts a new task into the task queue.
@@ -71,6 +79,10 @@ namespace io
                 std::string)> _writeOutFunc,
             std::string _filename = "imresh"
         );
+
+    private:
+        std::list<std::thread> m_threadPool;
+        int m_threadPoolMaxSize;
     };
 } // namespace io
 } // namespace imresh

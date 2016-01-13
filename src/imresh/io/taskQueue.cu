@@ -53,7 +53,7 @@ namespace io
     /**
      * Mutex to coordinate device usage.
      */
-    std::mutex mtx;
+    std::unique_lock<std::mutex> mtx;
 
     /**
      * Function to add a image processing task to the queue.
@@ -94,7 +94,7 @@ namespace io
         // Copy memory back
         mtx.unlock( );
 
-        _writeOutFunc(_h_mem, _size, _filename);
+        _writeOutFunc( _h_mem, _size, _filename );
     }
 
     /**
@@ -105,7 +105,7 @@ namespace io
      * stored in the streamList as imresh::io::stream objects. If no streams are
      * found, the program aborts.
      */
-    extern "C" void fillStreamList( )
+    extern "C" int fillStreamList( )
     {
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::fillStreamList(): Starting stream creation."
@@ -153,6 +153,8 @@ namespace io
             std::cout << "imresh::io::fillStreamList(): Finished stream creation."
                 << std::endl;
 #       endif
+
+        return streamList.size( );
     }
 } // namespace io
 } // namespace imresh

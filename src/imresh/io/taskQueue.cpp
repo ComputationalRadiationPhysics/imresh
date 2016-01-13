@@ -35,7 +35,16 @@ namespace io
 {
     taskQueue::taskQueue( )
     {
-        fillStreamList( );
+        this->m_threadPoolMaxSize = fillStreamList( );
+    }
+
+    taskQueue::~taskQueue( )
+    {
+        while( this->m_threadPool.size( ) > 0 )
+        {
+            this->m_threadPool.front( ).join( );
+            this->m_threadPool.pop_front( );
+        }
     }
 
     void taskQueue::addTask(
@@ -46,8 +55,14 @@ namespace io
         std::string _filename
     )
     {
-        std::thread( addTaskAsync, _h_mem, _size, _writeOutFunc, _filename )
-            .detach( );
+        while( this->m_threadPool.size( ) >= this->m_threadPoolMaxSize )
+        {
+            this->m_threadPool.front( ).join( );
+            this->m_threadPool.pop_front( );
+        }
+
+        this->m_threadPool.push_back( std::thread( addTaskAsync, _h_mem, _size,
+            _writeOutFunc, _filename ) );
     }
 } // namespace io
 } // namespace imresh

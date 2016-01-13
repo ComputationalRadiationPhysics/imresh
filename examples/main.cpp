@@ -37,7 +37,7 @@ int main( void )
     auto tq = new imresh::io::taskQueue( );
 
 #   ifdef USE_PNG
-        tq->addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG);
+        tq->addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
 #   endif
 
     return 0;
