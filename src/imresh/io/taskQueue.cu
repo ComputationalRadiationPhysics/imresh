@@ -109,6 +109,9 @@ namespace io
         _writeOutFunc( _h_mem, _size, _filename );
     }
 
+    /**
+     * Calls imresh::io::addTaskAsync() in a thread.
+     */
     void addTask(
         float* _h_mem,
         std::pair<unsigned int,unsigned int> _size,
