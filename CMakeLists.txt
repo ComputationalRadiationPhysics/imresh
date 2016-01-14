@@ -44,7 +44,7 @@ if(IMRESH_DEBUG)
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30 -Xptxas=-v")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2 -arch=sm_30 -Xptxas=-v")
 
 if(BUILD_EXAMPLES)
     file(GLOB_RECURSE EXAMPLES_SOURCE_FILES ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.hpp)
@@ -70,7 +70,7 @@ target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES}
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 # Tests and Benchmarks
-set(CMAKE_CXX_FLAGS " -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
     file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp )

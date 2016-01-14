@@ -36,10 +36,6 @@ namespace cuda
 
     #define DEBUG_GAUSSIAN_CPP 0
 
-    constexpr int nMaxWeights = 30; // need to assert whether this is enough
-    constexpr int nMaxKernels = 20; // ibid
-
-    __constant__ float gaussianWeights[ nMaxWeights*nMaxKernels ];
 
     template<class T>
     __device__ inline T * ptrMin ( T * const a, T * const b )
@@ -130,25 +126,58 @@ namespace cuda
         extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
-        const int nWeights = 2*N+1;
-        const int nBufferSize = nThreads + 2*N;
+        const unsigned nWeights = 2*N+1;
+        const unsigned nBufferSize = nThreads + 2*N;
         T_PREC * const smWeights = smBlock;
         T_PREC * const smBuffer  = &smBlock[ nWeights ];
         __syncthreads();
-        /* cache the weights to shared memory @todo: more efficient possible ??? */
-        if ( threadIdx.x == 0 )
-            memcpy( smWeights, rdpWeights, sizeof(T_PREC)*nWeights );
+        /* cache the weights to shared memory. Benchmarks imageSize 1024x1024
+         * parallel (pointer arithmetic) : 0.95ms
+         * parallel                      : 1.1ms
+         * memcpy                        : 1.57ms
+        */
+        #if true
+            {
+                T_PREC * target    = smWeights  + threadIdx.x;
+                T_PREC const * src = rdpWeights + threadIdx.x;
+                for ( ; target < smWeights + nWeights;
+                     target += blockDim.x, src += blockDim.x )
+                {
+                    *target = *src;
+                }
+            }
+        #elif false
+            for ( unsigned iWeight = threadIdx.x; iWeight < nWeights; ++iWeight )
+                smWeights[iWeight] = rdpWeights[iWeight];
+        #else
+            if ( threadIdx.x == 0 )
+                memcpy( smWeights, rdpWeights, sizeof(T_PREC)*nWeights );
+        #endif
 
         /* In the first step initialize the left border to the same values (extend)
          * It's problematic to use threads for this for loop, because it is not
          * guaranteed, that blockDim.x >= N */
         const T_PREC leftBorderValue = data[0];
-        if ( threadIdx.x == 0 )
-            for ( unsigned iB = 0; iB < N; ++iB )
+        /**
+         * benchmark ImageSize 1024x1024
+         *    parallel    : 1.55ms
+         *    non-parallel: 1.59ms
+         * the used register count is equal for both versions.
+         **/
+        #if false
+            for ( T_PREC * target = smBuffer + nThreads + threadIdx.x;
+                  target < smBuffer + nBufferSize; target += nThreads )
             {
-                assert( nThreads + iB < nBufferSize );
-                smBuffer[ nThreads+iB ] = leftBorderValue;
+                *target = leftBorderValue;
             }
+        #else
+            if ( threadIdx.x == 0 )
+            for ( unsigned iB = nThreads; iB < nBufferSize; ++iB )
+            {
+                //assert( iB < nBufferSize );
+                smBuffer[iB] = leftBorderValue;
+            }
+        #endif
 
         /* Loop over buffers. If rnData == rnThreads then the buffer will
          * exactly suffice, meaning the loop will only be run 1 time.
@@ -158,16 +187,54 @@ namespace cuda
         {
             /* move last N elements to the front of the buffer */
             __syncthreads();
-            if ( threadIdx.x == 0 )
-                memcpy( smBuffer, &smBuffer[ nThreads ], N*sizeof(T_PREC) );
+            /**
+             * all of these do the same, but benchmarks suggest that the
+             * last version which looks the most complicated is the fastest:
+             * imageSize 1024x1024, compiled with -O0:
+             *   - memcpy            : 1.09ms
+             *   - parallel          : 0.78ms
+             *   - pointer arithmetic: 0.89ms
+             * not that the memcpy version only seems to work on the GPU, on
+             * the CPU it lead to wrong results I guess because we partially
+             * write to memory we also read, or it was some kind of other
+             * error ...
+             **/
+            #if true
+                /* eliminating the variable i doesn't make it faster ... */
+                for ( unsigned i = threadIdx.x, i0 = 0;
+                      i0 + nThreads < nBufferSize;
+                      i += nThreads, i0 += nThreads )
+                {
+                    if ( i+nThreads < nBufferSize )
+                        smBuffer[i] = smBuffer[i+nThreads];
+                    __syncthreads();
+                }
+            #elif false
+                if ( threadIdx.x == 0 )
+                    memcpy( smBuffer, &smBuffer[ nThreads ], N*sizeof(T_PREC) );
+            #else
+                /* this version may actually be wrong, because some threads
+                 * could be already in next iteration, thereby overwriting
+                 * some values which still are to be moved! */
+                /*{
+                    T_PREC * iTarget = smBuffer + threadIdx.x;
+                    T_PREC const * iSrc = iTarget + nThreads;
+                    for ( ; iSrc < smBuffer + nBufferSize;
+                          iTarget += nThreads, iSrc += nThreads )
+                    {
+                        *iTarget = *iSrc;
+                    }
+                }*/
+            #endif
 
-            /* Load rnThreads+N data elements into buffer. If data end reached,
-             * fill buffer with last data element */
-            __syncthreads();
+            /* Load nThreads new data elements into buffer. */
             const unsigned iBuf = N + threadIdx.x;
-            T_PREC * const datum = ptrMin( &curDataRow[ threadIdx.x ],
-                                           &data[ rImageWidth-1 ] );
+            //const unsigned iBuf = nBufferSize - nThreads + threadIdx.x;
+            /* If data end reached, fill buffer with last data element */
+            T_PREC * const datum = ptrMin( curDataRow + threadIdx.x,
+                                           data + rImageWidth-1 );
             assert( iBuf < nBufferSize );
+            __syncthreads();
             smBuffer[ iBuf ] = *datum;
             /* again this is hard to parallelize if we don't have as many threads
              * as the kernel is wide. Furthermore we can't use memcpy, because
@@ -202,6 +269,94 @@ namespace cuda
             }
         }
     }
+
+
+    /* new version using constant memory */
+
+    constexpr int nMaxWeights = 50; // need to assert whether this is enough
+    constexpr int nMaxKernels = 20; // ibid
+    __constant__ float gaussianWeights[ nMaxWeights*nMaxKernels ];
+
+#if false
+    template<class T_PREC>
+    __global__ void cudaKernelApplyKernelConstant
+    (
+        /* You can't pass by reference to a kernel !!! compiles, but gives weird errors ... */
+        T_PREC * const rdpData,
+        unsigned const rImageWidth,
+        unsigned const rWeightRow,
+        unsigned const N
+    )
+    {
+        assert( N > 0 );
+        assert( blockDim.y == 1 and blockDim.z == 1 );
+        assert(  gridDim.y == 1 and  gridDim.z == 1 );
+
+        const int & nThreads = blockDim.x;
+        T_PREC * const data = &rdpData[ blockIdx.x * rImageWidth ];
+
+        /* manage dynamically allocated shared memory */
+        /* @see http://stackoverflow.com/questions/27570552/ */
+        extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
+        T_PREC * const smBuffer = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
+
+        const int nWeights = 2*N+1;
+        const int nBufferSize = nThreads + 2*N;
+        T_PREC * const weights = gaussianWeights + rWeightRow * nMaxWeights;
+
+        /* extend */
+        __syncthreads();
+        const T_PREC leftBorderValue = data[0];
+        for ( T_PREC * target = smBuffer + nThreads + threadIdx.x;
+              target < smBuffer + nBufferSize; target += nThreads )
+        {
+            *target = leftBorderValue;
+        }
+
+        for ( T_PREC * curDataRow = data; curDataRow < &data[rImageWidth]; curDataRow += nThreads )
+        {
+            __syncthreads();
+            /* move last N elements to the front of the buffer */
+             {
+                T_PREC * iTarget = smBuffer + threadIdx.x;
+                T_PREC const * iSrc = iTarget + nThreads;
+                for ( ; iSrc < smBuffer + nBufferSize;
+                      iTarget += nThreads, iSrc += nThreads )
+                {
+                    *iTarget = *iSrc;
+                }
+            }
+
+            const unsigned iBuf = N + threadIdx.x;
+            T_PREC * const datum = ptrMin( &curDataRow[ threadIdx.x ],
+                                           &data[ rImageWidth-1 ] );
+            assert( iBuf < nBufferSize );
+            __syncthreads();
+            smBuffer[ iBuf ] = *datum;
+
+            if ( threadIdx.x == 0 )
+            {
+                for ( unsigned iB = N+nThreads; iB < nThreads+2*N; ++iB )
+                {
+                    T_PREC * const datum = ptrMin( &curDataRow[ iB-N ],
+                                                   &data[ rImageWidth-1 ] );
+                    assert( iB < nBufferSize );
+                    smBuffer[iB] = *datum;
+                }
+            }
+            __syncthreads();
+
+            if ( &curDataRow[iBuf-N] < &data[rImageWidth] )
+            {
+                T_PREC sum = T_PREC(0);
+                for ( T_PREC * w = weights, * x = &smBuffer[iBuf-N];
+                      w < &weights[nWeights]; ++w, ++x )
+                    sum += (*w) * (*x);
+                curDataRow[iBuf-N] = sum;
+            }
+        }
+    }
+#endif
 
     template<class T_PREC>
     void cudaApplyKernel
