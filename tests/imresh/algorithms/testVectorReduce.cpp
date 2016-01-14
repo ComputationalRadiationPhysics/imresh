@@ -49,7 +49,6 @@ namespace algorithms
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::algorithms;
-        typedef std::vector<float> Vec;
 
         const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
         auto pData = new float[nMaxElements];

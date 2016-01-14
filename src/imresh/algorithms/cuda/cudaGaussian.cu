@@ -36,6 +36,10 @@ namespace cuda
 
     #define DEBUG_GAUSSIAN_CPP 0
 
+    constexpr int nMaxWeights = 30; // need to assert whether this is enough
+    constexpr int nMaxKernels = 20; // ibid
+
+    __constant__ float gaussianWeights[ nMaxWeights*nMaxKernels ];
 
     template<class T>
     __device__ inline T * ptrMin ( T * const a, T * const b )
@@ -93,6 +97,13 @@ namespace cuda
      * a move in shared memory / cache is much faster than waiting for the
      * rest of the array to be filled with new data from global i.e. uncached
      * memory.
+     *
+     * @param[in] blockDim.x number of threads will be interpreted as how many
+     *            values are to be calculated in parallel. The internal buffer
+     *            stores then blockDim.x + 2*N values per step
+     * @param[in] N kernel half size, meaning the kernel is supposed to be
+     *            2*N+1 elements long. N can also be interpreted as the number
+     *            of neighbors in each direction needed to calculate one value.
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernel
@@ -120,7 +131,7 @@ namespace cuda
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
         const int nWeights = 2*N+1;
-        const int bufferSize = nThreads + 2*N;
+        const int nBufferSize = nThreads + 2*N;
         T_PREC * const smWeights = smBlock;
         T_PREC * const smBuffer  = &smBlock[ nWeights ];
         __syncthreads();
@@ -134,7 +145,10 @@ namespace cuda
         const T_PREC leftBorderValue = data[0];
         if ( threadIdx.x == 0 )
             for ( unsigned iB = 0; iB < N; ++iB )
-                smBuffer[ bufferSize-2*N+iB ] = leftBorderValue;
+            {
+                assert( nThreads + iB < nBufferSize );
+                smBuffer[ nThreads+iB ] = leftBorderValue;
+            }
 
         /* Loop over buffers. If rnData == rnThreads then the buffer will
          * exactly suffice, meaning the loop will only be run 1 time.
@@ -145,7 +159,7 @@ namespace cuda
             /* move last N elements to the front of the buffer */
             __syncthreads();
             if ( threadIdx.x == 0 )
-                memcpy( smBuffer, &smBuffer[ bufferSize-2*N ], N*sizeof(T_PREC) );
+                memcpy( smBuffer, &smBuffer[ nThreads ], N*sizeof(T_PREC) );
 
             /* Load rnThreads+N data elements into buffer. If data end reached,
              * fill buffer with last data element */
@@ -153,6 +167,7 @@ namespace cuda
             const unsigned iBuf = N + threadIdx.x;
             T_PREC * const datum = ptrMin( &curDataRow[ threadIdx.x ],
                                            &data[ rImageWidth-1 ] );
+            assert( iBuf < nBufferSize );
             smBuffer[ iBuf ] = *datum;
             /* again this is hard to parallelize if we don't have as many threads
              * as the kernel is wide. Furthermore we can't use memcpy, because
@@ -164,6 +179,7 @@ namespace cuda
                 {
                     T_PREC * const datum = ptrMin( &curDataRow[ iB-N ],
                                                    &data[ rImageWidth-1 ] );
+                    assert( iB < nBufferSize );
                     smBuffer[iB] = *datum;
                 }
             }
@@ -295,6 +311,21 @@ namespace cuda
      * kernel can be called with blockDim.x != 0
      *
      * @see cudaKernelApplyKernel @see gaussianBlurVertical
+     *
+     * @param[in] N kernel half size. rdpWeights is assumed to be 2*N+1
+     *            elements long.
+     * @param[in] blockDim.x number of columns to calculate in parallel.
+     *            this should be a value which makes full use of a cache line,
+     *            i.e. 32 Warps * 4 Byte = 128 Byte for a NVidia GPU (2016)
+     * @param[in] blockDim.y number of rows to calculate in parallel.
+     *            This value shouldn't be too small, because else we are only
+     *            moving the buffer date to and fro without doing much
+     *            calculation. That happens because of the number of neighbors
+     *            N needed to calculate 1 value. If the buffer is 2*N+1
+     *            elements large ( blockDim.y == 1 ), then we can only
+     *            calculate 1 value with that buffer data.
+     *            @todo implement buffer index modulo instead of shifting the
+     *                  values in memory
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernelVertically
@@ -326,7 +357,7 @@ namespace cuda
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
         const unsigned nWeights   = 2*N+1;
-        const unsigned bufferSize = nColsCacheLine * nRowsCacheLine;
+        const unsigned nBufferSize = nColsCacheLine * nRowsCacheLine;
         T_PREC * const smWeights  = smBlock;
         T_PREC * const smBuffer  = &smBlock[ nWeights ];
         __syncthreads();
@@ -388,7 +419,7 @@ namespace cuda
         /* In the first step extend upper border. Write them into the N elements
          * before the lower border-N, beacause in the first step in the loop
          * these elements will be moved to the upper border, see below. */
-        T_PREC * const smTargetRow = &smBuffer[ bufferSize - 2*N*nColsCacheLine ];
+        T_PREC * const smTargetRow = &smBuffer[ nBufferSize - 2*N*nColsCacheLine ];
         if ( threadIdx.y == 0 and not iAmSleeping )
         {
             const T_PREC upperBorderValue = data[ threadIdx.x ];
@@ -413,7 +444,11 @@ namespace cuda
             if ( threadIdx.y == 0 and not iAmSleeping )
             {
                 for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
-                    smBuffer[ iB+threadIdx.x ] = smTargetRow[ iB+threadIdx.x ];
+                {
+                    const unsigned iBuffer = iB + threadIdx.x;
+                        assert( iBuffer < nBufferSize );
+                    smBuffer[ iBuffer ] = smTargetRow[ iBuffer ];
+                }
             }
 
             /* Load blockDim.y + N rows into buffer.
@@ -429,6 +464,7 @@ namespace cuda
                     &curDataRow[ threadIdx.y * rnDataX + threadIdx.x ],
                     pLastData
                 );
+                assert( iBuf < nBufferSize );
                 smBuffer[iBuf] = *datum;
             }
             /*   b) Load N rows by master threads, because nThreads >= N is not
@@ -441,7 +477,9 @@ namespace cuda
                         &curDataRow[ (iBufRow-N) * rnDataX + threadIdx.x ],
                         pLastData
                     );
-                    smBuffer[ iBufRow*nColsCacheLine + threadIdx.x ] = *datum;
+                    const unsigned iBuffer = iBufRow*nColsCacheLine + threadIdx.x;
+                        assert( iBuffer < nBufferSize );
+                    smBuffer[ iBuffer ] = *datum;
                 }
             }
             __syncthreads();
@@ -457,7 +495,11 @@ namespace cuda
                 T_PREC * w = smWeights;
                 T_PREC * x = &smBuffer[ threadIdx.y * nColsCacheLine + threadIdx.x ];
                 for ( ; w < &smWeights[nWeights]; ++w, x += nColsCacheLine )
+                {
+                    assert( w < smWeights + nWeights );
+                    assert( x < smBuffer + nBufferSize );
                     sum += (*w) * (*x);
+                }
                 /* write result back into memory (in-place). No need to wait for
                  * all threads to finish, because we write into global memory, to
                  * values we already buffered into shared memory! */
@@ -533,16 +575,6 @@ namespace cuda
 
 
     /* Explicitely instantiate certain template arguments to make an object file */
-    template<class T_PREC> void __cudaGaussianInstantiate(void)
-    {
-        cudaApplyKernel           <float>( NULL, 0, NULL, 0, 0 );
-        cudaGaussianBlur          <float>( NULL, 0, 0.0        );
-        cudaGaussianBlur          <float>( NULL, 0, 0, 0.0     );
-        cudaGaussianBlurHorizontal<float>( NULL, 0, 0, 0.0     );
-        cudaGaussianBlurVertical  <float>( NULL, 0, 0, 0.0     );
-    }
-
-
     template void cudaApplyKernel<float>
     (
         float * const & rData,

@@ -51,27 +51,28 @@ namespace algorithms
 
 
     void compareFloatArray
-    ( float * pData, float * pResult, int nCols, int nRows, float sigma, bool free = false )
+    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, bool free = false )
     {
-        const int nElements = nCols * nRows;
+        const unsigned nElements = nCols * nRows;
         auto maxError = vectorMaxAbsDiff( pData, pResult, nElements );
-        auto maxValue = vectorMaxAbs( pData, nElements );
+        float maxValue = vectorMaxAbs( pData, nElements );
+        maxValue = fmax( maxValue, vectorMaxAbs( pResult, nElements ) );
         const bool errorMarginOk = maxError / maxValue <= FLT_EPSILON * maxKernelWidth;
         if ( not errorMarginOk )
         {
             std::cout << "Max Error for " << nCols << " columns " << nRows
                       << " rows at sigma=" << sigma << ": " << maxError / maxValue << "\n";
 
-            for ( int iRow = 0; iRow < nRows; ++iRow )
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
             {
-                for ( int iCol = 0; iCol < nCols; ++iCol )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
                     std::cout << pData[iRow*nCols+iCol] << " ";
                 std::cout << "\n";
             }
             std::cout << " = ? = \n";
-            for ( int iRow = 0; iRow < nRows; ++iRow )
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
             {
-                for ( int iCol = 0; iCol < nCols; ++iCol )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
                     std::cout << pResult[iRow*nCols+iCol] << " ";
                 std::cout << "\n";
             }
@@ -81,15 +82,15 @@ namespace algorithms
     }
 
     void checkGaussianHorizontal
-    ( float * dpData, float * pData, int nCols, int nRows )
+    ( float * dpData, float * pData, unsigned nCols, unsigned nRows )
     {
     }
     void checkGaussianVertical
-    ( float * dpData, float * pData, int nCols, int nRows )
+    ( float * dpData, float * pData, unsigned nCols, unsigned nRows )
     {
     }
 
-    void checkIfElementsEqual( float * pData, int nData, int nStride = 1 )
+    void checkIfElementsEqual( float * pData, unsigned nData, unsigned nStride = 1 )
     {
         /* test the maximum divergence of the result vectors, i.e.
          * are they all the same per row ? */
@@ -97,15 +98,24 @@ namespace algorithms
         #pragma omp parallel for reduction( + : sumDiff )
         for ( unsigned i = 1; i < nData; ++i )
             sumDiff += std::abs( pData[ (i-1)*nStride ] - pData[ i*nStride ] );
-        //std::cout << "First result element="<<pResult[0]<<", total result divergence=" << sumDiff << "\n";
+
+        if ( sumDiff != 0 )
+        {
+            std::cout << "First result element=" << pData[0] << ", "
+                      << "total result divergence=" << sumDiff << "\n"
+                      << "elements = ";
+            for ( unsigned i = 0; i < nData; ++i )
+                std::cout << pData[i] << " ";
+            std::cout << "\n" << std::flush;
+        }
         assert( sumDiff == 0 );
     }
 
     void fillWithRandomValues
-    ( float * dpData, float * pData, int nElements )
+    ( float * dpData, float * pData, unsigned nElements )
     {
         for ( unsigned i = 0; i < nElements; ++i )
-            pData[i] = (float) rand() / RAND_MAX;
+            pData[i] = (float) rand() / RAND_MAX - 0.5;
         if ( dpData != NULL )
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
     }
@@ -128,6 +138,7 @@ namespace algorithms
         /* Test for array of length 1. In this case the values shouldn't change
          * more than from floating point rounding errors */
         std::cout << "Test gaussian blur of single element" << std::flush;
+        if ( false )
         for ( auto nRows : std::vector<int>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
         for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.3,1.7,2,3,4 } )
         {
@@ -178,25 +189,92 @@ namespace algorithms
          * rounding errors every value of the new array should be the same,
          * although they can differ marginally from the original array value */
         std::cout << "Test gaussian blur of vectors of whose elements are all equal" << std::flush;
-        float constantValue = 7.37519;
-        for ( auto nCols : std::vector<int>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
-        for ( auto nRows : std::vector<int>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
+        if ( false )
+        for ( auto nCols : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
+        for ( auto nRows : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
         for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.7,2,3,4 } )
         {
-            const int nElements = nRows*nCols;
+            float constantValue = 7.37519;
+
+            const unsigned nElements = nRows*nCols;
             /* skip values accidentally added which are larger then allocated
              * data array length */
             if( nElements > nMaxElements )
                 continue;
-            float sumDiff = 0;
             if ( nRows == 1 and sigma == 1 )
                 std::cout << "." << std::flush;
             //std::cout << "("<<nCols<<","<<nRows<<"), sigma="<<sigma<<"\n";
 
             /* refresh test data to constant value per row */
             #pragma omp parallel for
-            for ( int iRow = 0; iRow < nRows; ++iRow )
-                for ( int iCol = 0; iCol < nCols; ++iCol )
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
+                    pData[iRow*nCols+iCol] = constantValue;
+
+            /* execute Gaussian blur and test if values unchanged */
+            //std::cout << "CUDA horizontal\n";
+            CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
+            cudaGaussianBlurHorizontal( dpData, nCols, nRows, sigma );
+            CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
+            compareFloatArray( pResult, pData, nCols, nRows, sigma );
+            checkIfElementsEqual( pData, nRows*nCols );
+
+            /* do the same on CPU and compare */
+            //std::cout << "CPU horizontal\n";
+            memcpy( pResultCpu, pData, nRows*nCols*sizeof( pData[0] ) );
+            gaussianBlurHorizontal( pResultCpu, nCols, nRows, sigma );
+            checkIfElementsEqual( pResultCpu, nRows*nCols );
+            compareFloatArray( pResultCpu, pData, nCols, nRows, sigma );
+            compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma );
+
+            /*** repeat the same checks for vertical blur ***/
+
+            /* refresh test data to constant value */
+            #pragma omp parallel for
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
+                    pData[iRow*nCols+iCol] = constantValue;
+            CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
+
+            /* execute Gaussian blur and test if values unchanged */
+            //std::cout << "CUDA vertical\n";
+            cudaGaussianBlurVertical( dpData, nCols, nRows, sigma );
+            CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
+            compareFloatArray( pResult, pData, nCols, nRows, sigma );
+            checkIfElementsEqual( pData, nRows*nCols );
+
+            /* do the same on CPU and compare */
+            //std::cout << "CPU vertical\n";
+            memcpy( pResultCpu, pData, nRows*nCols*sizeof( pData[0] ) );
+            gaussianBlurVerticalUncached( pResultCpu, nCols, nRows, sigma );
+            checkIfElementsEqual( pResultCpu, nRows*nCols );
+            compareFloatArray( pResultCpu, pData, nCols, nRows, sigma );
+            compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma );
+
+        }
+        std::cout << "OK\n";
+
+        std::cout << "Test gaussian blur of vectors of whose rows or columns (depending on whether to use vertical or horizontal blur) are all equal" << std::flush;
+        if ( false )
+        for ( auto nCols : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
+        for ( auto nRows : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
+        for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.7,2,3,4 } )
+        {
+            float constantValue = 7.37519;
+
+            const unsigned nElements = nRows*nCols;
+            /* skip values accidentally added which are larger then allocated
+             * data array length */
+            if( nElements > nMaxElements )
+                continue;
+            if ( nRows == 1 and sigma == 1 )
+                std::cout << "." << std::flush;
+            //std::cout << "("<<nCols<<","<<nRows<<"), sigma="<<sigma<<"\n";
+
+            /* refresh test data to constant value per row */
+            #pragma omp parallel for
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
                     pData[iRow*nCols+iCol] = (float) iRow/nRows + constantValue;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
@@ -204,15 +282,15 @@ namespace algorithms
             cudaGaussianBlurHorizontal( dpData, nCols, nRows, sigma );
             CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
             compareFloatArray( pResult, pData, nCols, nRows, sigma );
-            for ( int iRow = 0; iRow < nRows; ++iRow )
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
                 checkIfElementsEqual( pData+iRow*nCols, nCols );
 
             /*** repeat the same checks for vertical blur ***/
 
             /* refresh test data to constant value */
             #pragma omp parallel for
-            for ( int iRow = 0; iRow < nRows; ++iRow )
-                for ( int iCol = 0; iCol < nCols; ++iCol )
+            for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+                for ( unsigned iCol = 0; iCol < nCols; ++iCol )
                     pData[iRow*nCols+iCol] = (float) iCol/nCols + constantValue;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
@@ -220,7 +298,7 @@ namespace algorithms
             cudaGaussianBlurVertical( dpData, nCols, nRows, sigma );
             CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
             compareFloatArray( pResult, pData, nCols, nRows, sigma );
-            for ( int iCol = 0; iCol < nCols; ++iCol )
+            for ( unsigned iCol = 0; iCol < nCols; ++iCol )
                 checkIfElementsEqual( pData+iCol, nRows, nCols /*stride*/ );
         }
         std::cout << "OK\n";
@@ -286,9 +364,9 @@ namespace algorithms
         for ( auto sigma : std::vector<float>{ 3 } )
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 20 ) )
         {
-            const int nCols = floor(sqrt( nElements ));
-            const int nRows = nCols;
-            assert( nCols*nRows <= nElements );
+            const unsigned nCols = floor(sqrt( nElements ));
+            const unsigned nRows = nCols;
+            assert( nCols*nRows <= nMaxElements );
             nElements = nCols*nRows;
 
             std::cout << std::setw(8) << "("<<nCols<<","<<nRows<<") : ";
@@ -352,12 +430,29 @@ namespace algorithms
 
             /* time CPU vertical blur */
             minTime = FLT_MAX;
-            if ( calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
+            if ( (unsigned) calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
             for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
             {
                 memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
                 clock0 = clock::now();
                 gaussianBlurVertical( pResultCpu, nCols, nRows, sigma );
+                clock1 = clock::now();
+
+                milliseconds = ( clock1-clock0 ).count() / 1000.0;
+                minTime = fmin( minTime, milliseconds );
+
+                checkGaussianVertical( dpData, pData, nCols, nRows );
+                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma );
+            }
+            std::cout << std::setw(8) << minTime << " |" << std::flush;
+
+            /* time CPU vertical blur (new version) */
+            minTime = FLT_MAX;
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
+            {
+                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
+                clock0 = clock::now();
+                gaussianBlurVerticalUncached( pResultCpu, nCols, nRows, sigma );
                 clock1 = clock::now();
 
                 milliseconds = ( clock1-clock0 ).count() / 1000.0;

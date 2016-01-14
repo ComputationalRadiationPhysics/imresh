@@ -84,7 +84,7 @@ namespace cuda
              * other threads with atomicCAS. This additional check may prove a
              * bottleneck, if this is rarely the case, e.g. for sum and no 0s or
              * for max and an ordered list, where the largest is the last
-             * element. In tests this more often slowed down the calcualtion
+             * element. In tests this more often slowed down the calculation */
             //if ( f( __int_as_float(assumed), rValue ) == assumed )
             //    break;
 

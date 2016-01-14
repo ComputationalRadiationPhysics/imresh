@@ -301,7 +301,7 @@ namespace libs
          * we would have to write-back the buffer before the weighted sum
          * completed! */
         const unsigned bufferSize = nRowsCacheLine*nColsCacheLine;
-        T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
+        auto buffer = new T_PREC[bufferSize];  /* could be in shared memory or cache */
         //assert( rnDataY <= bufferSize/nColsCacheLine );
 
         /**
@@ -523,7 +523,240 @@ namespace libs
             memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
         }
 
+        delete[] buffer;
     }
+
+    inline int min( const int & a, const int & b )
+    {
+        return a < b ? a : b; // a <? b GNU C++ extension does the same :S!
+    }
+    inline int max( const int & a, const int & b )
+    {
+        return a > b ? a : b;
+    }
+    inline unsigned min( const unsigned & a, const unsigned & b )
+    {
+        return a < b ? a : b; // a <? b GNU C++ extension does the same :S!
+    }
+    inline unsigned max( const unsigned & a, const unsigned & b )
+    {
+        return a > b ? a : b;
+    }
+
+    template<class T_PREC>
+    void gaussianBlurVerticalUncached
+    (
+        T_PREC * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    )
+    {
+        /* calculate Gaussian kernel */
+        const unsigned nKernelElements = 64;
+        T_PREC pKernel[64];
+        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+        assert( kernelSize <= nKernelElements );
+        assert( kernelSize % 2 == 1 );
+        const unsigned nKernelHalf = (kernelSize-1)/2;
+
+        T_PREC * const w = pKernel+nKernelHalf; /* now we can use w[-1],... */
+
+        #ifndef NDEBUG
+        #if DEBUG_GAUSSIAN_CPP == 1
+            std::cout << "\nConvolve Kernel : \n";
+            for ( unsigned iW = 0; iW < kernelSize; ++iW )
+                std::cout << pKernel[iW] << ( iW == kernelSize-1 ? "" : " " );
+            std::cout << "\n";
+
+            std::cout << "\nInput Matrix to convolve vertically : \n";
+            for ( unsigned iRow = 0; iRow < rnDataY; ++iRow )
+            {
+                std::cout << std::setw(11);
+                for ( unsigned iCol = 0; iCol < rnDataX; ++iCol )
+                    std::cout << rData[ iRow*rnDataX + iCol ] << " ";
+                std::cout << "\n";
+            }
+        #endif
+        #endif
+
+        /* 16*4 Byte (Float) = 64 Byte ~ 1 cache line on sandybridge */
+        const unsigned nColsBuffer = 64 / sizeof( rData[0] );
+        /* must be at least kernelSize rows! and should fit into L1-Cache of
+         * e.g. 32KB */
+        const unsigned nRowsBuffer = 1000 + 2*nKernelHalf; //30000 / 4 / nColsBuffer;
+        const unsigned nThreads = nRowsBuffer - 2*nKernelHalf;
+            assert( nThreads > 0 );
+        const unsigned nBufferSize = nColsBuffer * nRowsBuffer;
+        auto buffer = new T_PREC[nBufferSize];
+        assert( nRowsBuffer >= kernelSize );
+
+
+        for ( unsigned iCol = 0; iCol < rnDataX; iCol += nColsBuffer )
+        {
+            /* In the first step initialize the left halo buffer cells which will then be moved to the start to the first  */
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                /* makes it easier to see if we cache the correct data */
+                memset( buffer, 0, nBufferSize*sizeof( buffer[0] ) );
+                std::cout << "Copy some initial data to buffer:\n";
+            #endif
+            #endif
+            for ( unsigned iRowBuf = nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
+            {
+                /* if rnDataY == 1, then we can only load 2*nKernelHalf+1 rows! */
+                if ( iRowBuf-nThreads >= rnDataY + 2*nKernelHalf+1 )
+                    break;
+
+                for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                {
+                    if ( iCol+iColBuf >= rnDataX )
+                        break;
+
+                    const int signedDataRow = int(iRowBuf-nThreads) - (int)nKernelHalf;
+                    /* periodic */
+                    //const int tmpRow = signedRow % rnDataY;
+                    //const int newRow = tmpRow < 0 ? tmpRow + rnDataY : tmpRow;
+                    /* extend */
+                    const unsigned newRow = min( rnDataY-1, (unsigned) max( 0, signedDataRow ) );
+                        assert( newRow < rnDataY );
+                    const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
+                        assert( iBuf < nBufferSize );
+                    const unsigned iData = newRow*rnDataX + iCol+iColBuf;
+                        assert( iData < rnDataX*rnDataY );
+
+                    buffer[ iBuf ] = rData[ iData ];
+                }
+            }
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
+                {
+                    std::cout << std::setw(3);
+                    std::cout << iRowBuf << ": ";
+                    std::cout << std::setw(11);
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                        std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
+                    std::cout << "\n";
+                }
+            #endif
+            #endif
+
+            for ( unsigned iRow = 0; iRow < rnDataY; iRow += nRowsBuffer-kernelSize+1 )
+            {
+                /* move as many rows as we calculated in last iteration with
+                 * threads */
+                //memcpy( buffer, buffer + nThreads*nColsBuffer, (nBufferSize - nThreads*nColsBuffer) * sizeof( buffer[0] ) );
+                for ( unsigned iRow = 0; iRow < nRowsBuffer-nThreads; ++iRow )
+                for ( unsigned iCol = 0; iCol < nColsBuffer; ++iCol )
+                {
+                    const unsigned iTarget = iRow*nColsBuffer + iCol;
+                        assert( iTarget < nBufferSize );
+                    const unsigned iSrc = (iRow+nThreads)*nColsBuffer + iCol;
+                        assert( iSrc < nBufferSize );
+                    buffer[ iTarget ] = buffer[ iSrc ];
+                }
+
+                /* cache new values to freed places to the right  */
+                for ( unsigned iRowBuf = nRowsBuffer - nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
+                {
+                    if ( iRow+iRowBuf >= rnDataY + 2*nKernelHalf )
+                        break;
+
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                    {
+                        if ( iCol+iColBuf >= rnDataX )
+                            break;
+
+                        //std::cout << "Buffer " << iRowBuf << "," << iColBuf << " -> ";
+                        /* periodic */
+                        //const int signedRow = ( iRow + iW ) % rnDataY;
+                        //const int newRow = signedRow < 0 ? signedRow + rnDataY : signedRow;
+                        /* extend */
+                            assert( rnDataY >= 1 );
+                        const unsigned newRow = min( rnDataY-1, (unsigned) max( 0,
+                            (int)iRow - (int)nKernelHalf + (int)iRowBuf ) );
+                        const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
+                            assert( iBuf < nBufferSize );
+                        const unsigned iData = newRow*rnDataX + iCol+iColBuf;
+                            assert( iData < rnDataX*rnDataY );
+
+                        buffer[ iBuf ] = rData[ iData ];
+
+                        //std::cout << newRow << "," << iCol+iColBuf << "\n";
+                    }
+                }
+                #ifndef NDEBUG
+                #if DEBUG_GAUSSIAN_CPP == 1
+                    std::cout << "Move buffer data to beginning and fill end:\n";
+                    for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
+                    {
+                        std::cout << std::setw(3);
+                        std::cout << iRowBuf << ": ";
+                        std::cout << std::setw(11);
+                        for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                            std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
+                        std::cout << "\n";
+                    }
+                #endif
+                #endif
+
+                /* calculate on buffer */
+                #ifndef NDEBUG
+                #if DEBUG_GAUSSIAN_CPP == 1
+                    std::cout << "Calculated values:\n";
+                #endif
+                #endif
+                for ( unsigned iRowBuf = nKernelHalf; iRowBuf < nRowsBuffer-nKernelHalf; ++iRowBuf )
+                {
+                    if ( iRow + (iRowBuf-nKernelHalf) >= rnDataY )
+                        break;
+
+                    #ifndef NDEBUG
+                    #if DEBUG_GAUSSIAN_CPP == 1
+                        std::cout << std::setw(3) << iRow + (iRowBuf-nKernelHalf) << ": ";
+                    #endif
+                    #endif
+
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                    {
+                        if ( iCol+iColBuf >= rnDataX )
+                            break;
+
+                        //std::cout << "Buffer " << iRowBuf << "," << iColBuf << "\n";
+                        /* calculate weighted sum */
+                        T_PREC sum = 0;
+                        for ( int iW = -nKernelHalf; iW <= (int)nKernelHalf; ++iW )
+                        {
+                            assert( iRowBuf+iW >= 0 );
+                            const unsigned iBuf = unsigned( iRowBuf+iW ) * nColsBuffer + iColBuf;
+                            assert( iBuf < nBufferSize );
+                            sum += buffer[iBuf] * w[iW];
+                        }
+                        assert( iRowBuf-nKernelHalf >= 0 );
+                        const unsigned iData = ( iRow + (iRowBuf-nKernelHalf) ) * rnDataX + iCol+iColBuf;
+                        assert( iData < rnDataX*rnDataY );
+                        rData[ iData ] = sum;
+
+                        #ifndef NDEBUG
+                        #if DEBUG_GAUSSIAN_CPP == 1
+                            std::cout << std::setw(11) << sum << " ";
+                        #endif
+                        #endif
+                    }
+
+                    #ifndef NDEBUG
+                    #if DEBUG_GAUSSIAN_CPP == 1
+                        std::cout << "\n";
+                    #endif
+                    #endif
+                }
+            }
+        }
+
+        delete[] buffer;
+    }
+
 
     template<class T_PREC>
     void gaussianBlur
@@ -597,6 +830,21 @@ namespace libs
         const double & rSigma
     );
     template void gaussianBlurVertical<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    template void gaussianBlurVerticalUncached<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    template void gaussianBlurVerticalUncached<double>
     (
         double * const & rData,
         const unsigned & rnDataX,

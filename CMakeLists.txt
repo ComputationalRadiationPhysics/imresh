@@ -38,12 +38,13 @@ if(BUILD_DOC)
 endif()
 
 if(IMRESH_DEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-unused-parameter -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
-list(APPEND CUDA_NVCC_FLAGS "-arch=sm_30 -Xptxas=-v")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30 -Xptxas=-v")
 
 if(BUILD_EXAMPLES)
     file(GLOB_RECURSE EXAMPLES_SOURCE_FILES ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.hpp)
@@ -69,7 +70,7 @@ target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES}
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 # Tests and Benchmarks
-set(CMAKE_CXX_FLAGS "-std=c++11 ${OpenMP_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS " -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
     file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp )
@@ -91,8 +92,6 @@ if(RUN_TESTS)
 
     add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
                   DEPENDS testVectorIndex testVectorReduce)
-
-    list(APPEND CUDA_NVCC_FLAGS "-lineinfo")
     add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
     target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
 endif()

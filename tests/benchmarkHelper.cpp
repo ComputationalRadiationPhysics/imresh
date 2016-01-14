@@ -69,9 +69,10 @@ namespace tests
 
         /* sift out values which appear twice */
         tmpPoints[0] = (int) naivePoints[0];
-        int iTarget = 1;
+        unsigned iTarget = 1;
         for ( unsigned i = 1; i < rnPoints; ++i )
         {
+            assert( iTarget >= 1 && iTarget < tmpPoints.size() );
             if ( tmpPoints[ iTarget-1 ] != (int) naivePoints[i] )
                 tmpPoints[ iTarget++ ] = (int) naivePoints[i];
         }
@@ -91,7 +92,7 @@ namespace tests
             for ( ; nToInsert > 0 and points[iTarget-1] < tmpPoints[iSrc]-1;
                   ++iTarget, --nToInsert )
             {
-                assert( iTarget < points.size() );
+                assert( iTarget >= 1 && iTarget < points.size() );
                 points[iTarget] = points[iTarget-1] + 1;
             }
             assert( iSrc    < tmpPoints.size() );

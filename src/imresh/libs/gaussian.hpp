@@ -26,6 +26,7 @@
 #pragma once
 
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
@@ -160,6 +161,15 @@ namespace libs
 
     template<class T_PREC>
     void gaussianBlurVertical
+    (
+        T_PREC * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    template<class T_PREC>
+    void gaussianBlurVerticalUncached
     (
         T_PREC * const & rData,
         const unsigned & rnDataX,
