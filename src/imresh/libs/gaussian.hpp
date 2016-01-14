@@ -28,6 +28,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <type_traits>
 #ifndef M_PI
 #   define M_PI 3.141592653589793238462643383279502884
 #endif

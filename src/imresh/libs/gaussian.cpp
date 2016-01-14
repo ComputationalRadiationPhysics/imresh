@@ -543,6 +543,91 @@ namespace libs
         return a > b ? a : b;
     }
 
+
+    /**
+     * Provides a class for a moving window type 2d cache
+     **/
+    template<class T_PREC>
+    struct MovingWindowCache2D
+    {
+        T_PREC const * const & rData;
+        unsigned const & rnDataX;
+        unsigned const & rnDataY;
+
+        T_PREC * const & buffer; /**< pointer to allocated buffer, will not be allocated on constructor because this class needs to be trivial to work on GPU */
+        unsigned const & nRowsBuffer;
+        unsigned const & nColsBuffer;
+
+        unsigned const & nThreads;
+        unsigned const & nKernelHalf;
+
+        inline T_PREC & operator[]( unsigned i ) const
+        {
+            return buffer[i];
+        }
+
+        /**
+         * @param[in] nThreads specifies how many values should be calculatable.
+         *            Meaning this sets the numbers of rows we need to cache.
+         * @param[in] iCol specifies the start column of rData from which we
+         *            are to cache data
+         **/
+        inline void loadNextColumns( unsigned const & iCol ) const
+        {
+            assert( iCol < rnDataX );
+
+            /* In the first step initialize the left halo buffer cells which will then be moved to the start to the first  */
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                /* makes it easier to see if we cache the correct data */
+                memset( buffer, 0, nBufferSize*sizeof( buffer[0] ) );
+                std::cout << "Copy some initial data to buffer:\n";
+            #endif
+            #endif
+
+            for ( unsigned iRowBuf = nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
+            {
+                /* if rnDataY == 1, then we can only load 2*nKernelHalf+1 rows! */
+                if ( iRowBuf-nThreads >= rnDataY + 2*nKernelHalf+1 )
+                    break;
+
+                for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                {
+                    if ( iCol+iColBuf >= rnDataX )
+                        break;
+
+                    const int signedDataRow = int(iRowBuf-nThreads) - (int)nKernelHalf;
+                    /* periodic */
+                    //const int tmpRow = signedRow % rnDataY;
+                    //const int newRow = tmpRow < 0 ? tmpRow + rnDataY : tmpRow;
+                    /* extend */
+                    const unsigned newRow = min( rnDataY-1, (unsigned) max( 0, signedDataRow ) );
+                        assert( newRow < rnDataY );
+                    const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
+                        assert( iBuf < nRowsBuffer*nColsBuffer );
+                    const unsigned iData = newRow*rnDataX + iCol+iColBuf;
+                        assert( iData < rnDataX*rnDataY );
+
+                    (*this)[ iBuf ] = rData[ iData ];
+                }
+            }
+
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
+                {
+                    std::cout << std::setw(3);
+                    std::cout << iRowBuf << ": ";
+                    std::cout << std::setw(11);
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                        std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
+                    std::cout << "\n";
+                }
+            #endif
+            #endif
+        }
+    };
+
     template<class T_PREC>
     void gaussianBlurVerticalUncached
     (
@@ -556,8 +641,8 @@ namespace libs
         const unsigned nKernelElements = 64;
         T_PREC pKernel[64];
         const unsigned kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
-        assert( kernelSize % 2 == 1 );
+            assert( kernelSize <= nKernelElements );
+            assert( kernelSize % 2 == 1 );
         const unsigned nKernelHalf = (kernelSize-1)/2;
 
         T_PREC * const w = pKernel+nKernelHalf; /* now we can use w[-1],... */
@@ -584,63 +669,25 @@ namespace libs
         const unsigned nColsBuffer = 64 / sizeof( rData[0] );
         /* must be at least kernelSize rows! and should fit into L1-Cache of
          * e.g. 32KB */
-        const unsigned nRowsBuffer = 1000 + 2*nKernelHalf; //30000 / 4 / nColsBuffer;
+        const unsigned nRowsBuffer = 30000 / 4 / nColsBuffer;
+            assert( nRowsBuffer >= kernelSize );
         const unsigned nThreads = nRowsBuffer - 2*nKernelHalf;
             assert( nThreads > 0 );
         const unsigned nBufferSize = nColsBuffer * nRowsBuffer;
-        auto buffer = new T_PREC[nBufferSize];
-        assert( nRowsBuffer >= kernelSize );
+        auto pBuffer = new T_PREC[nBufferSize];
 
+        /* actually C++11, but only implemented in GCC 5 ! */
+        //static_assert( std::is_trivially_copyable< MovingWindowCache2D<T_PREC> >::value );
+        MovingWindowCache2D<T_PREC> buffer
+        {
+            rData, rnDataX, rnDataY,
+            pBuffer, nRowsBuffer, nColsBuffer,
+            nThreads, nKernelHalf
+        };
 
         for ( unsigned iCol = 0; iCol < rnDataX; iCol += nColsBuffer )
         {
-            /* In the first step initialize the left halo buffer cells which will then be moved to the start to the first  */
-            #ifndef NDEBUG
-            #if DEBUG_GAUSSIAN_CPP == 1
-                /* makes it easier to see if we cache the correct data */
-                memset( buffer, 0, nBufferSize*sizeof( buffer[0] ) );
-                std::cout << "Copy some initial data to buffer:\n";
-            #endif
-            #endif
-            for ( unsigned iRowBuf = nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
-            {
-                /* if rnDataY == 1, then we can only load 2*nKernelHalf+1 rows! */
-                if ( iRowBuf-nThreads >= rnDataY + 2*nKernelHalf+1 )
-                    break;
-
-                for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
-                {
-                    if ( iCol+iColBuf >= rnDataX )
-                        break;
-
-                    const int signedDataRow = int(iRowBuf-nThreads) - (int)nKernelHalf;
-                    /* periodic */
-                    //const int tmpRow = signedRow % rnDataY;
-                    //const int newRow = tmpRow < 0 ? tmpRow + rnDataY : tmpRow;
-                    /* extend */
-                    const unsigned newRow = min( rnDataY-1, (unsigned) max( 0, signedDataRow ) );
-                        assert( newRow < rnDataY );
-                    const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
-                        assert( iBuf < nBufferSize );
-                    const unsigned iData = newRow*rnDataX + iCol+iColBuf;
-                        assert( iData < rnDataX*rnDataY );
-
-                    buffer[ iBuf ] = rData[ iData ];
-                }
-            }
-            #ifndef NDEBUG
-            #if DEBUG_GAUSSIAN_CPP == 1
-                for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
-                {
-                    std::cout << std::setw(3);
-                    std::cout << iRowBuf << ": ";
-                    std::cout << std::setw(11);
-                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
-                        std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
-                    std::cout << "\n";
-                }
-            #endif
-            #endif
+            buffer.loadNextColumns( iCol );
 
             for ( unsigned iRow = 0; iRow < rnDataY; iRow += nRowsBuffer-kernelSize+1 )
             {
@@ -754,7 +801,7 @@ namespace libs
             }
         }
 
-        delete[] buffer;
+        delete[] pBuffer;
     }
 
 
