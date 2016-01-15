@@ -8,15 +8,23 @@ Shrink-Wrap Imaginar Coefficient Reconstruction Algorithm
 
 To compile this library you need
 
-* CUDA
+* C++ Compiler (with `c++11` support)
 
-* CMake (`3.4.1+`)
+* CUDA (`7.5+`)
 
-* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
+* CMake (`3.3+`)
 
 * OpenMP
 
 * FFTW3 (single precision build)
+
+### Optional Dependencies
+
+* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
+    (for reading and writing HDF5)
+
+* [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
+    reconstructed images as PNGs)
 
 ### Build options
 
@@ -35,6 +43,18 @@ To compile this library you need
 * `-DIMRESH_DEBUG` (default off)
 
     Adds at least debugging symbols to the code.
+
+* `-DBUILD_DOC` (default on)
+
+    Build the Doxygen documentation.
+
+* `-DUSE_PNG` (default off)
+
+    Enable PNG output.
+
+* `-DUSE_SPLASH` (default off)
+
+    Enable HDF5 in- and output.
 
 ### Building
 
