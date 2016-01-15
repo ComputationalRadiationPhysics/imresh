@@ -143,6 +143,15 @@ namespace cuda
         const double & rSigma
     );
 
+    template<class T_PREC>
+    void cudaGaussianBlurHorizontalSharedWeights
+    (
+        T_PREC * const & rdpData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
 
 } // namespace cuda
 } // namespace algorithms

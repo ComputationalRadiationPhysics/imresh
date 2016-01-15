@@ -242,8 +242,8 @@ namespace libs
         const double & rSigma
     )
     {
-        const int nKernelElements = 64;
-        T_PREC pKernel[64];
+        constexpr int nKernelElements = 64;
+        T_PREC pKernel[nKernelElements];
         const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
         assert( kernelSize <= nKernelElements );
         applyKernel( rData, rnData, (T_PREC*) pKernel, kernelSize );
@@ -269,7 +269,7 @@ namespace libs
     }
 
     template<class T_PREC>
-    void gaussianBlurVertical
+    void gaussianBlurVerticalUncached
     (
         T_PREC * const & rData,
         const unsigned & rnDataX,
@@ -629,7 +629,7 @@ namespace libs
     };
 
     template<class T_PREC>
-    void gaussianBlurVerticalUncached
+    void gaussianBlurVertical
     (
         T_PREC * const & rData,
         const unsigned & rnDataX,
