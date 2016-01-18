@@ -22,27 +22,50 @@
  * SOFTWARE.
  */
 
-#include <functional>               // std::function
-#include <thread>                   // std::thread
-
-#include "io/taskQueue.hpp"
+#include <string>               // std::string
+#include <utility>              // std::pair
 
 namespace imresh
 {
 namespace io
 {
-    taskQueue::taskQueue( )
-    {
-        fillStreamList( );
-    }
+namespace writeOutFuncs
+{
+    /**
+     * Just free the pointer and delete the memory.
+     *
+     * This function only exists for benchmarking purposes, as it's not dependant
+     * on the filesystem.
+     */
+    void justFree(
+        float* _mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::string _filname
+    );
 
-    void taskQueue::addTask(
-        int* _h_mem,
-        int _size,
-        std::function<void(int*,int)> _writeOutFunc
-    )
-    {
-        std::thread( addTaskAsync, _h_mem, _size, _writeOutFunc).detach( );
-    }
+#   ifdef USE_PNG
+        /**
+         * Writes the reconstructed image to a PNG file.
+         */
+        void writeOutPNG(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        );
+#   endif
+
+#   ifdef USE_SPLASH
+        /**
+         * Write out data using HDF5.
+         *
+         * This is done using libSplash.
+         */
+        void writeOutHDF5(
+            float* _mem,
+            std::pair<unsigned int,unsigned int> _size,
+            std::string _filename
+        );
+#   endif
+} // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh

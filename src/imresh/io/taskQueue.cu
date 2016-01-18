@@ -28,33 +28,68 @@
 #endif
 #include <list>                     // std::list
 #include <mutex>                    // std::mutex
+#include <thread>                   // std::thread
+#include <utility>                  // std::pair
 
+#include "algorithms/cuda/cudaShrinkWrap.h"
 #include "libs/cudacommon.h"        // CUDA_ERROR
 
 namespace imresh
 {
 namespace io
 {
+    /**
+     * Struct containing a CUDA stream with it's associated device.
+     */
     struct stream
     {
         int device;
         cudaStream_t str;
     };
 
-    std::list<stream> streamList;
+    /**
+     * Mutex to coordinate device usage.
+     */
     std::mutex mtx;
+    /**
+     * List where all streams are stored as imresh::io::stream structs.
+     */
+    std::list<stream> streamList;
+    /**
+     * List to store all created threads.
+     */
+    std::list<std::thread> threadPool;
+    /**
+     * Maximum size of the thread pool.
+     *
+     * This is determined while imresh::io::fillStreamList() as the number of
+     * available streams.
+     */
+    int threadPoolMaxSize = 0;
 
+    /**
+     * Function to add a image processing task to the queue.
+     *
+     * This is called from taskQueue::addTask() as a thread to prevent blocking
+     * and to ensure that all streams are filled with work. It selects the least
+     * recently used stream from the streamList and fills it with new work (FIFO).
+     *
+     * @param _h_mem Pointer to the image data.
+     * @param _size Size of the memory to be adressed.
+     * @param _writeOutFunc A function pointer (std::function) that will be
+     * used to handle the processed data.
+     */
     extern "C" void addTaskAsync(
-        int* _h_mem,
-        int _size,
-        std::function<void(int*,int)> _writeOutFunc
+        float* _h_mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+            std::string)> _writeOutFunc,
+        std::string _filename
     )
     {
         // Lock the mutex so no other thread intermediatly changes the device
         // selection
         mtx.lock( );
-        // Device memory pointer
-        int* d_mem;
         // Get the next device and stream to use
         auto strm = streamList.front( );
         streamList.pop_front( );
@@ -64,20 +99,46 @@ namespace io
 
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
-        CUDA_ERROR( cudaMalloc( (int**)& d_mem, _size ) );
-        CUDA_ERROR( cudaMemcpyAsync( d_mem, _h_mem, _size, cudaMemcpyHostToDevice, str ) );
 
         // Call shrinkWrap in the selected stream on the selected device.
-        //imresh::algorithms::cuda::cudaShrinkWrap( /* need new parameters for this */ );
+        imresh::algorithms::cuda::shrinkWrap( _h_mem, _size, str );
 
         // Copy memory back
-        CUDA_ERROR( cudaMemcpyAsync( _h_mem, d_mem, _size, cudaMemcpyDeviceToHost, str ) );
         mtx.unlock( );
 
-        _writeOutFunc(_h_mem, _size);
+        _writeOutFunc( _h_mem, _size, _filename );
     }
 
-    extern "C" void fillStreamList( )
+    /**
+     * Calls imresh::io::addTaskAsync() in a thread.
+     */
+    void addTask(
+        float* _h_mem,
+        std::pair<unsigned int,unsigned int> _size,
+        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+            std::string)> _writeOutFunc,
+        std::string _filename
+    )
+    {
+        while( threadPool.size( ) >= threadPoolMaxSize )
+        {
+            threadPool.front( ).join( );
+            threadPool.pop_front( );
+        }
+
+        threadPool.push_back( std::thread( addTaskAsync, _h_mem, _size,
+            _writeOutFunc, _filename ) );
+    }
+
+    /**
+     * This function adds all streams to the stream list.
+     *
+     * To achieve that it iterates over all available devices and creates one
+     * stream for each multiprocessor on each device. All these streams are
+     * stored in the streamList as imresh::io::stream objects. If no streams are
+     * found, the program aborts.
+     */
+    extern "C" int fillStreamList( )
     {
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::fillStreamList(): Starting stream creation."
@@ -89,10 +150,10 @@ namespace io
         if( deviceCount <= 0 )
         {
 #           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::fillStreamList(): No devices found."
+                std::cout << "imresh::io::fillStreamList(): No devices found. Aborting."
                     << std::endl;
 #           endif
-            return;
+            exit( EXIT_FAILURE );
         }
 
         for( int i = 0; i < deviceCount; i++ )
@@ -103,10 +164,10 @@ namespace io
             if( prop.multiProcessorCount <= 0 )
             {
 #               ifdef IMRESH_DEBUG
-                    std::cout << "imresh::io::fillStreamList(): Devices has no multiprocessors."
+                    std::cout << "imresh::io::fillStreamList(): Devices has no multiprocessors. Aborting."
                         << std::endl;
 #               endif
-                return;
+                exit( EXIT_FAILURE );
             }
 
             for( int j = 0; j < prop.multiProcessorCount; j++ )
@@ -125,6 +186,22 @@ namespace io
             std::cout << "imresh::io::fillStreamList(): Finished stream creation."
                 << std::endl;
 #       endif
+
+        return streamList.size( );
+    }
+
+    void taskQueueInit( )
+    {
+        threadPoolMaxSize = fillStreamList( );
+    }
+
+    void taskQueueDeinit( )
+    {
+        while( threadPool.size( ) > 0 )
+        {
+            threadPool.front( ).join( );
+            threadPool.pop_front( );
+        }
     }
 } // namespace io
 } // namespace imresh

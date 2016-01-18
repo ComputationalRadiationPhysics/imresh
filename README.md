@@ -14,11 +14,17 @@ To compile this library you need
 
 * CMake (`3.3+`)
 
-* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
-
 * OpenMP
 
 * FFTW3 (single precision build)
+
+### Optional Dependencies
+
+* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
+    (for reading and writing HDF5)
+
+* [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
+    reconstructed images as PNGs)
 
 ### Build options
 
@@ -41,6 +47,14 @@ To compile this library you need
 * `-DBUILD_DOC` (default on)
 
     Build the Doxygen documentation.
+
+* `-DUSE_PNG` (default off)
+
+    Enable PNG output.
+
+* `-DUSE_SPLASH` (default off)
+
+    Enable HDF5 in- and output.
 
 ### Building
 
@@ -67,7 +81,59 @@ To compile this library you need
 
 ## Usage
 
-> TODO
+### Basic usage
+
+The usage of _imresh_ is mainly divided into five parts:
+
+1. Library initialization
+
+2. Image loading
+
+3. Image processing
+
+4. Image writing
+
+5. Library deinitialization
+
+where image loading and writing can also be handled outside the library.
+
+1. The library initialization is (from the user's perspective) just a single
+    call to `imresh::io::taskQueueInit( )`. Internally this creates
+    `cudaStream_t`s for each multiprocessor on each CUDA capable device found
+    and stores them for later access.
+
+2. Image loading can be done through _imresh_'s own loading functions (found in
+    `imresh::io::readInFuncs`) or with self-written functions.
+
+    > _Note:_
+
+    > Your self-written functions have to provide you both the image dimensions
+    > and the host memory containing the image. This memory has to be allocated
+    > via `cudaMallocHost` in order to ensure _imresh_'s correct behaviour.
+
+3. Image processing is just a call to `imresh::io::addTask( )` (for explanation
+    of the parameters please have a look at the Doxygen). This will start a
+    thread (a C++ `std::thread` thread to be precise) handling your data
+    transfers and image processing on the least recently used stream available.
+    The given data write out function will be called inside of this thread, too.
+
+4. Image writing can, just as the loading, be done via _imresh_'s own write out
+    functions (found in `imresh::io::writeOutFuncs`) or with self-written
+    functions. These have to match the following signature:
+
+        void writeOutFunc( float* memory, std::pair<unsigned int,unsigned int> size, std::string filename);
+
+    where `memory` is the raw image data, `size` the image dimension
+    (`size.first` is horizontal, `size.second` is vertical) and `filename` the
+    name of the file to store the image in.
+
+5. Library deinitialization is again just a call to `imresh::io::taskQueueDeinit( )`.
+    This will handle stream destroying, memory freeing and so on for you.
+
+    > _Note:_
+
+    > When you're using your own data reading and/or writing functions, you'll
+    > have to handle the memory inside of this functions yourself.
 
 ## Authors
 
