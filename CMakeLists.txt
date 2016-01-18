@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 2.8.5)
 project(imresh)
 
 # Options
-option(RUN_TESTS OFF)
-option(BUILD_EXAMPLES OFF)
-option(IMRESH_DEBUG OFF)
-option(BUILD_DOC ON)
-option(USE_PNG OFF)
-option(USE_SPLASH OFF)
+option(RUN_TESTS      "Runs some unit tests including some benchmarks" OFF)
+option(BUILD_EXAMPLES "Builds some examples showing how to make use of shrinkWrap(...)" OFF)
+option(IMRESH_DEBUG   "Enables debugging code, especially many asserts to check for correctness" OFF)
+option(BUILD_DOC      "Builds Doxygen Documentation" ON)
+option(USE_PNG        "Enables PNG output of reconstructed image" OFF)
+option(USE_SPLASH     "Enables HDF5 input and output of images" OFF)
 
 # General definitions
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
