@@ -41,6 +41,7 @@
 #include <vector>
 #include <cuda.h>     // atomicCAS
 #include <cufft.h>
+#include <utility>      // std::pair
 #include "algorithms/cuda/cudaGaussian.h"
 #if DEBUG_CUDASHRINKWRAP == 1
 #    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
@@ -86,7 +87,21 @@ namespace cuda
         unsigned rnCores = 1
     );
 
-
+    int shrinkWrap
+    (
+        float* const& rIntensity,
+        const std::pair<unsigned,unsigned>& rSize,
+        cudaStream_t strm,
+        unsigned rnCycles = 20,
+        float rTargetError = 1e-5,
+        float rHioBeta = 0.9,
+        float rIntensityCutOffAutoCorel = 0.04,
+        float rIntensityCutOff = 0.20,
+        float sigma0 = 3.0,
+        float rSigmaChange = 0.01,
+        unsigned rnHioCycles = 20,
+        unsigned rnCores = 1
+    );
 } // namespace cuda
 } // namespace algorithms
 } // namespace imresh

@@ -22,34 +22,25 @@
  * SOFTWARE.
  */
 
-#include <functional>
+#include <iostream>         // std::cout, std::endl
+#include <string>           // std::string
+#include <utility>          // std::pair
 
-#include "createAtomCluster.hpp"
-#include "libs/diffractionIntensity.hpp"
-//#include "algorithms/shrinkWrap.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
-#include "io/taskQueue.hpp"
-
-void writeOut( int* mem, int size )
-{
-    //std::cout << &mem << std::endl;
-}
+#include "io/taskQueue.cu"
+#include "io/readInFuncs/readInFuncs.hpp"
+#include "io/writeOutFuncs/writeOutFuncs.hpp"
 
 int main( void )
 {
-    int* h_mem;
-    h_mem = (int*) malloc(sizeof(int) * 100);
-    auto tq = new imresh::io::taskQueue( );
-    tq->addTask(h_mem, sizeof(int) * 100, (std::function<void(int*,int)>) writeOut);
-    std::vector<unsigned> imageSize { 160, 160 };
-    float * pAtomCluster = examples::createAtomCluster( imageSize );
-    imresh::libs::diffractionIntensity( pAtomCluster, imageSize );
-    //imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
-    imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
-    /* pAtomCluster now holds the original image again (with some deviation)
-     * you could compare the current state with the data returned by
-     * createAtomCluster now */
-    delete[] pAtomCluster;
+    auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
+
+    imresh::io::taskQueueInit( );
+
+#   ifdef USE_PNG
+        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
+#   endif
+
+    imresh::io::taskQueueDeinit( );
 
     return 0;
 }

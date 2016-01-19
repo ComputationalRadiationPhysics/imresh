@@ -22,45 +22,23 @@
  * SOFTWARE.
  */
 
-#include <functional>               // std::function
-#include <list>                     // std::list
+#include <string>               // std::string
+#include <utility>              // std::pair
 
 namespace imresh
 {
 namespace io
 {
-    extern "C"
-    {
-        void addTaskAsync(
-            int* _h_mem,
-            int _size,
-            std::function<void(int*,int)> _writeOutFunc
-        );
-
-        void fillStreamList( );
-    }
-
-
-    class taskQueue
-    {
-    public:
-        taskQueue( );
-
-        /*
-         * Inserts a new task into the task queue.
-         *
-         * The task will be added to the next CUDA stream available. This is done
-         * asynchronously.
-         *
-         * @param _h_mem Pointer to the host memory. This has to be pinned
-         * memory allocated with cudaMallocHost.
-         * @param _size Size of the host data.
-         */
-        void addTask(
-            int* _h_mem,
-            int _size,
-            std::function<void(int*,int)> _writeOutFunc
-        );
-    };
+namespace readInFuncs
+{
+    /**
+     * Simple function for reading txt files.
+     *
+     * They need to store their values as a 2D matrix with spaces as delimiters.
+     */
+    std::pair<float*,std::pair<unsigned int,unsigned int>> readTxt(
+        std::string _filename
+    );
+} // namespace readInFuncs
 } // namespace io
 } // namespace imresh

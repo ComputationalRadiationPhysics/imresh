@@ -14,11 +14,17 @@ To compile this library you need
 
 * CMake (`3.3+`)
 
-* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
-
 * OpenMP
 
 * FFTW3 (single precision build)
+
+### Optional Dependencies
+
+* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
+    (for reading and writing HDF5)
+
+* [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
+    reconstructed images as PNGs)
 
 ### Build options
 
@@ -41,6 +47,14 @@ To compile this library you need
 * `-DBUILD_DOC` (default on)
 
     Build the Doxygen documentation.
+
+* `-DUSE_PNG` (default off)
+
+    Enable PNG output.
+
+* `-DUSE_SPLASH` (default off)
+
+    Enable HDF5 in- and output.
 
 ### Building
 
