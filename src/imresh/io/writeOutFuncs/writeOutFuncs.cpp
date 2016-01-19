@@ -50,8 +50,8 @@ namespace writeOutFuncs
     {
         free( _mem );
 #       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data."
-                << std::endl;
+            std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data ("
+                << _filename << ")." << std::endl;
 #       endif
     }
 
@@ -77,8 +77,8 @@ namespace writeOutFuncs
             png.close( );
             free( _mem );
 #           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): Successfully written image data to PNG."
-                    << std::endl;
+                std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): Successfully written image data to PNG ("
+                    << _filename << ")." << std::endl;
 #           endif
         }
 #   endif
@@ -111,8 +111,8 @@ namespace writeOutFuncs
             sdc.close( );
             free( _mem );
 #           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): Successfully written image data to HDF5."
-                    << std::endl;
+                std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): Successfully written image data to HDF5 ("
+                    << _filename << "_0_0_0.h5)." << std::endl;
 #           endif
         }
 #   endif

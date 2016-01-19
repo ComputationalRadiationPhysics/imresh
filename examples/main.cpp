@@ -41,12 +41,17 @@ int main( void )
 
     imresh::io::taskQueueInit( );
 
+    imresh::io::addTask( file.first, file.second, imresh::io::writeOutFuncs::justFree, "free" );
+
 #   ifdef USE_PNG
-        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
+        for( int i = 1; i < 30; i++)
+        {
+            imresh::io::addTask( file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh_" + std::to_string( i ) + "_cycles.png", i );
+        }
 #   endif
 
 #   ifdef USE_SPLASH
-        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutHDF5, "imresh");
+        imresh::io::addTask( file.first, file.second, imresh::io::writeOutFuncs::writeOutHDF5, "imresh" );
 #   endif
 
 
