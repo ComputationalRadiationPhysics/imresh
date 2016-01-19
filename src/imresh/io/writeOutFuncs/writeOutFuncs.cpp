@@ -45,8 +45,7 @@ namespace writeOutFuncs
         std::string _filename
     )
     {
-        delete _mem;
-        _mem = NULL;
+        return;
     }
 
 #   ifdef USE_PNG
@@ -79,7 +78,25 @@ namespace writeOutFuncs
             std::string _filename
         )
         {
-            // TODO
+            splash::SerialDataCollector sdc( 0 );
+            splash::DataCollector::FileCreationAttr fCAttr;
+            splash::DataCollector::initFileCreationAttr( fCAttr );
+
+            fCAttr.fileAccType = splash::DataCollector::FAT_CREATE;
+
+            sdc.open( _filename.c_str( ), fCAttr );
+
+            splash::ColTypeFloat cTFloat;
+            splash::Dimensions size( _size.first, _size.second, 0 );
+
+            sdc.write( 0,
+                       cTFloat,
+                       2,
+                       splash::Selection( size ),
+                       _filename.c_str( ),
+                       _mem );
+
+            sdc.close( );
         }
 #   endif
 } // namespace writeOutFuncs

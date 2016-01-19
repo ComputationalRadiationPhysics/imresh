@@ -30,15 +30,25 @@
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 
+#include "createAtomCluster.hpp"
+
 int main( void )
 {
-    auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
+    //auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
+    std::pair<unsigned int,unsigned int> size { 100, 100 };
+    float* cluster = examples::createAtomCluster( size );
+    std::pair<float*,std::pair<unsigned int,unsigned int>> file { cluster, size };
 
     imresh::io::taskQueueInit( );
 
 #   ifdef USE_PNG
         imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
 #   endif
+
+#   ifdef USE_SPLASH
+        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutHDF5, "imresh");
+#   endif
+
 
     imresh::io::taskQueueDeinit( );
 
