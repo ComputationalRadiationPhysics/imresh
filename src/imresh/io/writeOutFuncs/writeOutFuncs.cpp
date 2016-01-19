@@ -22,6 +22,9 @@
  * SOFTWARE.
  */
 
+#ifdef IMRESH_DEBUG
+#   include <iostream>              // std::cout, std::endl
+#endif
 #ifdef USE_PNG
 #   include <pngwriter.h>
 #endif
@@ -45,7 +48,11 @@ namespace writeOutFuncs
         std::string _filename
     )
     {
-        return;
+        free( _mem );
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data."
+                << std::endl;
+#       endif
     }
 
 #   ifdef USE_PNG
@@ -68,6 +75,11 @@ namespace writeOutFuncs
             }
 
             png.close( );
+            free( _mem );
+#           ifdef IMRESH_DEBUG
+                std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): Successfully written image data to PNG."
+                    << std::endl;
+#           endif
         }
 #   endif
 
@@ -97,6 +109,11 @@ namespace writeOutFuncs
                        _mem );
 
             sdc.close( );
+            free( _mem );
+#           ifdef IMRESH_DEBUG
+                std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): Successfully written image data to HDF5."
+                    << std::endl;
+#           endif
         }
 #   endif
 } // namespace writeOutFuncs

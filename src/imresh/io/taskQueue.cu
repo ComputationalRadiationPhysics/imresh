@@ -74,12 +74,20 @@ namespace io
      * and to ensure that all streams are filled with work. It selects the least
      * recently used stream from the streamList and fills it with new work (FIFO).
      *
+     * A mutex ensures the correct work balancing over the CUDA streams.
+     * However, this mutex doesn't include the call to the write out function.
+     * If you need your write out function to be thread safe, you'll have to
+     * use your own lock mechanisms inside of this function.
+     *
      * @param _h_mem Pointer to the image data.
      * @param _size Size of the memory to be adressed.
      * @param _writeOutFunc A function pointer (std::function) that will be
      * used to handle the processed data.
+     * @param _filename The filename to use to save the processed image. Note
+     * that some write out functions will take a file extension (as '.png') and
+     * some others may not.
      */
-    extern "C" void addTaskAsync(
+    void addTaskAsync(
         float* _h_mem,
         std::pair<unsigned int,unsigned int> _size,
         std::function<void(float*,std::pair<unsigned int,unsigned int>,
@@ -100,11 +108,20 @@ namespace io
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
 
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::addTaskAsync(): Mutex locked, device and stream selected. Calling shrink-wrap."
+                << std::endl;
+#       endif
+
         // Call shrinkWrap in the selected stream on the selected device.
         imresh::algorithms::cuda::shrinkWrap( _h_mem, _size, str );
 
-        // Copy memory back
         mtx.unlock( );
+
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::addTaskAsync(): CUDA work finished, mutex unlocked. Calling write out function."
+                << std::endl;
+#       endif
 
         _writeOutFunc( _h_mem, _size, _filename );
     }
@@ -122,9 +139,18 @@ namespace io
     {
         while( threadPool.size( ) >= threadPoolMaxSize )
         {
+#           ifdef IMRESH_DEBUG
+                std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
+                    << std::endl;
+#           endif
             threadPool.front( ).join( );
             threadPool.pop_front( );
         }
+
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::addTask(): Creating working thread."
+                << std::endl;
+#       endif
 
         threadPool.push_back( std::thread( addTaskAsync, _h_mem, _size,
             _writeOutFunc, _filename ) );
@@ -138,7 +164,7 @@ namespace io
      * stored in the streamList as imresh::io::stream objects. If no streams are
      * found, the program aborts.
      */
-    extern "C" int fillStreamList( )
+    int fillStreamList( )
     {
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::fillStreamList(): Starting stream creation."
@@ -190,11 +216,26 @@ namespace io
         return streamList.size( );
     }
 
+    /**
+     * Initializes the library.
+     *
+     * This is the _first_ call you should make in order to use this library.
+     */
     void taskQueueInit( )
     {
         threadPoolMaxSize = fillStreamList( );
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::taskQueueInit(): Finished initilization."
+                << std::endl;
+#       endif
     }
 
+    /**
+     * Deinitializes the library.
+     *
+     * This is the last call you should make in order to clear the library's
+     * members.
+     */
     void taskQueueDeinit( )
     {
         while( threadPool.size( ) > 0 )
@@ -202,6 +243,10 @@ namespace io
             threadPool.front( ).join( );
             threadPool.pop_front( );
         }
+#       ifdef IMRESH_DEBUG
+            std::cout << "imresh::io::taskQueueDeinit(): Finished deinitilization."
+                << std::endl;
+#       endif
     }
 } // namespace io
 } // namespace imresh
