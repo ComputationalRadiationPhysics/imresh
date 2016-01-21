@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <vector>
+#include <utility>
 #include <cmath>     // sqrtf
 #include "libs/vectorIndex.hpp"
 
@@ -71,7 +71,7 @@ namespace libs
     void diffractionIntensity
     (
         float * const & rIoData,
-        const std::vector<unsigned> & rDim
+        const std::pair<unsigned int,unsigned int>& rDim
     );
 
 

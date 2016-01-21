@@ -39,6 +39,12 @@ namespace readInFuncs
     std::pair<float*,std::pair<unsigned int,unsigned int>> readTxt(
         std::string _filename
     );
+
+#   ifdef USE_SPLASH
+        std::pair<float*,std::pair<unsigned int,unsigned int>> readHDF5(
+            std::string _filename
+        );
+#   endif
 } // namespace readInFuncs
 } // namespace io
 } // namespace imresh

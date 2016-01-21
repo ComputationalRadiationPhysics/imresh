@@ -782,7 +782,7 @@ namespace cuda
         {
             /************************** Update Mask ***************************/
 #           ifdef IMRESH_DEBUG
-                std::cout << "Update Mask with sigma=" << sigma << "\n";
+                std::cout << "imresh::algorithms::cuda::shrinkWrap(): Update Mask with sigma=" << sigma << std::endl;
 #           endif
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
@@ -816,9 +816,10 @@ namespace cuda
             /* check if we are done */
             const float currentError = calculateHioError( dpCurData /*g'*/, dpIsMasked, nElements );
 #           ifdef IMRESH_DEBUG
-                std::cout << "[Error " << currentError << "/" << rTargetError << "] "
+                std::cout << "imresh::algorithms::cuda::shrinkWrap(): [Error " <<
+                    currentError << "/" << rTargetError << "] "
                     << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
-                    << "\n";
+                    << std::endl;
 #           endif
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;

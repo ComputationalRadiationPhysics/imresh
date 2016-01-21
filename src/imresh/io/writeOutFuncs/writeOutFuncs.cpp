@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+#include <algorithm>
 #ifdef IMRESH_DEBUG
 #   include <iostream>              // std::cout, std::endl
 #endif
@@ -64,18 +65,23 @@ namespace writeOutFuncs
         {
             pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
 
-            for( auto i = 0; i < _size.first; i++ )
+            float max = 0;
+            for( auto i = 0; i < _size.first * _size.second; i++ )
             {
-                for( auto j = 0; j < _size.second; j++ )
+                max = std::max( max, _mem[i] );
+            }
+
+            float value = 0;
+            for( auto i = 0; i < _size.second; i++ )
+            {
+                for( auto j = 0; j < _size.first; j++ )
                 {
-                    png.plot( i, j, _mem[(i * _size.second) + j],
-                        _mem[(i * _size.second) + j],
-                        _mem[(i * _size.second) + j] );
+                    value = _mem[(j * _size.first) + i] / max;
+                    png.plot( i, j, value, value, value );
                 }
             }
 
             png.close( );
-            free( _mem );
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): Successfully written image data to PNG ("
                     << _filename << ")." << std::endl;
@@ -99,7 +105,7 @@ namespace writeOutFuncs
             sdc.open( _filename.c_str( ), fCAttr );
 
             splash::ColTypeFloat cTFloat;
-            splash::Dimensions size( _size.first, _size.second, 0 );
+            splash::Dimensions size( _size.first, _size.second, 1 );
 
             sdc.write( 0,
                        cTFloat,
@@ -109,7 +115,6 @@ namespace writeOutFuncs
                        _mem );
 
             sdc.close( );
-            free( _mem );
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): Successfully written image data to HDF5 ("
                     << _filename << "_0_0_0.h5)." << std::endl;
