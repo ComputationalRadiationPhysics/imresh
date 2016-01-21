@@ -98,6 +98,8 @@ namespace algorithms
     }
 
 
+    #define DEBUG_SHRINKWRAPP_CPP 1
+
     /**
      *
      * In contrast to the normal hybrid input output this function takes
@@ -180,6 +182,20 @@ namespace algorithms
         //fftShift( isMasked, Nx,Ny );
         libs::gaussianBlur( isMasked, Nx, Ny, sigma );
 
+        #if DEBUG_SHRINKWRAPP_CPP == 1
+            std::ofstream file;
+            std::string fname = std::string("shrinkWrap-init-mask-blurred");
+            file.open( ( fname + std::string(".dat") ).c_str() );
+            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
+            {
+                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
+                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
+                file << "\n";
+            }
+            file.close();
+            std::cout << "Written out " << fname << ".png\n";
+        #endif
+
         /* apply threshold to make binary mask */
         {
             const auto absMax = vectorMax( isMasked, nElements );
@@ -188,6 +204,19 @@ namespace algorithms
             for ( unsigned i = 0; i < nElements; ++i )
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
         }
+
+        #if DEBUG_SHRINKWRAPP_CPP == 1
+            fname = std::string("shrinkWrap-init-mask");
+            file.open( ( fname + std::string(".dat") ).c_str() );
+            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
+            {
+                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
+                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
+                file << "\n";
+            }
+            file.close();
+            std::cout << "Written out " << fname << ".png\n";
+        #endif
 
         /* copy original image into fftw_complex array and add random phase */
         #pragma omp parallel for

@@ -92,6 +92,12 @@ if(RUN_TESTS)
 
     add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
                   DEPENDS testVectorIndex testVectorReduce)
+
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
+
     add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
     target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
+
+    add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
+    target_link_libraries("profileGaussian" ${PROJECT_NAME} )
 endif()

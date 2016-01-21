@@ -30,6 +30,9 @@ namespace examples
 {
 
 
+    #define SCALE_EXAMPLE_IMAGE 1
+
+
     float * createAtomCluster
     (
         const std::pair<unsigned int,unsigned int>& rSize
@@ -55,8 +58,14 @@ namespace examples
 
         /* choose a radious, so that the atom cluster will fit into the image
          * and will fill it pretty well */
-        const float atomRadius = fmin( 0.05f*Nx, 0.01f*Ny );
-        std::cout << "atomRadius = "<<atomRadius<<" px\n";
+        #if SCALE_EXAMPLE_IMAGE == 1
+            const float atomRadius = fmin( 0.05f*Nx, 0.01f*Ny );
+        #else
+            const float atomRadius = 1.6;
+        #endif
+        #ifndef NDEBUG
+            std::cout << "atomRadius = "<<atomRadius<<" px\n";
+        #endif
         /* The centers are given as offsets in multiplies of 2*atomradius
          * The virtual position is at ix=iy=0 at first */
         std::vector< std::vector<float> > atomCenters = {

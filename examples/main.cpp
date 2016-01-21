@@ -29,6 +29,7 @@
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
 
+
 int main( void )
 {
     // First step is to initialize the library.

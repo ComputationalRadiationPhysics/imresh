@@ -30,6 +30,8 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <string>
+#include <fstream>
 #include <vector>
 #include <fftw3.h>
 #include "libs/gaussian.hpp"

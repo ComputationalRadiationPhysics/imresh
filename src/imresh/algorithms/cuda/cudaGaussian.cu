@@ -160,9 +160,9 @@ namespace cuda
                         smBuffer[i] = smBuffer[i+nThreads];
                     __syncthreads();
                 }
-            #elif false
+            #elif true
                 if ( threadIdx.x == 0 )
-                    memcpy( smBuffer, &smBuffer[ nThreads ], nKernelHalf*sizeof(T_PREC) );
+                    memcpy( smBuffer, smBuffer + nThreads, nKernelHalf*sizeof(T_PREC) );
             #else
                 /* this version may actually be wrong, because some threads
                  * could be already in next iteration, thereby overwriting
@@ -475,6 +475,8 @@ namespace cuda
         /* if not found, then calculate and save it */
         if ( iKernel == firstFree )
         {
+            //printf("sigma = %f not found, uploading to constant memory\n", rSigma );
+
             /* calc kernel */
             T_PREC pKernel[nMaxWeights];
             kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nMaxWeights );
@@ -513,7 +515,7 @@ namespace cuda
          * Every block works on 1 image line. The number of Threads is limited
          * by the hardware to be e.g. 512 or 1024. The reason for this is the
          * limited shared memory size! */
-        const unsigned nThreads = 16;
+        const unsigned nThreads = 256;
         const unsigned nBlocks  = rnDataY;
         const unsigned bufferSize = nThreads + kernelSize-1;
 
@@ -549,7 +551,7 @@ namespace cuda
          * Every block works on 1 image line. The number of Threads is limited
          * by the hardware to be e.g. 512 or 1024. The reason for this is the
          * limited shared memory size! */
-        const unsigned nThreads = 16;
+        const unsigned nThreads = 256;
         const unsigned nBlocks  = rnDataY;
         const unsigned N = (kernelSize-1)/2;
         const unsigned bufferSize = nThreads + 2*N;
