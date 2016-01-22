@@ -24,6 +24,7 @@ if(BUILD_DOC)
         set(DOXYGEN_INPUT_PRE ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
         set(DOXYGEN_INPUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
         set(DOXYGEN_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html)
+        set(DOXY_MAIN_PAGE ${PROJECT_SOURCE_DIR}/README.md)
         configure_file(${DOXYGEN_INPUT_PRE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
         add_custom_command(OUTPUT ${DOXYGEN_OUTPUT}
                            COMMAND ${CMAKE_COMMAND} -E echo_append "Building API Documentation..."
@@ -56,7 +57,7 @@ endif()
 
 if(USE_SPLASH)
     find_package(Splash REQUIRED)
-    add_definitions("-DUSE_SPLASH ${Splash_DEFINITIONS}")
+    add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
 endif()
 
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)

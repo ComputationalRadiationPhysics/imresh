@@ -92,15 +92,15 @@ namespace cuda
         float* const& rIntensity,
         const std::pair<unsigned,unsigned>& rSize,
         cudaStream_t strm,
-        unsigned rnCycles = 20,
-        float rTargetError = 1e-5,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
-        float rSigmaChange = 0.01,
-        unsigned rnHioCycles = 20,
-        unsigned rnCores = 1
+        unsigned rnCycles,
+        float rTargetError,
+        float rHioBeta,
+        float rIntensityCutOffAutoCorel,
+        float rIntensityCutOff,
+        float sigma0,
+        float rSigmaChange,
+        unsigned rnHioCycles,
+        unsigned rnCores
     );
 } // namespace cuda
 } // namespace algorithms

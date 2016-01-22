@@ -36,12 +36,10 @@ namespace libs
     void diffractionIntensity
     (
         float * const & rIoData,
-        const std::vector<unsigned> & rSize
+        const std::pair<unsigned int,unsigned int>& rSize
     )
     {
-        unsigned nElements = 1;
-        for ( const auto & dim : rSize )
-            nElements *= dim;
+        unsigned int nElements = rSize.first * rSize.second;
         /* @ see http://www.fftw.org/doc/Precision.html */
         auto tmp = new fftwf_complex[nElements];
 
@@ -50,7 +48,7 @@ namespace libs
             tmp[i][0] = rIoData[i];
             tmp[i][1] = 0;
         }
-        fftwf_plan ft = fftwf_plan_dft_2d( rSize[1],rSize[0], tmp, tmp,
+        fftwf_plan ft = fftwf_plan_dft_2d( rSize.second, rSize.first, tmp, tmp,
             FFTW_FORWARD, FFTW_ESTIMATE );
         fftwf_execute( ft );
         fftwf_destroy_plan( ft );

@@ -26,6 +26,13 @@
 #include <fstream>              // open
 #include <iostream>             // std::cout
 #include <list>                 // std::list
+#ifdef USE_PNG
+#   include <pngwriter.h>
+#   include <stdio.h>
+#endif
+#ifdef USE_SPLASH
+#   include <splash/splash.h>
+#endif
 #include <string>               // std::string
 #include <utility>              // std::pair
 
@@ -75,6 +82,10 @@ namespace readInFuncs
             }
 
             auto ret = std::make_pair( (float*) retArray, std::make_pair( xDim, yDim ) );
+#           ifdef IMRESH_DEBUG
+                std::cout << "imresh::io::readInFuncs::readTxt(): Successfully read file."
+                    << std::endl;
+#           endif
             return ret;
         }
         else
@@ -86,6 +97,134 @@ namespace readInFuncs
             exit( EXIT_FAILURE );
         }
     }
+
+#   ifdef USE_PNG
+        std::pair<float*,std::pair<unsigned int,unsigned int>> readPNG(
+            std::string _filename
+        )
+        {
+            pngwriter png( 1, 1, 0, "tmp.png" );
+            png.readfromfile( _filename.c_str( ) );
+
+            int x = png.getwidth( );
+            int y = png.getheight( );
+
+            float* mem = new float[x * y];
+            for( auto i = 0; i < y; i++ )
+            {
+                for( auto j = 0; j < x; j++ )
+                {
+                    mem[(i * x) + j] = (float) png.read( i, j, 1 ) / 65535;
+                }
+            }
+
+            png.close( );
+
+#           ifdef IMRESH_DEBUG
+                if( remove( "tmp.png" ) != 0 )
+                {
+                    perror( "imresh::io::readInFuncs::readPNG(): Error deleting temporary file" );
+                }
+                else
+                {
+                    std::cout << "imresh::io::readInFuncs::readPNG(): Successfully read file."
+                        << std::endl;
+                }
+#           else
+                remove( "tmp.png" );
+#           endif
+
+            return { mem, { x, y } };
+        }
+#   endif
+
+#   ifdef USE_SPLASH
+        std::pair<float*,std::pair<unsigned int,unsigned int>> readHDF5(
+            std::string _filename
+        )
+        {
+            splash::SerialDataCollector sdc( 0 );
+            splash::DataCollector::FileCreationAttr fCAttr;
+            splash::DataCollector::initFileCreationAttr( fCAttr );
+
+            fCAttr.fileAccType = splash::DataCollector::FAT_READ;
+
+            sdc.open( _filename.c_str( ), fCAttr );
+
+            int32_t *ids = NULL;
+            size_t num_ids = 0;
+            sdc.getEntryIDs( NULL, &num_ids );
+
+            if( num_ids == 0 )
+            {
+                sdc.close( );
+#               ifdef IMRESH_DEBUG
+                    std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
+                        << std::endl;
+#               endif
+                exit( EXIT_FAILURE );
+            }
+            else
+            {
+                ids = new int32_t[num_ids];
+                sdc.getEntryIDs( ids, &num_ids );
+            }
+
+            splash::DataCollector::DCEntry *entries = NULL;
+            size_t num_entries = 0;
+            sdc.getEntriesForID( ids[0], NULL, &num_entries );
+
+            if( num_entries == 0 )
+            {
+                delete[] entries;
+                delete[] ids;
+                sdc.close( );
+#               ifdef IMRESH_DEBUG
+                    std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
+                        << std::endl;
+#               endif
+                exit( EXIT_FAILURE );
+            }
+            else
+            {
+                entries = new splash::DataCollector::DCEntry[num_entries];
+                sdc.getEntriesForID( ids[0], entries, &num_entries );
+            }
+
+            splash::DataCollector::DCEntry first_entry = entries[0];
+
+            splash::Dimensions dim;
+            sdc.read( ids[0], first_entry.name.c_str( ), dim, NULL );
+
+            float* mem = NULL;
+            if( dim.getScalarSize( ) == 0 )
+            {
+                delete[] entries;
+                delete[] ids;
+                delete[] mem;
+                sdc.close( );
+#               ifdef IMRESH_DEBUG
+                    std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
+                        << std::endl;
+#               endif
+                exit( EXIT_FAILURE );
+            }
+            else
+            {
+                mem = new float[dim.getScalarSize( )];
+                sdc.read( ids[0], first_entry.name.c_str( ), dim, mem );
+            }
+
+            delete[] entries;
+            delete[] ids;
+
+#           ifdef IMRESH_DEBUG
+                std::cout << "imresh::io::readInFuncs::readHDF5(): Successfully read file."
+                    << std::endl;
+#           endif
+            return { mem, { dim[1], dim[2] } };
+        }
+#   endif
 } // namespace readInFuncs
 } // namespace io
 } // namespace imresh

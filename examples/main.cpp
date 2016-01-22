@@ -22,24 +22,73 @@
  * SOFTWARE.
  */
 
-#include <iostream>         // std::cout, std::endl
 #include <string>           // std::string
-#include <utility>          // std::pair
 
 #include "io/taskQueue.cu"
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
+#include "libs/diffractionIntensity.hpp"
 
 int main( void )
 {
-    auto file = imresh::io::readInFuncs::readTxt( "../PS_simple.txt" );
-
+    // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
+    // Read in a HDF5 file containing a grey scale image as a table
+    auto file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+    // This step is only needed because we have no real images
+    imresh::libs::diffractionIntensity( file.first, file.second );
+
+    // Now we can run the algorithm for testing purposes and free the data
+    // afterwards
+    imresh::io::addTask( file.first,
+                          file.second,
+                          imresh::io::writeOutFuncs::justFree,
+                          "free" /* gives an identifier for debugging */ );
+
+    // Now let's test the PNG in- and output
 #   ifdef USE_PNG
-        imresh::io::addTask(file.first, file.second, imresh::io::writeOutFuncs::writeOutPNG, "imresh.png");
+        // Let's see, how the images look after several different time steps.
+        for( int i = 1; i < 33; i++)
+        {
+            // How about the PNG input?
+            file = imresh::io::readInFuncs::readPNG( "../examples/imresh.png" );
+            // Again, this step is only needed because we have no real images
+            imresh::libs::diffractionIntensity( file.first, file.second );
+            // Just for correct naming
+            if( i < 10 )
+            {
+                imresh::io::addTask( file.first,
+                                      file.second,
+                                      imresh::io::writeOutFuncs::writeOutPNG,
+                                      "imresh_0" + std::to_string( i ) + "_cycles.png",
+                                      i /* sets the number of iterations */ );
+            }
+            else
+            {
+                imresh::io::addTask( file.first,
+                                      file.second,
+                                      imresh::io::writeOutFuncs::writeOutPNG,
+                                      "imresh_" + std::to_string( i ) + "_cycles.png",
+                                      i /* sets the number of iterations */ );
+            }
+        }
 #   endif
 
+    // How about the HDF5 output?
+#   ifdef USE_SPLASH
+        // First read that HDF5 file once again (because the memory is
+        // overwritten)
+        file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+        // Again, this step is only needed because we have no real images
+        imresh::libs::diffractionIntensity( file.first, file.second );
+        imresh::io::addTask( file.first,
+                              file.second,
+                              imresh::io::writeOutFuncs::writeOutHDF5,
+                              "imresh_out" );
+#   endif
+
+    // The last step is always deinitializing the library.
     imresh::io::taskQueueDeinit( );
 
     return 0;

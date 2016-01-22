@@ -171,11 +171,11 @@ namespace libs
      * weighted sum over all was > 0.5. Meaning:
      * @f[
      * 255 \int\limits_{-\infty}^{x_\mathrm{cutoff}} \frac{1}{\sqrt{2\pi}\sigma}
-     * e^{-\frac{x^2}{2\sigma^2} \mathrm{d}x = 255 \frac{1}{2}
+     * e^{-\frac{x^2}{2\sigma^2}} \mathrm{d}x = 255 \frac{1}{2}
      * \mathrm{erfc}\left( -\frac{ x_\mathrm{cutoff} }{ \sqrt{2}\sigma } \right)
      * \overset{!}{=} 0.5
      * \Rightarrow x_\mathrm{cutoff} = -\sqrt{2}\sigma
-     *   \erfc^{-1}\left( \frac{1}{2 \cdot 255} \right)
+     *   \mathrm{erfc}^{-1}\left( \frac{1}{2 \cdot 255} \right)
      *   = -2.884402748387961466 \sigma
      * @f]
      * This result means, that for @f[ \sigma=1 @f] the kernel size should
