@@ -32,18 +32,14 @@ namespace examples
 
     float * createAtomCluster
     (
-        const std::vector<unsigned> & rSize
+        const std::pair<unsigned int,unsigned int>& rSize
     )
     {
-        const auto & Ny = rSize[1];
-        const auto & Nx = rSize[0];
+        const auto & Ny = rSize.second;
+        const auto & Nx = rSize.first;
 
-        unsigned nElements = 1;
-        for ( unsigned i = 0; i < rSize.size(); ++i )
-        {
-            assert( rSize[i] > 0 );
-            nElements *= rSize[i];
-        }
+        assert( rSize.first > 0 && rSize.second > 0 );
+        unsigned nElements = Nx * Ny;
 
         float * data = new float[nElements];
 

@@ -57,7 +57,7 @@ endif()
 
 if(USE_SPLASH)
     find_package(Splash REQUIRED)
-    add_definitions("-DUSE_SPLASH ${Splash_DEFINITIONS}")
+    add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
 endif()
 
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)

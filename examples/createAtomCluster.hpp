@@ -27,7 +27,7 @@
 
 #include <cstdlib>  // srand, RAND_MAX, rand
 #include <cmath>    // fmin, sqrtf
-#include <vector>
+#include <utility>  // std::pair
 #include <cstdlib>  // srand, rand
 #include "libs/gaussian.hpp"
 
@@ -42,9 +42,9 @@ namespace examples
      * @param[in] rSize image dimensions
      * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    float * createAtomCluster
+    float* createAtomCluster
     (
-        const std::vector<unsigned> & rSize
+        const std::pair<unsigned int,unsigned int>& rSize
     );
 
 
