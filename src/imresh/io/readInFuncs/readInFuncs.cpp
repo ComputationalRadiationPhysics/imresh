@@ -26,6 +26,10 @@
 #include <fstream>              // open
 #include <iostream>             // std::cout
 #include <list>                 // std::list
+#ifdef USE_PNG
+#   include <pngwriter.h>
+#   include <stdio.h>
+#endif
 #ifdef USE_SPLASH
 #   include <splash/splash.h>
 #endif
@@ -93,6 +97,46 @@ namespace readInFuncs
             exit( EXIT_FAILURE );
         }
     }
+
+#   ifdef USE_PNG
+        std::pair<float*,std::pair<unsigned int,unsigned int>> readPNG(
+            std::string _filename
+        )
+        {
+            pngwriter png( 1, 1, 0, "tmp.png" );
+            png.readfromfile( _filename.c_str( ) );
+
+            int x = png.getwidth( );
+            int y = png.getheight( );
+
+            float* mem = new float[x * y];
+            for( auto i = 0; i < y; i++ )
+            {
+                for( auto j = 0; j < x; j++ )
+                {
+                    mem[(i * x) + j] = (float) png.read( i, j, 1 ) / 65535;
+                }
+            }
+
+            png.close( );
+
+#           ifdef IMRESH_DEBUG
+                if( remove( "tmp.png" ) != 0 )
+                {
+                    perror( "imresh::io::readInFuncs::readPNG(): Error deleting temporary file" );
+                }
+                else
+                {
+                    std::cout << "imresh::io::readInFuncs::readPNG(): Successfully read file."
+                        << std::endl;
+                }
+#           else
+                remove( "tmp.png" );
+#           endif
+
+            return { mem, { x, y } };
+        }
+#   endif
 
 #   ifdef USE_SPLASH
         std::pair<float*,std::pair<unsigned int,unsigned int>> readHDF5(
@@ -167,6 +211,7 @@ namespace readInFuncs
             }
             else
             {
+                mem = new float[dim.getScalarSize( )];
                 sdc.read( ids[0], first_entry.name.c_str( ), dim, mem );
             }
 

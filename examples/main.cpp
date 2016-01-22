@@ -46,21 +46,32 @@ int main( void )
                           imresh::io::writeOutFuncs::justFree,
                           "free" /* gives an identifier for debugging */ );
 
-    // Now let's test the PNG output
+    // Now let's test the PNG in- and output
 #   ifdef USE_PNG
         // Let's see, how the images look after several different time steps.
-        for( int i = 1; i < 10; i++)
+        for( int i = 1; i < 33; i++)
         {
-            // First read that HDF5 file once again (because the memory is
-            // overwritten)
-            file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+            // How about the PNG input?
+            file = imresh::io::readInFuncs::readPNG( "../examples/imresh.png" );
             // Again, this step is only needed because we have no real images
             imresh::libs::diffractionIntensity( file.first, file.second );
-            imresh::io::addTask( file.first,
-                                  file.second,
-                                  imresh::io::writeOutFuncs::writeOutPNG,
-                                  "imresh_" + std::to_string( i ) + "_cycles.png",
-                                  i /* sets the number of iterations */ );
+            // Just for correct naming
+            if( i < 10 )
+            {
+                imresh::io::addTask( file.first,
+                                      file.second,
+                                      imresh::io::writeOutFuncs::writeOutPNG,
+                                      "imresh_0" + std::to_string( i ) + "_cycles.png",
+                                      i /* sets the number of iterations */ );
+            }
+            else
+            {
+                imresh::io::addTask( file.first,
+                                      file.second,
+                                      imresh::io::writeOutFuncs::writeOutPNG,
+                                      "imresh_" + std::to_string( i ) + "_cycles.png",
+                                      i /* sets the number of iterations */ );
+            }
         }
 #   endif
 
