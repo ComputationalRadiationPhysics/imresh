@@ -37,6 +37,7 @@
 #include <cstddef>  // NULL
 #include <cstdlib>  // malloc, free
 #include <vector>
+#include "calcGaussianKernel.hpp"
 
 
 namespace imresh

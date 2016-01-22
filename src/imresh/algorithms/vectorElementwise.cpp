@@ -23,7 +23,7 @@
  */
 
 
-#include "vectorReduce.hpp"
+#include "vectorElementwise.hpp"
 
 
 namespace imresh

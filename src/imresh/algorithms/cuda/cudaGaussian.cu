@@ -27,7 +27,7 @@
 #include "libs/cudacommon.h"
 
 
-/* doesn't work inside namespaces */
+/* constant memory declaration doesn't work inside namespaces */
 constexpr unsigned nMaxWeights = 50; // need to assert whether this is enough
 constexpr unsigned nMaxKernels = 20; // ibid
 __constant__ float gdpGaussianWeights[ nMaxWeights*nMaxKernels ];
@@ -40,7 +40,192 @@ namespace algorithms
 namespace cuda
 {
 
+    /** this flag adds some debug output to stdout if set to 1 **/
     #define DEBUG_CUDAGAUSSIAN_CPP 0
+
+
+    /**
+     * Can reuse gaussian kernels already sent to the GPU.
+     *
+     * Problematic to generalize for arbitrary kernels, because they don't
+     * have a nice key value like sigma. We would have to compare every
+     * element. That still would possibly be faster than initiating a
+     * cudaMemcpyHostToDevice transfer.
+     *
+     * @todo don't delete whole buffer if full, but only the oldest element
+     **/
+    template<class T_PREC>
+    class GaussianKernelGpuBuffer
+    {
+    private:
+        /**
+         * if N := nMaxKernels set to 0 then buffering is deactivated. 1 means
+         * that buffering will only work if gaussian blur is called multiple
+         * times with the same sigma. Alternating sigmas will will result in
+         * no buffering. Higher N will buffer more kernels.
+         * - Note that higher N only sets the maximum amount of kernels. If only
+         *   M < N kernels are ever used, then the effective buffered kernels
+         *   will be M. This is relevant, because a search O(N) needs to be
+         *   performed on the buffered kernels.
+         * - N itself is only bound by GPU global memory, meaning
+         *     nMaxKernels * kernelSizes * sizeof(T_PREC)
+         *   should be smaller than 100MB to be negligible. This means e.g.
+         *   for double and kernelSizes ~ 50 -> nMaxKernels = 250
+         * - The shrinkWrap algorithm will use a fixed number of sigmas to
+         *   convolve. The parameters mentioned in
+         *   @see dx.doi.org/10.1103/PhysRevB.68.140101
+         *   are: "The width sigma is set to 3 pixels in the first iteration,
+         *   and reduced by 1% every 20 iterations down to a minimum of 1.5"
+         *   This makes 1.5 = 3.0*0.99^n => n = log(0.5)/log(0.99) = 69
+         *   Buffering all these kernels will take not more than 50MB and
+         *   thereby should be done.
+         **/
+        static constexpr unsigned mnMaxKernels   = 128;
+        /**
+         * if the kernel size is larger than this value, then it won't be
+         * buffered.
+         * - For the normal shrinkWrap the largest sigma will be 3. The kernel
+         *   size for that is 19 elements. Meaning a value of 32 should be ok
+         *   for most purposes and also would be aligned relatively well.
+         **/
+        static constexpr unsigned mMaxKernelSize = 32;
+
+        /* array of length mnMaxKernels * mMaxKernelSize * sizeof(T_PREC) */
+        T_PREC * mdpKernelBuffer;
+        /* first free kernel space */
+        unsigned mFirstFree;
+        /* use std::map for O(log N) search on the key == sigma and the value
+         * being an index which can be used for mKernelSizes and to calculate
+         * the offset from mdpKernelBuffer */
+        std::map<T_PREC,int> mKernelSigmas;
+
+        /* this pointer will be used if the asked for kernel is too large to
+         * fit into the kernel buffer. It will be freed the next time a kernel
+         * is too large or on the destructor call */
+        T_PREC * mdpEmergencyKernel;
+
+    public:
+
+        /* Default Constructor */
+        GaussianKernelGpuBuffer()
+        : mdpKernelBuffer( NULL ), mFirstFree( 0 ), mdpEmergencyKernel( NULL )
+        {
+            #ifndef NDEBUG
+                //std::cout << "Allocate Gaussian Kernel Buffer\n";
+            #endif
+            CUDA_ERROR( cudaMalloc( &mdpKernelBuffer,
+                mnMaxKernels * mMaxKernelSize * sizeof(mdpKernelBuffer[0]) ) );
+            assert( mnMaxKernels <= mKernelSigmas.max_size() );
+        }
+
+        /* Destructor */
+        ~GaussianKernelGpuBuffer()
+        {
+            #ifndef NDEBUG
+                //std::cout << "Freeing Gaussian Kernel Buffer\n";
+            #endif
+            if ( mdpKernelBuffer != NULL )
+                CUDA_ERROR( cudaFree( mdpKernelBuffer ) );
+            if ( mdpEmergencyKernel != NULL )
+                CUDA_ERROR( cudaFree( mdpEmergencyKernel ) );
+        }
+
+        /**
+         * @param[in]  rSigma
+         * @param[out] rdpKernel will contain the pointer to device memory
+         *             containing the kernel
+         * @param[out] rKernelSize will contain the number of elements of the
+         *             kernel
+         **/
+        void getGpuPointer
+        (
+            T_PREC const & rSigma,
+            T_PREC* * rdppKernel,
+            unsigned * rpKernelSize
+        )
+        {
+            /* look if we already have that kernel buffered */
+            /* The single element versions (1) return a pair, with its member pair::first set to an iterator pointing to either the newly inserted element or to the element with an equivalent key in the map. The pair::second element in the pair is set to true if a new element was inserted or false if an equivalent key already existed. */
+            /* In this case the return value is:
+             * std::pair<std::map<T_PREC,int>::iterator,bool> */
+            auto inserted = mKernelSigmas.insert( std::pair<T_PREC,int>( rSigma, mFirstFree ) );
+            #ifndef NDEBUG
+                assert( inserted.first->first  == rSigma );
+                if ( inserted.second == true )
+                    assert( inserted.first->second == (int) mFirstFree );
+            #endif
+            int & iKernel = inserted.first->second;
+            /* calculate return values. If there are problems they will be
+             * changed to more correct values, e.g. if the kernel doesn't fit
+             * into the standard buffer */
+            *rdppKernel = mdpKernelBuffer + iKernel * mMaxKernelSize;
+            unsigned kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) NULL, 0 );
+            *rpKernelSize = kernelSize;
+
+            /* if kernel not found in buffer, then calculate and upload it */
+            if ( inserted.second == true )
+            {
+                //printf("sigma = %f not found, uploading to global memory\n", rSigma );
+
+                /* calc kernel to pKernel */
+                T_PREC pKernel[mMaxKernelSize];
+                kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, mMaxKernelSize );
+                assert( kernelSize > 0 );
+
+                /* if kernel fits into buffer */
+                if ( kernelSize <= mMaxKernelSize )
+                {
+                    /* if buffer full, then clear buffer */
+                    if ( iKernel == mnMaxKernels )
+                    {
+                        #ifndef NDEBUG
+                            std::cout << "Warning, couldn't find sigma in kernel buffer and no space to store it. Clearing buffer completely! In order to avoid this increase mnMaxKernels in " << __FILE__ << "\n";
+                        #endif
+                        mFirstFree = 0;
+                        iKernel = 0;
+                        mKernelSigmas.clear();
+                        mKernelSigmas.insert( std::pair<T_PREC,int>( rSigma, mFirstFree ) );
+                    }
+
+                    /* remember kernel size */
+                    ++mFirstFree;
+
+                    /* upload to GPU */
+                    *rdppKernel = mdpKernelBuffer + iKernel * mMaxKernelSize;
+                    CUDA_ERROR( cudaMemcpy( *rdppKernel, pKernel,
+                        kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice ) );
+                }
+                /* if the kernel size doesn't fit into the buffer, we need to
+                 * upload it unbuffered */
+                else
+                {
+                    #ifndef NDEBUG
+                        std::cout << "Warning, the kernel size " << kernelSize << " is larger than the default Gaussian kernel buffer kernel size of " << mMaxKernelSize << ". The kernel can't be buffered and needs to be transferred directly which slows down execution. In order to avoid this increase mnMaxKernels in " << __FILE__ << "\n";
+                    #endif
+                    /* calc kernel again */
+                    auto maxKernelSize = kernelSize;
+                    auto pKernelLarge = new T_PREC[ maxKernelSize ];
+                    kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernelLarge, maxKernelSize );
+                    assert( kernelSize <= maxKernelSize );
+
+                    /* upload kernel to gpu */
+                    if ( mdpEmergencyKernel != NULL )
+                        CUDA_ERROR( cudaFree( mdpEmergencyKernel ) );
+                    CUDA_ERROR( cudaMalloc( &mdpEmergencyKernel,
+                                            kernelSize * sizeof(T_PREC) ) );
+                    CUDA_ERROR( cudaMemcpy( mdpEmergencyKernel, pKernelLarge,
+                        kernelSize * sizeof( pKernelLarge[0] ), cudaMemcpyHostToDevice ) );
+
+                    /* clean up */
+                    delete[] pKernelLarge;
+                    *rdppKernel = mdpEmergencyKernel;
+                    mKernelSigmas.erase( inserted.first );
+                }
+            }
+        }
+    };
+    template<class T_PREC> constexpr unsigned GaussianKernelGpuBuffer<T_PREC>::mnMaxKernels;
+    template<class T_PREC> constexpr unsigned GaussianKernelGpuBuffer<T_PREC>::mMaxKernelSize;
 
 
     template<class T>
@@ -397,7 +582,7 @@ namespace cuda
     /* new version using constant memory */
 
     template<class T_PREC>
-    __global__ void cudaKernelApplyKernel
+    __global__ void cudaKernelApplyKernelConstantWeights
     (
         /* You can't pass by reference to a kernel !!! compiles, but gives weird errors ... */
         T_PREC * const rdpData,
@@ -452,7 +637,7 @@ namespace cuda
 
 
     template<class T_PREC>
-    void cudaGaussianBlurHorizontal
+    void cudaGaussianBlurHorizontalConstantWeights
     (
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
@@ -519,7 +704,7 @@ namespace cuda
         const unsigned nBlocks  = rnDataY;
         const unsigned bufferSize = nThreads + kernelSize-1;
 
-        cudaKernelApplyKernel<<<
+        cudaKernelApplyKernelConstantWeights<<<
             nBlocks,nThreads,
             sizeof(T_PREC) * bufferSize
         >>>( rdpData, rnDataX, rnDataY, dpWeights, kernelSize );
@@ -536,15 +721,46 @@ namespace cuda
         const double & rSigma
     )
     {
-        const int nKernelElements = 64;
-        T_PREC pKernel[64];
-        const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
-
-        /* upload kernel to GPU */
+        /**
+         * Object which manages kernels sent to the GPU to possibly reuse them
+         *
+         * This is especially useful for shrinkWrap, because every shrinkWrap
+         * call uses identical kernels! Meaning after the first shrinkWrap call
+         * all other won't need to send kernels to the GPU anymore, thereby
+         * reducing latency quite a bit!
+         *
+         * @verbatim
+         *   Image Size  : non buffered kernel | buffered kernel
+         *   (1,1)       :  0.200704           |  0.021888
+         *   (2,2)       :  0.200128           |  0.026464
+         *   (2,2)       :  0.200384           |  0.021952
+         *   (4,4)       :  0.201024           |  0.021984
+         *   (6,6)       :   0.20064           |  0.021024
+         *   (8,8)       :   0.20368           |  0.022048
+         *   (12,12)     :  0.201472           |  0.026336
+         *   (18,18)     :  0.200512           |  0.026432
+         *   (25,25)     :   0.20672           |  0.022432
+         *   (37,37)     :   0.20304           |  0.034592
+         *   (53,53)     :  0.211648           |  0.025184
+         *   (77,77)     :  0.212096           |  0.033664
+         *   (111,111)   :  0.193696           |  0.033152
+         *   (160,160)   :  0.202464           |  0.040992
+         *   (230,230)   :    0.2448           |   0.05552
+         *   (331,331)   :  0.240096           |   0.10464
+         *   (477,477)   :  0.300096           |  0.149664
+         *   (687,687)   :   0.45472           |  0.271904
+         *   (989,989)   :   0.67296           |  0.477888
+         *   (2048,2048) :   1.84432           |   1.72842
+         * @endverbatim
+         *
+         * The effect mainly is visible for sizes smaller than 1000x1000,
+         * because it is only an offset (It doesn't scale with the problem
+         * size)
+         **/
+        static GaussianKernelGpuBuffer<T_PREC> kernelBuffer;
+        unsigned kernelSize;
         T_PREC * dpKernel;
-        CUDA_ERROR( cudaMalloc( &dpKernel, sizeof(T_PREC)*kernelSize ) );
-        CUDA_ERROR( cudaMemcpy(  dpKernel, pKernel, sizeof(T_PREC)*kernelSize, cudaMemcpyHostToDevice ) );
+        kernelBuffer.getGpuPointer( rSigma, &dpKernel, &kernelSize );
 
         /* the image must be at least nThreads threads wide, else many threads
          * will only sleep. The number of blocks is equal to the image height.
@@ -561,9 +777,8 @@ namespace cuda
             sizeof(T_PREC)*( kernelSize + bufferSize )
         >>>( rdpData, rnDataX, dpKernel, N );
         CUDA_ERROR( cudaDeviceSynchronize() );
-
-        CUDA_ERROR( cudaFree( dpKernel ) );
     }
+
 
 
     /**
@@ -803,18 +1018,10 @@ namespace cuda
         const double & rSigma
     )
     {
-
-        /* calculate Gaussian kernel */
-        const int nKernelElements = 64;
-        T_PREC pKernel[64];
-        const int kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
-        assert( kernelSize % 2 == 1 );
-
-        /* upload kernel to GPU */
+        static GaussianKernelGpuBuffer<T_PREC> kernelBuffer;
+        unsigned kernelSize;
         T_PREC * dpKernel;
-        CUDA_ERROR( cudaMalloc( &dpKernel, sizeof(T_PREC)*kernelSize ) );
-        CUDA_ERROR( cudaMemcpy(  dpKernel, pKernel, sizeof(T_PREC)*kernelSize, cudaMemcpyHostToDevice ) );
+        kernelBuffer.getGpuPointer( rSigma, &dpKernel, &kernelSize );
 
         /**
          * the image must be at least nThreadsX threads wide, else many threads
@@ -839,8 +1046,6 @@ namespace cuda
             sizeof( dpKernel[0] ) * ( kernelSize + bufferSize )
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
         CUDA_ERROR( cudaDeviceSynchronize() );
-
-        CUDA_ERROR( cudaFree( dpKernel ) );
     }
 
 
@@ -890,14 +1095,29 @@ namespace cuda
     );
 
 
-    template void cudaGaussianBlurSharedWeights<float>
+    template void cudaGaussianBlurHorizontalConstantWeights<float>
     (
         float * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
         const double & rSigma
     );
-    template void cudaGaussianBlurSharedWeights<double>
+    template void cudaGaussianBlurHorizontalConstantWeights<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    template void cudaGaussianBlurHorizontalSharedWeights<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+    template void cudaGaussianBlurHorizontalSharedWeights<double>
     (
         double * const & rData,
         const unsigned & rnDataX,

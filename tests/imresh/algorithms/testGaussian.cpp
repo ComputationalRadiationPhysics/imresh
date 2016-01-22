@@ -36,6 +36,7 @@
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaGaussian.h"
+#include "libs/gaussian.hpp"
 #include "libs/cudacommon.h"
 #include "benchmarkHelper.hpp"
 
@@ -88,17 +89,107 @@ struct TestGaussian
         assert( errorMarginOk );
     }
 
-    void checkGaussianHorizontal
-    ( float * dpData, float * pData, unsigned nCols, unsigned nRows )
+    /**
+     * Makes some general checks which should hold true for gaussian blurs
+     *
+     *  - mean should be unchanged (only for periodic boundary conditions)
+     *  - new values shouldn't get larger than largest value of original
+     *    data, smallest shouldn't get smaller.
+     *  - the sum of absolute differences to neighboring elements should
+     *    be smaller or equal than in original data (to proof ..)
+     *    -> this also should be true at every point!:
+     *       data: {x_i} -> gaussian -> {y_i} with y_i = \sum a_k x_{i+k},
+     *       0 \leq a_k \leq 1, \sum a_k = 1, k=-m,...,+m, a_{|k|} \leq a_0
+     *       now look at |y_{i+1} - y_i| = |\sum a_k [ x_{i+1+k} - x_{i+k} ]|
+     *       \leq \sum a_k | x_{i+1+k} - x_{i+k} |
+     *       this means element wise this isn't true, because the evening
+     *       of (x_i) is equivalent to an evening of (x_i-x_{i-1}) and this
+     *       means e.g. for 1,...,1,7,1,0,..,0 the absolute differences are:
+     *       0,...,0,6,6,1,0,...,0 so 13 in total
+     *       after evening e.g. with kernel 1,1,0 we get:
+     *       1,...,1,4,4,0.5,0,...,0 -> diff: 0,...,0,3,0,2.5,0.5,0,...,0
+     *       so in 6 in total < 13 (above), but e.g. the difference to the
+     *       right changed from 0 to 0.5 or from1 to 2.5, meaning it
+     *       increased, because it was next to a very large difference.
+     *    -> proof for the sum: (assuming periodic values, or compact, i.e.
+     *       finite support)
+     *       totDiff' = \sum_i |y_{i+1} - y_i|
+     *             \leq \sum_i \sum_k a_k | x_{i+1+k} - x_{i+k} |
+     *                = \sum_k a_k \sum_i | x_{i+1+k} - x_{i+k} |
+     *                = \sum_i | x_{i+1} - x_{i} |
+     *       the last step is true because of \sum_k a_k = 1 and because
+     *       \sum_i goes over all (periodic) values so that we can group
+     *       2*m+1 identical values for \sum_k a_k const to be 1.
+     *       (I think this could be shown more formally with some kind of
+     *       index tricks)
+     *       - we may have used periodic conditions for the proof above, but
+     *         the extension of the border introduces only 0 differences and
+     *         after the extended values can also be seen as periodic formally,
+     *         so that the proof also works for this case.
+     *
+     * @param[in] pResult blurred data
+     * @param[in] pOriginal raw unblurred data
+     * @param[in] nElements number of elements to check in pResult and
+     *            pOriginal (Both must be nStride*nElements elements large, or
+     *            else invalid memory accesses will occur)
+     * @param[in] nStride if 1, then contiguous elements will be checked.
+     *            Can be useful to check columns in 2D data, by setting
+     *            nStride = nCols. Must not be 0
+     **/
+    void checkGaussian
+    (
+        float const * const & pResult,
+        float const * const & pOriginal,
+        unsigned const & nElements,
+        unsigned const & nStride = 1
+    )
     {
-    }
-    void checkGaussianVertical
-    ( float * dpData, float * pData, unsigned nCols, unsigned nRows )
-    {
+        assert( vectorMin( pOriginal, nElements, nStride )
+             <= vectorMin( pResult  , nElements, nStride ) );
+        assert( vectorMax( pOriginal, nElements, nStride )
+             >= vectorMax( pResult  , nElements, nStride ) );
+        assert( vectorMaxAbsDiff( pResult  , pResult  +nStride, nElements-1, nStride )
+             <= vectorMaxAbsDiff( pOriginal, pOriginal+nStride, nElements-1, nStride ) );
     }
 
-    void checkIfElementsEqual( float * pData, unsigned nData, unsigned nStride = 1 )
+    /**
+     * Calls checkGaussian for every row
+     **/
+    inline void checkGaussianHorizontal
+    (
+        float const * const & pResult,
+        float const * const & pOriginal,
+        unsigned const & nCols,
+        unsigned const & nRows
+    )
     {
+        for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+            checkGaussian( pResult, pOriginal, nCols );
+    }
+
+    /**
+     * Calls checkGaussian for every column
+     **/
+    inline void checkGaussianVertical
+    (
+        float const * const & pResult,
+        float const * const & pOriginal,
+        unsigned const & nCols,
+        unsigned const & nRows
+    )
+    {
+        for ( unsigned iCol = 0; iCol < nCols; ++iCol )
+            checkGaussian( pResult, pOriginal, nRows, nCols );
+    }
+
+    void checkIfElementsEqual
+    (
+        float const * const & pData,
+        unsigned const & nData,
+        unsigned const & nStride = 1
+    )
+    {
+        assert( nStride > 0 );
         /* test the maximum divergence of the result vectors, i.e.
          * are they all the same per row ? */
         float sumDiff = 0;
@@ -458,42 +549,7 @@ struct TestGaussian
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
 
-        /* Now test with random data and assert only some general properties:
-         *  - mean should be unchanged
-         *  - new values shouldn't get larger than largest value of original
-         *    data
-         *  - the sum of absolute differences to neighboring elements should
-         *  - be smaller or equal than in original data (to proof ..)
-         *    -> this also should be true at every point!:
-         *    data: {x_i} -> gaussian -> {y_i} with y_i = \sum a_k x_{i+k},
-         *    0 \leq a_k \leq 1, \sum a_k = 1, k=-m,...,+m, a_{|k|} \leq a_0
-         *    now look at |y_{i+1} - y_i| = |\sum a_k [ x_{i+1+k} - x_{i+k} ]|
-         *    \leq \sum a_k | x_{i+1+k} - x_{i+k} |
-         *    this means element wise this isn't true, because the evening
-         *    of (x_i) is equivalent to an evening of (x_i-x_{i-1}) and this
-         *    means e.g. for 1,...,1,7,1,0,..,0 the absolute differences are:
-         *    0,...,0,6,6,1,0,...,0 so 13 in total
-         *    after evening e.g. with kernel 1,1,0 we get:
-         *    1,...,1,4,4,0.5,0,...,0 -> diff: 0,...,0,3,0,2.5,0.5,0,...,0
-         *    so in 6 in total < 13 (above), but e.g. the difference to the
-         *    right changed from 0 to 0.5 or from1 to 2.5, meaning it
-         *    increased, because it was next to a very large difference.
-         *  - proof for the sum: (assuming periodic values, or compact, i.e.
-         *    finite support)
-         *    totDiff' = \sum_i |y_{i+1} - y_i|
-         *          \leq \sum_i \sum_k a_k | x_{i+1+k} - x_{i+k} |
-         *             = \sum_k a_k \sum_i | x_{i+1+k} - x_{i+k} |
-         *             = \sum_i | x_{i+1} - x_{i} |
-         *    the last step is true because of \sum_k a_k = 1 and because
-         *    \sum_i goes over all (periodic) values so that we can group
-         *    2*m+1 identical values for \sum_k a_k const to be 1.
-         *    (I think this could be shown more formally with some kind of
-         *    index tricks)
-         *  - we may have used periodic conditions for the proof above, but
-         *    the extension of the border introduces only 0 differences and
-         *    after the extended values can also be seen as periodic formally,
-         *    so that the proof also works for this case.
-         */
+        /* Now test with random data and assert only some general properties */
         const unsigned nRepetitions = 20;
         /* in order to filter out page time outs or similarly long random wait
          * times, we repeat the measurement nRepetitions times and choose the
@@ -508,8 +564,8 @@ struct TestGaussian
         decltype( clock::now() ) clock0, clock1;
 
         std::cout << "\n";
-        std::cout << "Timings in milliseconds:\n";
-        std::cout << "image size (nCols,nRows) : cudaGaussianBlurHorizontal | gaussianBlurHorizontal | cudaGaussianBlurVertical | gaussianBlurVertical \n";
+        std::cout << "Gaussian blur timings in milliseconds:\n";
+        std::cout << "image size (nCols,nRows) : CUDA const memory horizontal | CUDA shared memory horizontal | CPU horizontal | CUDA vertical | CPU vertical \n";
         using namespace imresh::tests;
         //for ( auto sigma : std::vector<float>{ 1.5,2,3 } )
         for ( auto sigma : std::vector<float>{ 3 } )
@@ -530,7 +586,7 @@ struct TestGaussian
                 fillWithRandomValues( dpData, pData, nElements );
 
                 cudaEventRecord( start );
-                cudaGaussianBlurHorizontal( dpData, nCols, nRows, sigma );
+                cudaGaussianBlurHorizontalConstantWeights( dpData, nCols, nRows, sigma );
                 cudaEventRecord( stop );
                 cudaEventSynchronize( stop );
 
@@ -574,7 +630,7 @@ struct TestGaussian
                 milliseconds = ( clock1-clock0 ).count() / 1000.0;
                 minTime = fmin( minTime, milliseconds );
 
-                checkGaussianHorizontal( dpData, pData, nCols, nRows );
+                checkGaussianHorizontal( pResultCpu, pData, nCols, nRows );
                 compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
             }
             std::cout << std::setw(8) << minTime << " |" << std::flush;
@@ -612,7 +668,7 @@ struct TestGaussian
                 milliseconds = ( clock1-clock0 ).count() / 1000.0;
                 minTime = fmin( minTime, milliseconds );
 
-                checkGaussianVertical( dpData, pData, nCols, nRows );
+                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
                 compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
             }
             std::cout << std::setw(8) << minTime << " |" << std::flush;
@@ -629,7 +685,7 @@ struct TestGaussian
                 milliseconds = ( clock1-clock0 ).count() / 1000.0;
                 minTime = fmin( minTime, milliseconds );
 
-                checkGaussianVertical( dpData, pData, nCols, nRows );
+                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
                 compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
             }
             std::cout << std::setw(8) << minTime << "\n" << std::flush;

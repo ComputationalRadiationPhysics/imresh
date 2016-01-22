@@ -28,7 +28,7 @@
 #include <algorithm>  // max
 #include <cmath>
 #include <limits>     // lowest, max
-#include <fftw3.h>
+#include <cassert>
 
 
 namespace imresh
@@ -47,35 +47,40 @@ namespace algorithms
     (
         const T * const & rData1,
         const T * const & rData2,
-        const unsigned & rnData
+        const unsigned & rnData,
+        const unsigned & rnStride = 1
     );
 
     template<class T>
     T vectorMaxAbs
     (
         const T * const & rData,
-        const unsigned & rnData
+        const unsigned & rnData,
+        const unsigned & rnStride = 1
     );
 
     template<class T>
     T vectorMax
     (
         const T * const & rData,
-        const unsigned & rnData
+        const unsigned & rnData,
+        const unsigned & rnStride = 1
     );
 
     template<class T>
     T vectorMin
     (
         const T * const & rData,
-        const unsigned & rnData
+        const unsigned & rnData,
+        const unsigned & rnStride = 1
     );
 
     template<class T>
     T vectorSum
     (
         const T * const & rData,
-        const unsigned & rnData
+        const unsigned & rnData,
+        const unsigned & rnStride = 1
     );
 
 } // namespace algorithms
