@@ -83,7 +83,10 @@ namespace writeOutFuncs
                     auto const index = iy*Nx + ix;
                     assert( index < Nx*Ny );
                     const auto & value = _mem[index] / max;
-                    png.plot( ix, iy, value, value, value );
+                    if ( not value == value ) // isNaN
+                        png.plot( ix, iy, 255, 0, 0 );
+                    else
+                        png.plot( ix, iy, value, value, value );
                 }
             }
 

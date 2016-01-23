@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Philipp Trommler
+ * Copyright (c) 2016 Philipp Trommler, Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+
 #include <algorithm>            // std::count_if
 #include <fstream>              // open
 #include <iostream>             // std::cout
@@ -38,20 +39,25 @@
 
 #include "io/readInFuncs/readInFuncs.hpp"
 
+
 namespace imresh
 {
 namespace io
 {
 namespace readInFuncs
 {
-    std::pair<float*,std::pair<unsigned int,unsigned int>> readTxt(
-        std::string _filename
+
+
+    std::pair<float*,std::pair<unsigned int,unsigned int>>
+    readTxt
+    (
+        std::string const _filename
     )
     {
         std::ifstream file;
         file.open( _filename, std::ios::in );
 
-        if( file.is_open( ) )
+        if ( file.is_open( ) )
         {
             std::list<std::string> strList;
             std::string str;
@@ -99,15 +105,27 @@ namespace readInFuncs
     }
 
 #   ifdef USE_PNG
-        std::pair<float*,std::pair<unsigned int,unsigned int>> readPNG(
+        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        readPNG
+        (
             std::string _filename
         )
         {
-            pngwriter png( 1, 1, 0, "tmp.png" );
+            pngwriter png( 1,1, 0, "tmp.png" );
             png.readfromfile( _filename.c_str( ) );
 
             int x = png.getwidth( );
             int y = png.getheight( );
+
+            /* check if pngwriter could load image. This is not cool, because
+             * this disables use of real PNGs of size 1x1 but the algorithm
+             * wouldn't work on those anyway. The problem is, that pngwriter
+             * doesn't return an error, it just prints to stderr :S */
+            if ( x == 1 or y == 1 )
+            {
+                assert("Couldn't open PNG file! Path and permissions correct?");
+                return { NULL, { 0, 0 } };
+            }
 
             float* mem = new float[x * y];
             for( auto i = 0; i < y; i++ )
@@ -139,8 +157,10 @@ namespace readInFuncs
 #   endif
 
 #   ifdef USE_SPLASH
-        std::pair<float*,std::pair<unsigned int,unsigned int>> readHDF5(
-            std::string _filename
+        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        readHDF5
+        (
+            std::string const _filename
         )
         {
             splash::SerialDataCollector sdc( 0 );
@@ -225,6 +245,8 @@ namespace readInFuncs
             return { mem, { dim[1], dim[2] } };
         }
 #   endif
+
+
 } // namespace readInFuncs
 } // namespace io
 } // namespace imresh

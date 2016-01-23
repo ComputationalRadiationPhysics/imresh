@@ -64,8 +64,8 @@ int main( void )
         // Let's see, how the images look after several different time steps.
         for( int i = 1; i < 33; i++)
         {
-            // How about the PNG input?
-            file = imresh::io::readInFuncs::readPNG( "../examples/imresh.png" );
+            // How about the PNG input? BEWARE! This path is dependent on the folder structure!
+            file = imresh::io::readInFuncs::readPNG( "../examples/testData/imresh.png" );
             // Again, this step is only needed because we have no real images
             imresh::libs::diffractionIntensity( file.first, file.second );
 
@@ -85,8 +85,8 @@ int main( void )
     // How about the HDF5 output?
 #   ifdef USE_SPLASH
         // First read that HDF5 file once again (because the memory is
-        // overwritten)
-        file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+        // overwritten) BEWARE! This path is dependent on the folder structure!
+        file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
         // Again, this step is only needed because we have no real images
         imresh::libs::diffractionIntensity( file.first, file.second );
         imresh::io::addTask( file.first,

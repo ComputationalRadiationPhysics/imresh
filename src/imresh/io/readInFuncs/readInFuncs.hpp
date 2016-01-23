@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Philipp Trommler
+ * Copyright (c) 2016 Philipp Trommler, Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,8 @@
 
 #include <string>               // std::string
 #include <utility>              // std::pair
+#include <cstddef>              // NULL
+#include <cassert>
 
 
 namespace imresh
@@ -42,19 +44,37 @@ namespace readInFuncs
      *
      * They need to store their values as a 2D matrix with spaces as delimiters.
      */
-    std::pair<float*,std::pair<unsigned int,unsigned int>> readTxt(
-        std::string _filename
+    std::pair< float * , std::pair< unsigned int, unsigned int > >
+    readTxt
+    (
+        std::string const _filename
     );
 
 #   ifdef USE_PNG
-        std::pair<float*,std::pair<unsigned int,unsigned int>> readPNG(
-            std::string _filename
+        /**
+         * Reads date from PNG
+         *
+         * @param[in] path to filename
+         * @return pair where first contains pointer to data. NULL on error
+         *         e.g. allocation problem or couldn't open file.
+         *         second pair element contains 2d dimension values as pair.
+         *         They are 0 on error.
+         **/
+        std::pair< float *, std::pair< unsigned int, unsigned int > >
+        readPNG
+        (
+            std::string const _filename
         );
 #   endif
 
 #   ifdef USE_SPLASH
-        std::pair<float*,std::pair<unsigned int,unsigned int>> readHDF5(
-            std::string _filename
+        /**
+         * @see readPNG
+         **/
+        std::pair< float *, std::pair< unsigned int, unsigned int > >
+        readHDF5
+        (
+            std::string const _filename
         );
 #   endif
 
