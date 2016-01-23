@@ -46,18 +46,7 @@ namespace algorithms
 {
 
     /**
-     * Finds f(x) so that FourierTransform[f(x)] == Input(x)
-     *
-     * For all the default parameters you can use -1 to denote that the
-     * default value should be used.
-     *
-     * @param[in]  rIoData measured (phaseless) intensity distribution whose
-     *             phase shrinkWrap will reconstruct
-     * @param[in]  rnCores Number of Cores to utilize in parallel.
-     *             (If 0 then it tries to choose automatically)
-     * @param[out] rIoData will hold the reconstructed object. Currently
-     *             only positive real valued objects are supported.
-     * @return 0 on success, else error or warning codes.
+     * The exact same as @see cudaShrinkWrap
      **/
     int shrinkWrap
     (
@@ -70,8 +59,7 @@ namespace algorithms
         float rIntensityCutOff = 0.20,
         float sigma0 = 3.0,
         float rSigmaChange = 0.01,
-        unsigned rnHioCycles = 20,
-        unsigned rnCores = 1
+        unsigned rnHioCycles = 20
     );
 
 

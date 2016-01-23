@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2015-2016 Maximilian Knespel, Phillip Trommler
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -292,21 +292,6 @@ namespace cuda
     }
 
 
-    /**
-     *
-     * In contrast to the normal hybrid input output this function takes
-     * pointers to memory buffers instead of allocating them itself.
-     * Furthermore it doesn't touch rIntensity and it returns F instead of f
-     * in curData.
-     * It also doesn't bother to calculate the error at each step.
-     *
-     * @param[in] rIntensity real measured intensity without phase
-     * @param[in] rIntensityFirstGuess first guess for the phase of the
-     *            intensity, e.g. a random phase
-     * @param[in] gPrevious this isn't actually a guess for the object f, but
-     *            an intermediary result for the HIO algorithm. For the first
-     *            call it should be equal to g' = IFT[G == rIntensityFirstGuess]
-     **/
     int cudaShrinkWrap
     (
         float * const & rIntensity,
@@ -318,8 +303,7 @@ namespace cuda
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles,
-        unsigned rnCores
+        unsigned rnHioCycles
     )
     {
         if ( rSize.size() != 2 ) return 1;
@@ -449,9 +433,6 @@ namespace cuda
         return 0;
     }
 
-    /**
-     * Same as cudaShrinkWrap but with support for async calls.
-     */
     int shrinkWrap
     (
         float* const& rIntensity,
@@ -464,8 +445,7 @@ namespace cuda
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles,
-        unsigned rnCores
+        unsigned rnHioCycles
     )
     {
         const unsigned& Ny = rSize.second;
@@ -594,6 +574,8 @@ namespace cuda
 
         return 0;
     }
+
+
 } // namespace cuda
 } // namespace algorithms
 } // namespace imresh

@@ -104,8 +104,7 @@ namespace io
         float _intensityCutOffAutoCorel,
         float _intensityCutOff,
         float _sigma0,
-        float _sigmaChange,
-        unsigned int _numberOfCores
+        float _sigmaChange
     )
     {
         // Lock the mutex so no other thread intermediatly changes the device
@@ -137,8 +136,7 @@ namespace io
                                               _intensityCutOff,
                                               _sigma0,
                                               _sigmaChange,
-                                              _numberOfHIOCycles,
-                                              _numberOfCores );
+                                              _numberOfHIOCycles );
 
         mtx.unlock( );
 
@@ -166,8 +164,7 @@ namespace io
         float _intensityCutOffAutoCorel = 0.04f,
         float _intensityCutOff = 0.2f,
         float _sigma0 = 3.0f,
-        float _sigmaChange = 0.01f,
-        unsigned int _numberOfCores = 1
+        float _sigmaChange = 0.01f
     )
     {
         while( threadPool.size( ) >= threadPoolMaxSize )
@@ -196,8 +193,7 @@ namespace io
                                                          _intensityCutOffAutoCorel,
                                                          _intensityCutOff,
                                                          _sigma0,
-                                                         _sigmaChange,
-                                                         _numberOfCores ) );
+                                                         _sigmaChange ) );
     }
 
     /**
