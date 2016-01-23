@@ -856,13 +856,11 @@ namespace cuda
         const unsigned nRowsCacheLine = blockDim.y + 2*N;
 
         /* Each block works on a separate group of columns */
-        T_PREC * const data = &rdpData[ blockIdx.x * blockDim.x ];
+        const unsigned iCol = blockIdx.x * blockDim.x + threadIdx.x;
+        T_PREC * const data = rdpData + iCol;
         /* the rightmost block might not be full. In that case we need to mask
          * those threads working on the columns right of the image border */
-        const bool iAmSleeping = blockIdx.x * blockDim.x + threadIdx.x >= rnDataX;
-        /* with this e.g. the multithreaded copy instead of memcpy won't work! */
-        //if ( iAmSleeping )
-        //    return; // safe ??? I mean this is even done in the cuda examples
+        const bool iAmSleeping = iCol >= rnDataX;
 
         /* The dynamically allocated shared memory buffer will fit the weights and
          * the values to calculate + the 2*N neighbors needed to calculate them */
@@ -873,16 +871,11 @@ namespace cuda
         const unsigned nBufferSize = nColsCacheLine * nRowsCacheLine;
         T_PREC * const smWeights   = smBlock;
         T_PREC * const smBuffer    = smBlock + nWeights;
-        __syncthreads();
 
         /* cache the weights to shared memory */
-        #if true
-            for ( int i = linThreadId; i < nWeights; i += nThreads )
-                smWeights[i] = rdpWeights[i];
-        #else
-            if ( threadIdx.x == 0 )
-                memcpy( smWeights, rdpWeights, sizeof(rdpWeights[0])*nWeights );
-        #endif
+        __syncthreads();
+        for ( int i = linThreadId; i < nWeights; i += nThreads )
+            smWeights[i] = rdpWeights[i];
 
         /**
          * @verbatim
@@ -897,15 +890,19 @@ namespace cuda
          *    | a_00 | a_01 | a_02 | a_02 |   cache line wide i.e. nRows)
          *    +------+------+------+------+        (shared memory)
          *    | a_10 | a_11 | a_12 | a_12 |         result buffer
-         *    +------+------+------+------+        +------+------+
-         *    | a_20 | a_21 | a_22 | a_22 |        | b_00 | b_01 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_30 | a_31 | a_32 | a_32 |        | b_10 | b_11 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_40 | a_41 | a_42 | a_42 |        | b_20 | b_21 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_50 | a_51 | a_52 | a_52 |
-         *    +------+------+------+------+
+         *    +------+------+------+------+        +------+------+  |
+         *    | a_20 | a_21 | a_22 | a_22 |        | b_00 | b_01 |  |
+         *    +------+------+------+------+        +------+------+  | threadIdx
+         *    | a_30 | a_31 | a_32 | a_32 |        | b_10 | b_11 |  |    .y
+         *    +------+------+------+------+        +------+------+  |
+         *    | a_40 | a_41 | a_42 | a_42 |        | b_20 | b_21 |  |
+         *    +------+------+------+------+        +------+------+  v
+         *    | a_50 | a_51 | a_52 | a_52 |        -------------->
+         *    +------+------+------+------+          threadIdx.x
+         *    <-------------><------------>
+         *      threadIdx.x    threadIdx.x
+         *    <--------------------------->
+         *             blockIdx.x
          *
          *        b_0x = w_-1*a_1x + w_0*a_2x + w_1*a_3x
          *        b_1x = w_-1*a_2x + w_0*a_3x + w_1*a_4x
@@ -938,86 +935,73 @@ namespace cuda
          * before the lower border-N, beacause in the first step in the loop
          * these elements will be moved to the upper border, see below. */
         T_PREC * const smTargetRow = &smBuffer[ nBufferSize - 2*N*nColsCacheLine ];
-        #if true
-            const T_PREC upperBorderValue = data[ threadIdx.x ];
+        #ifdef GAUSSIAN_PERIODIC
+            if ( not iAmSleeping )
+            {
+                for ( unsigned iRow = threadIdx.y; iRow < N; iRow += blockDim.y )
+                {
+                    smTargetRow[ iRow * nColsCacheLine ] =
+                    data[ ( iRow % rnDataY ) * nColsCacheLine ];
+                }
+            }
+        #else
+        {
+            const T_PREC upperBorderValue = *data;
             for ( auto pTarget = smTargetRow + linThreadId;
                   pTarget < smTargetRow + N * nColsCacheLine;
                   pTarget += nThreads )
             {
                 *pTarget = upperBorderValue;
             }
-        #else
-            if ( threadIdx.y == 0 and not iAmSleeping )
-            {
-                const T_PREC upperBorderValue = data[ threadIdx.x ];
-                for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
-                    smTargetRow[ iB+threadIdx.x ] = upperBorderValue;
-            }
+        }
         #endif
 
 
         /* Loop over and calculate the rows. If rnDataY == blockDim.y, then the
          * buffer will exactly suffice, meaning the loop will only be run 1 time */
-        for ( T_PREC * curDataRow = data; curDataRow < &data[rnDataX*rnDataY];
-              curDataRow += blockDim.y * rnDataX )
+        for ( unsigned iRow = 0; iRow < rnDataY; iRow += blockDim.y )
         {
+            T_PREC * const curDataRow = data + iRow * rnDataX;
             /* move last N rows to the front of the buffer */
             __syncthreads();
-            #if true
-                for ( T_PREC * pTarget = smBuffer + linThreadId,
-                             * pSource = smTargetRow + linThreadId;
-                      pTarget < smBuffer + N * nColsCacheLine;
-                      pTarget += nThreads, pSource += nThreads )
-                {
-                    *pTarget = *pSource;
-                }
-            #elif false
-                /* @todo: memcpy doesn't respect iAmSleeping yet! */
-                assert( smTargetRow + N*nColsCacheLine < smBuffer[ bufferSize ] );
-                if ( threadIdx.y == 0 and threadIdx.x == 0 )
-                    memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) );
-            #else
-                /* memcpy version above parallelized. @todo: benchmark what is faster! */
-                if ( threadIdx.y == 0 and not iAmSleeping )
-                {
-                    for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
-                    {
-                        const unsigned iBuffer = iB + threadIdx.x;
-                            assert( iBuffer < nBufferSize );
-                        smBuffer[ iBuffer ] = smTargetRow[ iBuffer ];
-                    }
-                }
-            #endif
+            /* memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) ); */
+            for ( T_PREC * pTarget = smBuffer    + linThreadId,
+                         * pSource = smTargetRow + linThreadId;
+                  pTarget < smBuffer + N * nColsCacheLine;
+                  pTarget += nThreads, pSource += nThreads )
+            {
+                *pTarget = *pSource;
+            }
 
             /* Load blockDim.y + N rows into buffer.
              * If data end reached, fill buffer rows with last row */
             #if false
-                if ( not iAmSleeping )
+            if ( not iAmSleeping )
+            {
+                T_PREC * pTarget = smBuffer +
+                    N * nColsCacheLine /*skip first N rows*/ + linThreadId;
+                for ( unsigned iRow = threadIdx.y;
+                      pTarget < smBuffer + nBufferSize;
+                      pTarget += blockDim.y * nColsCacheLine, iRow += blockDim.y )
                 {
-                    T_PREC * pTarget = smBuffer +
-                        N * nColsCacheLine /*skip first N rows*/ + linThreadId;
-                    for ( int iRow = threadIdx.y;
-                          pTarget < smBuffer + nBufferSize;
-                          pTarget += blockDim.y * nColsCacheLine, iRow += blockDim.y )
-                    {
-                        #ifdef GAUSSIAN_PERIODIC
-                            const int i = ( iRow % rnDataY ) * rnDataX + threadIdx.x;
-                        #else
-                            const int i = min( iRow, rnDataY-1 ) * rnDataX + threadIdx.x;
-                        #endif
-                        *pTarget = curDataRow[i];
-                    }
+                    #ifdef GAUSSIAN_PERIODIC
+                        const int iRowMod = iRow % rnDataY;
+                    #else
+                        const int iRowMod = min( iRow, rnDataY-1 );
+                    #endif
+                    *pTarget = data[ iRowMod*rnDataX ];
                 }
+            }
             #else
                 /*   a) Load blockDim.y rows in parallel */
-                T_PREC * const pLastData = &data[ (rnDataY-1)*rnDataX + threadIdx.x ];
+                T_PREC * const pLastData = &data[ (rnDataY-1)*rnDataX ];
                 const unsigned iBuf = /*skip first N rows*/ N * nColsCacheLine
                                     + threadIdx.y * nColsCacheLine + threadIdx.x;
                 __syncthreads();
                 if ( not iAmSleeping )
                 {
                     T_PREC * const datum = ptrMin(
-                        &curDataRow[ threadIdx.y * rnDataX + threadIdx.x ],
+                        &curDataRow[ threadIdx.y * rnDataX ],
                         pLastData
                     );
                     assert( iBuf < nBufferSize );
@@ -1030,7 +1014,7 @@ namespace cuda
                         for ( unsigned iBufRow = N+blockDim.y; iBufRow < nRowsCacheLine; ++iBufRow )
                         {
                             T_PREC * const datum = ptrMin(
-                                &curDataRow[ (iBufRow-N) * rnDataX + threadIdx.x ],
+                                &curDataRow[ (iBufRow-N) * rnDataX ],
                                 pLastData
                             );
                             const unsigned iBuffer = iBufRow*nColsCacheLine + threadIdx.x;
@@ -1043,14 +1027,14 @@ namespace cuda
 
             /* calculated weighted sum on inner rows in buffer, but only if
              * the value we are at is inside the image */
-            if ( ( not iAmSleeping )
-                 and curDataRow + threadIdx.y*rnDataX < rdpData + rnDataX*rnDataY )
+            if ( ( not iAmSleeping ) and iRow < rnDataY )
             {
                 T_PREC sum = T_PREC(0);
                 /* this for loop is done by each thread and should for large
                  * enough kernel sizes sufficiently utilize raw computing power */
                 T_PREC * w = smWeights;
                 T_PREC * x = &smBuffer[ threadIdx.y * nColsCacheLine + threadIdx.x ];
+                #pragma unroll
                 for ( ; w < &smWeights[nWeights]; ++w, x += nColsCacheLine )
                 {
                     assert( w < smWeights + nWeights );
@@ -1060,7 +1044,7 @@ namespace cuda
                 /* write result back into memory (in-place). No need to wait for
                  * all threads to finish, because we write into global memory, to
                  * values we already buffered into shared memory! */
-                curDataRow[ threadIdx.y * rnDataX + threadIdx.x ] = sum;
+                curDataRow[ threadIdx.y * rnDataX ] = sum;
             }
         }
 
