@@ -37,15 +37,13 @@ namespace createTestData
 
     float * createAtomCluster
     (
-        const std::pair<unsigned int,unsigned int>& rSize
+        const unsigned & Nx,
+        const unsigned & Ny
     )
     {
-        const auto & Ny = rSize.second;
-        const auto & Nx = rSize.first;
+        assert( Nx > 0 and Ny );
 
-        assert( rSize.first > 0 && rSize.second > 0 );
-        unsigned nElements = Nx * Ny;
-
+        const unsigned nElements = Nx * Ny;
         float * data = new float[nElements];
 
         /* Add random background noise and blur it, so that it isn't pixelwise */

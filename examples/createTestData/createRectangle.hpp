@@ -25,9 +25,8 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
+#include <cassert>
+#include "rotateCoordinates.hpp"
 
 
 namespace examples
@@ -37,15 +36,38 @@ namespace createTestData
 
 
     /**
-     * Create a sample data of two atom clusters
+     * Create a sample data of a rectangular object valued 1.0
      *
-     * @param[in] rSize image dimensions
+     * @verbatim
+     *    +------+ ^
+     *    |      | |
+     *    |  ##  | Ny   ->  ## Dy
+     *    |      | |        Dx
+     *    +------+ v
+     *    <--Nx-->
+     * @endverbatim
+     *
+     * E.g. Dx = 0.1, Dy=1.0 creates a vertical slit, but simple rectangles
+     * can also bec reated with this function
+     *
+     * @param[in] Nx width  of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @param[in] Dx width  of the slit (percentage of Nx) 0 <= Dx <= 1
+     * @param[in] Dy height of the slit (percentage of Ny) 0 <= Dy <= 1
+     * @param[in] x0 center of rectangle in relative coordinates
+     * @param[in] y0 center of rectangle in relative coordinates
+     * @param[in] phi can be used to rotate the whole rectangle
      * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    float* createAtomCluster
+    float * createRectangle
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx = 0.25,
+        float    const & Dy = 0.25,
+        float    const & x0 = 0.5,
+        float    const & y0 = 0.5,
+        float    const & phi = 0
     );
 
 

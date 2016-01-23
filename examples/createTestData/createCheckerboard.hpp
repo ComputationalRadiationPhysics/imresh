@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,9 +25,7 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
+#include "rotateCoordinates.hpp"
 
 
 namespace examples
@@ -37,15 +35,31 @@ namespace createTestData
 
 
     /**
-     * Create a sample data of two atom clusters
+     * Create checkerboarsd sample data alternating between 0 and 1
      *
-     * @param[in] rSize image dimensions
+     * @verbatim
+     *    +------+ ^
+     *    |##  ##| |
+     *    |  ##  | Ny   ->  ## Dy
+     *    |##  ##| |        Dx
+     *    +------+ v
+     *    <--Nx-->
+     * @endverbatim
+     *
+     * @param[in] Nx width  of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @param[in] Dx width  of the rectangles (percentage of Nx) 0 <= Dx <= 1
+     * @param[in] Dy height of the rectangles (percentage of Ny) 0 <= Dy <= 1
+     * @param[in] phi can be used to rotate the whole pattern
      * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    float* createAtomCluster
+    float * createCheckerboard
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx = 0.1,
+        float    const & Dy = 0.1,
+        float    const & phi = 0
     );
 
 

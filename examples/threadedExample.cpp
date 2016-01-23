@@ -46,7 +46,7 @@ int main( void )
         std::pair<unsigned,unsigned> imageSize { 300, 300 };
         std::pair< float*, std::pair<unsigned,unsigned> > file
         {
-            createAtomCluster( imageSize ),
+            createAtomCluster( imageSize.first, imageSize.second ),
             imageSize
         };
 #   endif
@@ -55,10 +55,9 @@ int main( void )
 
     // Now we can run the algorithm for testing purposes and free the data
     // afterwards
-    imresh::io::addTask( file.first,
-                          file.second,
-                          imresh::io::writeOutFuncs::justFree,
-                          "free" /* gives an identifier for debugging */ );
+    imresh::io::addTask( file.first, file.second,
+                         imresh::io::writeOutFuncs::justFree,
+                         "free" /* gives an identifier for debugging */ );
 
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
@@ -69,23 +68,17 @@ int main( void )
             file = imresh::io::readInFuncs::readPNG( "../examples/imresh.png" );
             // Again, this step is only needed because we have no real images
             imresh::libs::diffractionIntensity( file.first, file.second );
-            // Just for correct naming
-            if( i < 10 )
-            {
-                imresh::io::addTask( file.first,
-                                      file.second,
-                                      imresh::io::writeOutFuncs::writeOutPNG,
-                                      "imresh_0" + std::to_string( i ) + "_cycles.png",
-                                      i /* sets the number of iterations */ );
-            }
-            else
-            {
-                imresh::io::addTask( file.first,
-                                      file.second,
-                                      imresh::io::writeOutFuncs::writeOutPNG,
-                                      "imresh_" + std::to_string( i ) + "_cycles.png",
-                                      i /* sets the number of iterations */ );
-            }
+
+            std::ostringstream filename;
+            filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
+                     << i << "_cycles.png";
+            imresh::io::addTask( file.first, file.second,
+                                 imresh::io::writeOutFuncs::writeOutPNG,
+                                 filename.str(),
+                                 i /* sets the number of iterations */ );
+            imresh::io::addTask( file.first, file.second,
+                                 imresh::io::writeOutFuncs::justFree,
+                                 "free" /* gives an identifier for debugging */ );
         }
 #   endif
 
@@ -97,9 +90,12 @@ int main( void )
         // Again, this step is only needed because we have no real images
         imresh::libs::diffractionIntensity( file.first, file.second );
         imresh::io::addTask( file.first,
-                              file.second,
-                              imresh::io::writeOutFuncs::writeOutHDF5,
-                              "imresh_out" );
+                             file.second,
+                             imresh::io::writeOutFuncs::writeOutHDF5,
+                             "imresh_out" );
+        imresh::io::addTask( file.first, file.second,
+                             imresh::io::writeOutFuncs::justFree,
+                             "free" /* gives an identifier for debugging */ );
 #   else
         delete[] file.first;
 #   endif

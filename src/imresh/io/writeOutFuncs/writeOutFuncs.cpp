@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Philipp Trommler
+ * Copyright (c) 2016 Philipp Trommler, Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+
 #include <algorithm>
 #ifdef IMRESH_DEBUG
 #   include <iostream>              // std::cout, std::endl
@@ -37,19 +38,24 @@
 
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 
+
 namespace imresh
 {
 namespace io
 {
 namespace writeOutFuncs
 {
-    void justFree(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::string _filename
+
+
+    void justFree
+    (
+        float * _mem,
+        std::pair<unsigned, unsigned> const _size,
+        std::string const _filename
     )
     {
         free( _mem );
+        _mem = NULL;
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data ("
                 << _filename << ")." << std::endl;
@@ -57,43 +63,45 @@ namespace writeOutFuncs
     }
 
 #   ifdef USE_PNG
-        void writeOutPNG(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> _size,
-            std::string _filename
+        void writeOutPNG
+        (
+            float const * const _mem,
+            std::pair<unsigned,unsigned> const _size,
+            std::string const _filename
         )
         {
-            pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
+            auto const & Nx = _size.first;
+            auto const & Ny = _size.second;
 
-            float max = 0;
-            for( auto i = 0; i < _size.first * _size.second; i++ )
-            {
-                max = std::max( max, _mem[i] );
-            }
+            pngwriter png( Nx, Ny, 0, _filename.c_str( ) );
 
-            float value = 0;
-            for( auto i = 0; i < _size.second; i++ )
+            float max = algorithms::vectorMax( _mem, Nx*Ny );
+            for( unsigned iy = 0; iy < Ny; ++iy )
             {
-                for( auto j = 0; j < _size.first; j++ )
+                for( unsigned ix = 0; ix < Nx; ++ix )
                 {
-                    value = _mem[(j * _size.first) + i] / max;
-                    png.plot( i, j, value, value, value );
+                    auto const index = iy*Nx + ix;
+                    assert( index < Nx*Ny );
+                    const auto & value = _mem[index] / max;
+                    png.plot( ix, iy, value, value, value );
                 }
             }
 
             png.close( );
 #           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): Successfully written image data to PNG ("
-                    << _filename << ")." << std::endl;
+                std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): "
+                             "Successfully written image data to PNG ("
+                          << _filename << ")." << std::endl;
 #           endif
         }
 #   endif
 
 #   ifdef USE_SPLASH
-        void writeOutHDF5(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> _size,
-            std::string _filename
+        void writeOutHDF5
+        (
+            float const * const _mem,
+            std::pair<unsigned, unsigned> const _size,
+            std::string const _filename
         )
         {
             splash::SerialDataCollector sdc( 0 );
@@ -116,11 +124,14 @@ namespace writeOutFuncs
 
             sdc.close( );
 #           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): Successfully written image data to HDF5 ("
-                    << _filename << "_0_0_0.h5)." << std::endl;
+                std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): "
+                             "Successfully written image data to HDF5 ("
+                          << _filename << "_0_0_0.h5)." << std::endl;
 #           endif
         }
 #   endif
+
+
 } // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh

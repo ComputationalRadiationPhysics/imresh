@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2016 Philipp Trommler
+ * Copyright (c) 2016 Philipp Trommler, Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,8 +22,16 @@
  * SOFTWARE.
  */
 
+
+#pragma once
+
 #include <string>               // std::string
 #include <utility>              // std::pair
+#include <cstddef>              // NULL
+#include <sstream>
+#include <cassert>
+#include "algorithms/vectorReduce.hpp" // vectorMax
+
 
 namespace imresh
 {
@@ -31,6 +39,8 @@ namespace io
 {
 namespace writeOutFuncs
 {
+
+
     /**
      * Just free the pointer and delete the memory.
      *
@@ -38,9 +48,9 @@ namespace writeOutFuncs
      * on the filesystem.
      */
     void justFree(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::string _filname
+        float * _mem,
+        std::pair<unsigned, unsigned> const _size,
+        std::string const _filname
     );
 
 #   ifdef USE_PNG
@@ -48,9 +58,9 @@ namespace writeOutFuncs
          * Writes the reconstructed image to a PNG file.
          */
         void writeOutPNG(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> _size,
-            std::string _filename
+            float const * const _mem,
+            std::pair<unsigned, unsigned> const _size,
+            std::string const _filename
         );
 #   endif
 
@@ -61,11 +71,13 @@ namespace writeOutFuncs
          * This is done using libSplash.
          */
         void writeOutHDF5(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> _size,
-            std::string _filename
+            float const * const _mem,
+            std::pair<unsigned, unsigned> const _size,
+            std::string const _filename
         );
 #   endif
+
+
 } // namespace writeOutFuncs
 } // namespace io
 } // namespace imresh

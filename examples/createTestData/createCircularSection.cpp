@@ -23,11 +23,7 @@
  */
 
 
-#pragma once
-
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
+#include "createCircularSection.hpp"
 
 
 namespace examples
@@ -36,17 +32,41 @@ namespace createTestData
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float* createAtomCluster
+    float * createCircularSection
     (
-        const unsigned & Nx,
-        const unsigned & Ny
-    );
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & r,
+        float    const & x0,
+        float    const & y0,
+        float    const & phi0,
+        float    const & phi1
+    )
+    {
+        assert( 0.0f <= r );
+        assert( 0.0f <= x0 and x0 <= 1.0f );
+        assert( 0.0f <= y0 and y0 <= 1.0f );
+        assert( phi0 <= phi1 );
+
+        float * data = new float[ Nx*Ny ];
+        const unsigned Nmin = ( Nx < Ny ) ? Nx : Ny;
+
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float x = (float) ix / Nmin - x0;
+            float y = (float) iy / Nmin - y0;
+            float r2  = x*x + y*y;
+            float phi = M_PI + atan2( y, x );
+
+            if ( phi0 <= phi and phi <= phi1 and r2 <= r*r )
+                data[iy*Nx + ix] = 1;
+            else
+                data[iy*Nx + ix] = 0;
+        }
+
+        return data;
+    }
 
 
 } // namespace createTestData

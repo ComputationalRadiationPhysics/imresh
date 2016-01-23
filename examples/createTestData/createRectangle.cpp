@@ -23,11 +23,7 @@
  */
 
 
-#pragma once
-
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
+#include "createRectangle.hpp"
 
 
 namespace examples
@@ -36,17 +32,42 @@ namespace createTestData
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float* createAtomCluster
+    float * createRectangle
     (
-        const unsigned & Nx,
-        const unsigned & Ny
-    );
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx,
+        float    const & Dy,
+        float    const & x0,
+        float    const & y0,
+        float    const & phi
+    )
+    {
+        assert( 0.0f <= Dx and Dx <= 1.0f );
+        assert( 0.0f <= Dy and Dy <= 1.0f );
+        assert( 0.0f <= x0 and x0 <= 1.0f );
+        assert( 0.0f <= y0 and y0 <= 1.0f );
+
+        float * data = new float[ Nx*Ny ];
+
+        const int yLow  = ( y0 - Dy/2 ) * Ny;
+        const int yHigh = ( y0 + Dy/2 ) * Ny;
+        const int xLow  = ( x0 - Dx/2 ) * Nx;
+        const int xHigh = ( x0 + Dx/2 ) * Nx;
+
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float x = ix, y = iy;
+            rotateCoordinates2d( x,y, x0*Nx, y0*Ny, phi );
+            if ( x >= xLow and x <= xHigh and y >= yLow and y <= yHigh )
+                data[iy*Nx + ix] = 1;
+            else
+                data[iy*Nx + ix] = 0;
+        }
+
+        return data;
+    }
 
 
 } // namespace createTestData

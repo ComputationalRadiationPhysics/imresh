@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,8 +25,7 @@
 
 #pragma once
 
-#include <cstring>  // memset
-#include <cmath>    // ceilf
+#include <cmath>   // cos,sin
 
 
 namespace examples
@@ -34,28 +33,14 @@ namespace examples
 namespace createTestData
 {
 
-
-    /**
-     * Create a sample data of a rectangular object valued 1.0
-     *
-     * @verbatim
-     *    +------+
-     *    |      |
-     *    |  ##  |
-     *    |      |
-     *    +------+
-     * @endverbatim
-     *
-     * @param[in] Nx width of the test image to produce
-     * @param[in] Ny height of the test image to produce
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float * createVerticalSingleSlit
+    void rotateCoordinates2d
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        float & x,
+        float & y,
+        float const & xCenter,
+        float const & yCenter,
+        float const & phi
     );
-
 
 } // namespace createTestData
 } // namespace examples

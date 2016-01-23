@@ -25,9 +25,12 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
+#include <cmath>    // atan2
+#include <cassert>
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
 
 namespace examples
@@ -37,15 +40,28 @@ namespace createTestData
 
 
     /**
-     * Create a sample data of two atom clusters
+     * Create a sample data of a circular section with values 1.0 else 0.0
      *
-     * @param[in] rSize image dimensions
+     * By default, if only 3 parameters given a full circle will be drawn
+     *
+     * @param[in] Nx width  of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @param[in] r width  of the slit (percentage of Nx) 0 <= Dx <= 1
+     * @param[in] x0 position of circle in relativ coordinates
+     * @param[in] y0 position of circle in relativ coordinates
+     * @param[in] Dy height of the slit (percentage of Ny) 0 <= Dy <= 1
+     * @param[in] phi can be used to rotate the whole rectangle
      * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    float* createAtomCluster
+    float * createCircularSection
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & r,
+        float    const & x0 = 0.5,
+        float    const & y0 = 0.5,
+        float    const & phi0 = 0,
+        float    const & phi1 = 2.0*M_PI
     );
 
 

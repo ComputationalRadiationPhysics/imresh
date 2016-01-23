@@ -22,8 +22,12 @@
  * SOFTWARE.
  */
 
+
+#pragma once
+
 #include <string>               // std::string
 #include <utility>              // std::pair
+
 
 namespace imresh
 {
@@ -31,6 +35,8 @@ namespace io
 {
 namespace readInFuncs
 {
+
+
     /**
      * Simple function for reading txt files.
      *
@@ -51,6 +57,8 @@ namespace readInFuncs
             std::string _filename
         );
 #   endif
+
+
 } // namespace readInFuncs
 } // namespace io
 } // namespace imresh

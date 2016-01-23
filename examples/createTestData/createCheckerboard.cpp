@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
  */
 
 
-#include "createSlit.hpp"
+#include "createCheckerboard.hpp"
 
 
 namespace examples
@@ -32,23 +32,35 @@ namespace createTestData
 {
 
 
-float * createVerticalSingleSlit
-(
-    const unsigned & Nx,
-    const unsigned & Ny
-)
-{
-    float * data = new float[Nx*Ny];
-    memset( data, 0, Nx*Ny*sizeof(float) );
+    float * createCheckerboard
+    (
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx,
+        float    const & Dy,
+        float    const & phi
+    )
+    {
+        float * data = new float[ Nx*Ny ];
 
-    const int slitHalfHeight = (int) ceilf( 0.3*Nx );
-    const int slitHalfWidth  = (int) ceilf( 0.1*Nx );
-    for ( unsigned iy = Ny/2 - slitHalfHeight+1; iy < Ny/2 + slitHalfHeight; ++iy )
-    for ( unsigned ix = Nx/2 - slitHalfWidth +1; ix < Nx/2 + slitHalfWidth ; ++ix )
-        data[iy*Nx + ix] = 1;
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float x = ix, y = iy;
+            rotateCoordinates2d( x,y, 0.5*Nx, 0.5*Ny, phi );
+            if ( ( int( x / ( Dx * Nx ) + std::ceil( Nx / Dx ) ) ) % 2 == 0 and
+                 ( int( y / ( Dy * Ny ) + std::ceil( Ny / Dy ) ) ) % 2 == 0 )
+            {
+                data[iy*Nx + ix] = 1;
+            }
+            else
+            {
+                data[iy*Nx + ix] = 0;
+            }
+        }
 
-    return data;
-}
+        return data;
+    }
 
 
 } // namespace createTestData

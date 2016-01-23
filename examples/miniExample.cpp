@@ -37,7 +37,7 @@ int main( void )
     std::vector<unsigned> imageSize { 300, 300 };
     std::pair<unsigned,unsigned> imageSizePair{ imageSize[0], imageSize[1] };
     using namespace examples::createTestData;
-    float * pAtomCluster = createAtomCluster( imageSizePair );
+    float * pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
 
     /* debug output of image */
     std::ofstream file;
