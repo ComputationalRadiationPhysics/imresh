@@ -36,6 +36,8 @@
 #endif
 #include <string>               // std::string
 #include <utility>              // std::pair
+#include <cstddef>              // NULL
+#include <cassert>
 
 #include "io/readInFuncs/readInFuncs.hpp"
 
@@ -49,15 +51,14 @@ namespace readInFuncs
 
 
     std::pair<float*,std::pair<unsigned int,unsigned int>>
-    readTxt
-    (
+    readTxt(
         std::string const _filename
     )
     {
         std::ifstream file;
         file.open( _filename, std::ios::in );
 
-        if ( file.is_open( ) )
+        if( file.is_open( ) )
         {
             std::list<std::string> strList;
             std::string str;
@@ -106,12 +107,11 @@ namespace readInFuncs
 
 #   ifdef USE_PNG
         std::pair<float*,std::pair<unsigned int,unsigned int>>
-        readPNG
-        (
-            std::string _filename
+        readPNG(
+            std::string const _filename
         )
         {
-            pngwriter png( 1,1, 0, "tmp.png" );
+            pngwriter png( 1, 1, 0, "tmp.png" );
             png.readfromfile( _filename.c_str( ) );
 
             int x = png.getwidth( );
@@ -158,8 +158,7 @@ namespace readInFuncs
 
 #   ifdef USE_SPLASH
         std::pair<float*,std::pair<unsigned int,unsigned int>>
-        readHDF5
-        (
+        readHDF5(
             std::string const _filename
         )
         {

@@ -54,8 +54,11 @@ namespace writeOutFuncs
         std::string const _filename
     )
     {
-        free( _mem );
-        _mem = NULL;
+        if ( _mem != NULL )
+        {
+            free( _mem );
+            _mem = NULL;
+        }
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data ("
                 << _filename << ")." << std::endl;

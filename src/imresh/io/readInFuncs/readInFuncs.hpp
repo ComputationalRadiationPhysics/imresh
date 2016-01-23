@@ -27,8 +27,6 @@
 
 #include <string>               // std::string
 #include <utility>              // std::pair
-#include <cstddef>              // NULL
-#include <cassert>
 
 
 namespace imresh
@@ -44,7 +42,7 @@ namespace readInFuncs
      *
      * They need to store their values as a 2D matrix with spaces as delimiters.
      */
-    std::pair< float * , std::pair< unsigned int, unsigned int > >
+    std::pair<float *, std::pair<unsigned int, unsigned int> >
     readTxt
     (
         std::string const _filename
@@ -60,7 +58,7 @@ namespace readInFuncs
          *         second pair element contains 2d dimension values as pair.
          *         They are 0 on error.
          **/
-        std::pair< float *, std::pair< unsigned int, unsigned int > >
+        std::pair<float *, std::pair<unsigned int,unsigned int> >
         readPNG
         (
             std::string const _filename
@@ -71,7 +69,7 @@ namespace readInFuncs
         /**
          * @see readPNG
          **/
-        std::pair< float *, std::pair< unsigned int, unsigned int > >
+        std::pair<float *,std::pair<unsigned int,unsigned int> >
         readHDF5
         (
             std::string const _filename
