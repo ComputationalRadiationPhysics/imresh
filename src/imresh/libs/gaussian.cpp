@@ -25,6 +25,19 @@
 
 #include "gaussian.hpp"
 
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+#include <type_traits>
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
+#include <cassert>
+#include <cstring>  // memcpy, memset
+#include <cstddef>  // NULL
+#include <cstdlib>  // malloc, free
+#include "calcGaussianKernel.hpp"
+
 
 namespace imresh
 {
@@ -147,91 +160,6 @@ namespace libs
                 dataPos[iB-N] = sum;
             }
         }
-    }
-
-
-    /**
-     * We need to choose a size depending on the sigma, for which the kernel
-     * will still be 100% accurate, even though we cut of quite a bit.
-     * For 8bit images the channels can only store 0 to 255. The most extreme
-     * case, where the farest neighbors could still influence the current pixel
-     * would be all the pixels inside the kernel being 0 and all the others
-     * being 255:
-     * @verbatim
-     *      255  -----+       +-------
-     *                |       |
-     *        0       |_______|
-     *                    ^
-     *             pixel to calculate
-     *                <------->
-     *      kernel size = 7, i.e. Nw = 3
-     *  (number of neighbors in each directions)
-     * @endverbatim
-     * The only way the outer can influence the interior would be, if the
-     * weighted sum over all was > 0.5. Meaning:
-     * @f[
-     * 255 \int\limits_{-\infty}^{x_\mathrm{cutoff}} \frac{1}{\sqrt{2\pi}\sigma}
-     * e^{-\frac{x^2}{2\sigma^2}} \mathrm{d}x = 255 \frac{1}{2}
-     * \mathrm{erfc}\left( -\frac{ x_\mathrm{cutoff} }{ \sqrt{2}\sigma } \right)
-     * \overset{!}{=} 0.5
-     * \Rightarrow x_\mathrm{cutoff} = -\sqrt{2}\sigma
-     *   \mathrm{erfc}^{-1}\left( \frac{1}{2 \cdot 255} \right)
-     *   = -2.884402748387961466 \sigma
-     * @f]
-     * This result means, that for @f[ \sigma=1 @f] the kernel size should
-     * be 3 to the left and 3 to the right, meaning 7 weights large.
-     * The center pixel, which we want to update goes is in the range [-0.5,0.5]
-     * The neighbor pixel in [-1.5,-0.5], then [-2.5,-1.5]. So we are very
-     * very close to the 2.88440, but we should nevertheless include the
-     * pixel at [-3.5,-2.5] to be correct.
-     **/
-    template<class T_PREC>
-    int calcGaussianKernel
-    (
-        const double & rSigma,
-        T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
-    )
-    {
-    /* @todo: inverfc, e.g. with minimax (port python version to C/C++)
-     *        the inverse erfc diverges at 0, this makes it hard to find a
-     *        a polynomial approximation there, but maybe I could rewrite
-     *        minimax algorithm to work with \sum a_n/x**n
-     *        Anyway, the divergence is also bad for the kernel Size. In order
-     *        to reach floating point single precision of 1e-7 absolute error
-     *        the kernel size would be: 3.854659 ok, it diverges much slower
-     *        than I though */
-        //const int nNeighbors = ceil( erfcinv( 2.0*rMinAbsoluteError ) - 0.5 );
-        assert( rSigma >= 0 );
-        const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
-        const int nWeights   = 2*nNeighbors + 1;
-        assert( nWeights > 0 );
-        if ( (unsigned) nWeights > rnWeights or rWeights == NULL )
-            return nWeights;
-
-        double sumWeightings = 0;
-        /* Calculate the weightings. I'm not sure, if this is correct.
-         * I mean it could be, that the weights are the integrated gaussian
-         * values over the pixel interval, but I guess that would force
-         * no interpolation. Depending on the interpolation it wouldn't even
-         * be pixel value independent anymore, making this useless, so I guess
-         * the normal distribution evaluated at -1,0,1 for a kernel size of 3
-         * should be correct ??? */
-        const double a =  1.0/( sqrt(2.0*M_PI)*rSigma );
-        const double b = -1.0/( 2.0*rSigma*rSigma );
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-        {
-            const T_PREC weight = T_PREC( a*exp( i*i*b ) );
-            rWeights[nNeighbors+i] = weight;
-            sumWeightings += weight;
-        }
-
-        /* scale up or down the kernel, so that the sum of the weights will be 1 */
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-            rWeights[nNeighbors+i] /= sumWeightings;
-
-        return nWeights;
     }
 
     template<class T_PREC>
@@ -814,6 +742,7 @@ namespace libs
         const double & rSigma
     )
     {
+        assert( rData != NULL );
         gaussianBlurHorizontal( rData,rnDataX,rnDataY,rSigma );
         gaussianBlurVertical  ( rData,rnDataX,rnDataY,rSigma );
     }
@@ -897,21 +826,6 @@ namespace libs
         const unsigned & rnDataX,
         const unsigned & rnDataY,
         const double & rSigma
-    );
-
-    template int calcGaussianKernel<float>
-    (
-        const double & rSigma,
-        float * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
-    );
-    template int calcGaussianKernel<double>
-    (
-        const double & rSigma,
-        double * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
     );
 
     template void gaussianBlurHorizontal<float>

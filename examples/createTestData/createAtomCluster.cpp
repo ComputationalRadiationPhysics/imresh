@@ -25,6 +25,13 @@
 
 #include "createAtomCluster.hpp"
 
+#include <iostream>
+#include <vector>
+#include <cassert>
+#include <cstdlib>  // srand, RAND_MAX, rand
+#include <cmath>    // fmin, sqrtf, max
+#include "libs/gaussian.hpp"
+
 
 namespace examples
 {

@@ -25,10 +25,6 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include "libs/gaussian.hpp"
-
 
 namespace examples
 {

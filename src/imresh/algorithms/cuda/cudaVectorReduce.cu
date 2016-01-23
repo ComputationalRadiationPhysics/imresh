@@ -22,8 +22,14 @@
  * SOFTWARE.
  */
 
-
 #include "cudaVectorReduce.hpp"
+
+#include <cassert>
+#include <cstdint>    // uint64_t
+#include <limits>     // lowest
+#include <cmath>
+#include <cuda.h>     // atomicCAS
+#include <cufft.h>    // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.h"
 
 

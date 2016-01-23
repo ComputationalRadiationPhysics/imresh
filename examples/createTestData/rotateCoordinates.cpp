@@ -25,6 +25,8 @@
 
 #include "rotateCoordinates.hpp"
 
+#include <cmath>   // cos,sin
+
 
 namespace examples
 {

@@ -22,9 +22,31 @@
  * SOFTWARE.
  */
 
-#include <utility>                              // std::pair
-
 #include "algorithms/cuda/cudaShrinkWrap.h"
+
+#ifndef NDEBUG
+#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
+#else
+#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
+#endif
+
+#include <iostream>
+#include <cstddef>      // NULL
+#include <cstring>      // memcpy
+#include <cassert>
+#include <cstdint>      // uint64_t
+#include <cmath>
+#include <vector>
+#include <cuda.h>       // atomicCAS
+#include <cufft.h>
+#include <utility>      // std::pair
+#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaVectorReduce.hpp"
+#if DEBUG_CUDASHRINKWRAP == 1
+#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
+#    include "algorithms/vectorReduce.hpp"
+#    include "algorithms/vectorElementwise.hpp"
+#endif
 #include "libs/cudacommon.h"
 
 

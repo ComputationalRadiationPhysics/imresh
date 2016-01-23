@@ -25,11 +25,6 @@
 
 #pragma once
 
-#include <algorithm>  // max
-#include <cmath>
-#include <limits>     // lowest, max
-#include <cassert>
-
 
 namespace imresh
 {
@@ -82,6 +77,7 @@ namespace algorithms
         const unsigned & rnData,
         const unsigned & rnStride = 1
     );
+
 
 } // namespace algorithms
 } // namespace imresh

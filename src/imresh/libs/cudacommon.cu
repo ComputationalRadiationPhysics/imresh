@@ -25,6 +25,9 @@
 
 #include "libs/cudacommon.h"
 
+#include <cstdio>
+#include <cassert>
+
 
 namespace imresh
 {

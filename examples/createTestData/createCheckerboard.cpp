@@ -25,6 +25,9 @@
 
 #include "createCheckerboard.hpp"
 
+#include <cmath>   // ceil
+#include "rotateCoordinates.hpp"
+
 
 namespace examples
 {

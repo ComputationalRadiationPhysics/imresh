@@ -26,14 +26,6 @@
 #pragma once
 
 
-#include <cassert>
-#include <cstdint>    // uint64_t
-#include <limits>     // lowest
-#include <cmath>
-#include <cuda.h>     // atomicCAS
-#include <cufft.h>    // cufftComplex, cufftDoubleComplex
-
-
 namespace imresh
 {
 namespace algorithms

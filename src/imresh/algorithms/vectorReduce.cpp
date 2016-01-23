@@ -25,6 +25,11 @@
 
 #include "vectorReduce.hpp"
 
+#include <algorithm>  // max
+#include <cmath>
+#include <limits>     // lowest, max
+#include <cassert>
+
 
 namespace imresh
 {

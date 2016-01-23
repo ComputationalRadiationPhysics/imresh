@@ -22,6 +22,8 @@
  * SOFTWARE.
  */
 
+#include <iostream>
+#include <iomanip>          // setw, setfill
 #include <string>           // std::string
 #include <sstream>
 

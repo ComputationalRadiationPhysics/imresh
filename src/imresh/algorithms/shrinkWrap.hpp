@@ -25,19 +25,7 @@
 
 #pragma once
 
-#include <cstddef>    // NULL
-#include <cstring>    // memcpy
-#include <cassert>
-#include <cmath>
-#include <iostream>
-#include <string>
-#include <fstream>
 #include <vector>
-#include <fftw3.h>
-#include "libs/gaussian.hpp"
-#include "libs/hybridInputOutput.hpp" // calculateHioError
-#include "algorithms/vectorReduce.hpp"
-#include "algorithms/vectorElementwise.hpp"
 
 
 namespace imresh

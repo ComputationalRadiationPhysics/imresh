@@ -25,6 +25,9 @@
 
 #include "createRectangle.hpp"
 
+#include <cassert>
+#include "rotateCoordinates.hpp"
+
 
 namespace examples
 {

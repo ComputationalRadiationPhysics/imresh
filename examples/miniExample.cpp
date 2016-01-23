@@ -22,14 +22,15 @@
  * SOFTWARE.
  */
 
+#include <fstream>
+#include <iostream>
+#include <iomanip>
 #include <string>           // std::string
 
 #include "libs/diffractionIntensity.hpp"
 #include "algorithms/shrinkWrap.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "createTestData/createAtomCluster.hpp"
-#include <fstream>
-#include <iomanip>
 
 
 int main( void )

@@ -25,9 +25,6 @@
 
 #pragma once
 
-#include <cassert>
-#include "rotateCoordinates.hpp"
-
 
 namespace examples
 {

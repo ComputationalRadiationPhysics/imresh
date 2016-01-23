@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include <cmath>   // cos,sin
-
 
 namespace examples
 {
