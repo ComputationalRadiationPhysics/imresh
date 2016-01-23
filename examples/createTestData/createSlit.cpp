@@ -23,29 +23,33 @@
  */
 
 
-#pragma once
-
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include <utility>  // std::pair
-#include <cstdlib>  // srand, rand
-#include "libs/gaussian.hpp"
+#include "createSlit.hpp"
 
 
 namespace examples
 {
+namespace createTestData
+{
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float* createAtomCluster
-    (
-        const std::pair<unsigned int,unsigned int>& rSize
-    );
+float * createVerticalSingleSlit
+(
+    const unsigned & Nx,
+    const unsigned & Ny
+)
+{
+    float * data = new float[Nx*Ny];
+    memset( data, 0, Nx*Ny*sizeof(float) );
+
+    const int slitHalfHeight = (int) ceilf( 0.3*Nx );
+    const int slitHalfWidth  = (int) ceilf( 0.1*Nx );
+    for ( unsigned iy = Ny/2 - slitHalfHeight+1; iy < Ny/2 + slitHalfHeight; ++iy )
+    for ( unsigned ix = Nx/2 - slitHalfWidth +1; ix < Nx/2 + slitHalfWidth ; ++ix )
+        data[iy*Nx + ix] = 1;
+
+    return data;
+}
 
 
+} // namespace createTestData
 } // namespace examples

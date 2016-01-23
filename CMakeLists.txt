@@ -47,9 +47,15 @@ endif()
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2 -arch=sm_30 -Xptxas=-v")
 
 if(BUILD_EXAMPLES)
-    file(GLOB_RECURSE EXAMPLES_SOURCE_FILES ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.hpp)
-    add_executable("examples" ${EXAMPLES_SOURCE_FILES})
-    target_link_libraries("examples" ${PROJECT_NAME})
+    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/examples/createTestData/*.h )
+    add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
+    target_link_libraries( examples )
+
+    add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
+    target_link_libraries( "threadedExample" ${PROJECT_NAME} examples )
+
+    add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
+    target_link_libraries( "miniExample" ${PROJECT_NAME} examples )
 endif()
 
 if(USE_PNG)

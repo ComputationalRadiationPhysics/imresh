@@ -25,34 +25,30 @@
 
 #pragma once
 
-#include <cstring>  // memset
-#include <cmath>    // ceilf
+#include <cstdlib>  // srand, RAND_MAX, rand
+#include <cmath>    // fmin, sqrtf
+#include <utility>  // std::pair
+#include <cstdlib>  // srand, rand
+#include "libs/gaussian.hpp"
 
 
 namespace examples
 {
+namespace createTestData
+{
 
 
     /**
-     * Create a sample data of a rectangular object valued 1.0
+     * Create a sample data of two atom clusters
      *
-     * @verbatim
-     *    +------+
-     *    |      |
-     *    |  ##  |
-     *    |      |
-     *    +------+
-     * @endverbatim
-     *
-     * @param[in] Nx width of the test image to produce
-     * @param[in] Ny height of the test image to produce
+     * @param[in] rSize image dimensions
      * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    float * createVerticalSingleSlit
+    float* createAtomCluster
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        const std::pair<unsigned int,unsigned int>& rSize
     );
 
 
+} // namespace createTestData
 } // namespace examples

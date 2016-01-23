@@ -28,6 +28,9 @@
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
+#ifndef USE_SPLASH
+#   include "createTestData/createAtomCluster.hpp"
+#endif
 
 
 int main( void )
@@ -35,8 +38,18 @@ int main( void )
     // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
-    // Read in a HDF5 file containing a grey scale image as a table
-    auto file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+#   ifdef USE_SPLASH
+        // Read in a HDF5 file containing a grey scale image as a table
+        auto file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+#   else
+        using namespace examples::createTestData;
+        std::pair<unsigned,unsigned> imageSize { 300, 300 };
+        std::pair< float*, std::pair<unsigned,unsigned> > file
+        {
+            createAtomCluster( imageSize ),
+            imageSize
+        };
+#   endif
     // This step is only needed because we have no real images
     imresh::libs::diffractionIntensity( file.first, file.second );
 
@@ -87,6 +100,8 @@ int main( void )
                               file.second,
                               imresh::io::writeOutFuncs::writeOutHDF5,
                               "imresh_out" );
+#   else
+        delete[] file.first;
 #   endif
 
     // The last step is always deinitializing the library.

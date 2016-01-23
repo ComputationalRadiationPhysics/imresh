@@ -24,30 +24,20 @@
 
 #include <string>           // std::string
 
-#include "io/taskQueue.cu"
-#include "io/readInFuncs/readInFuncs.hpp"
-#include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "algorithms/shrinkWrap.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.h"
-#include "io/taskQueue.hpp"
+#include "createTestData/createAtomCluster.hpp"
 #include <fstream>
 #include <iomanip>
 
 
-void writeOut( int* mem, int size )
-{
-    //std::cout << &mem << std::endl;
-}
-
 int main( void )
 {
-    int* h_mem;
-    h_mem = (int*) malloc(sizeof(int) * 100);
-    auto tq = new imresh::io::taskQueue( );
-    tq->addTask(h_mem, sizeof(int) * 100, (std::function<void(int*,int)>) writeOut);
     std::vector<unsigned> imageSize { 300, 300 };
-    float * pAtomCluster = examples::createAtomCluster( imageSize );
+    std::pair<unsigned,unsigned> imageSizePair{ imageSize[0], imageSize[1] };
+    using namespace examples::createTestData;
+    float * pAtomCluster = createAtomCluster( imageSizePair );
 
     /* debug output of image */
     std::ofstream file;
@@ -61,7 +51,7 @@ int main( void )
     file.close();
     std::cout << "Wrote atomClusterInput to atomClusterInput.dat\n";
 
-    imresh::libs::diffractionIntensity( pAtomCluster, imageSize );
+    imresh::libs::diffractionIntensity( pAtomCluster, imageSizePair );
 
     file.open("diffractionIntensity.dat");
     for ( unsigned ix = 0; ix < imageSize[0]; ++ix )

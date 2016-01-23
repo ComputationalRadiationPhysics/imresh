@@ -28,6 +28,8 @@
 
 namespace examples
 {
+namespace createTestData
+{
 
 
     #define SCALE_EXAMPLE_IMAGE 1
@@ -138,4 +140,5 @@ namespace examples
     }
 
 
+} // namespace createTestData
 } // namespace examples

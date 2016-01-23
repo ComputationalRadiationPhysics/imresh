@@ -519,7 +519,7 @@ namespace cuda
         cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
         /* apply threshold to make binary mask */
-        const float maskedAbsMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements );
         const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
         cudaKernelCutOff<<<nBlocks,nThreads,0,strm>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
 
@@ -546,7 +546,7 @@ namespace cuda
             cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
             /* apply threshold to make binary mask */
-            const float absMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+            const float absMax = cudaVectorMax( dpIsMasked, nElements );
             const float threshold = rIntensityCutOff * absMax;
             cudaKernelCutOff<<<nBlocks,nThreads,0,strm>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 

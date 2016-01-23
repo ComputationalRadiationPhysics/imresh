@@ -65,7 +65,7 @@ namespace io
      * This is determined while imresh::io::fillStreamList() as the number of
      * available streams.
      */
-    int threadPoolMaxSize = 0;
+    unsigned threadPoolMaxSize = 0;
 
     /**
      * Function to add a image processing task to the queue.
@@ -208,7 +208,7 @@ namespace io
      * stored in the streamList as imresh::io::stream objects. If no streams are
      * found, the program aborts.
      */
-    int fillStreamList( )
+    unsigned fillStreamList( )
     {
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::fillStreamList(): Starting stream creation."

@@ -23,30 +23,39 @@
  */
 
 
-#include "createSlit.hpp"
+#pragma once
+
+#include <cstring>  // memset
+#include <cmath>    // ceilf
 
 
 namespace examples
 {
-
-
-float * createVerticalSingleSlit
-(
-    const unsigned & Nx,
-    const unsigned & Ny
-)
+namespace createTestData
 {
-    float * data = new float[Nx*Ny];
-    memset( data, 0, Nx*Ny*sizeof(float) );
-
-    const int slitHalfHeight = (int) ceilf( 0.3*Nx );
-    const int slitHalfWidth  = (int) ceilf( 0.1*Nx );
-    for ( unsigned iy = Ny/2 - slitHalfHeight+1; iy < Ny/2 + slitHalfHeight; ++iy )
-    for ( unsigned ix = Nx/2 - slitHalfWidth +1; ix < Nx/2 + slitHalfWidth ; ++ix )
-        data[iy*Nx + ix] = 1;
-
-    return data;
-}
 
 
+    /**
+     * Create a sample data of a rectangular object valued 1.0
+     *
+     * @verbatim
+     *    +------+
+     *    |      |
+     *    |  ##  |
+     *    |      |
+     *    +------+
+     * @endverbatim
+     *
+     * @param[in] Nx width of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @return pointer to allocated data. Must be deallocated with delete[]
+     **/
+    float * createVerticalSingleSlit
+    (
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
+
+
+} // namespace createTestData
 } // namespace examples

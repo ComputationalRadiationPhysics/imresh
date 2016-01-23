@@ -75,7 +75,7 @@ namespace readInFuncs
 
             // And last, convert and store the list into a array
             float retArray[strList.size( )];
-            for( auto i = 0; i < strList.size( ); i++ )
+            for( unsigned i = 0; i < strList.size( ); i++ )
             {
                 retArray[i] = std::stof( strList.front( ) );
                 strList.pop_front( );
