@@ -35,7 +35,11 @@
 #endif
 #include <string>                   // std::string
 #include <utility>                  // std::pair
+#include <cstddef>                  // NULL
+#include <sstream>
+#include <cassert>
 
+#include "algorithms/vectorReduce.hpp" // vectorMax
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 
 

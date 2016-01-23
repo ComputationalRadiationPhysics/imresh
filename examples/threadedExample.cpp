@@ -23,6 +23,7 @@
  */
 
 #include <string>           // std::string
+#include <sstream>
 
 #include "io/taskQueue.cu"
 #include "io/readInFuncs/readInFuncs.hpp"

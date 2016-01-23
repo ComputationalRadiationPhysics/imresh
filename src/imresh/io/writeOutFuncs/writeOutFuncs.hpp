@@ -27,10 +27,6 @@
 
 #include <string>               // std::string
 #include <utility>              // std::pair
-#include <cstddef>              // NULL
-#include <sstream>
-#include <cassert>
-#include "algorithms/vectorReduce.hpp" // vectorMax
 
 
 namespace imresh
