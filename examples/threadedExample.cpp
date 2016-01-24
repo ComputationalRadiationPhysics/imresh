@@ -55,12 +55,7 @@ int main( void )
 #   endif
     // This step is only needed because we have no real images
     imresh::libs::diffractionIntensity( file.first, file.second );
-
-    // Now we can run the algorithm for testing purposes and free the data
-    // afterwards
-    imresh::io::addTask( file.first, file.second,
-                         imresh::io::writeOutFuncs::justFree,
-                         "free" /* gives an identifier for debugging */ );
+    delete[] file.first;
 
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
@@ -79,9 +74,6 @@ int main( void )
                                  imresh::io::writeOutFuncs::writeOutPNG,
                                  filename.str(),
                                  i /* sets the number of iterations */ );
-            imresh::io::addTask( file.first, file.second,
-                                 imresh::io::writeOutFuncs::justFree,
-                                 "free" /* gives an identifier for debugging */ );
         }
 #   endif
 
@@ -96,11 +88,6 @@ int main( void )
                              file.second,
                              imresh::io::writeOutFuncs::writeOutHDF5,
                              "imresh_out" );
-        imresh::io::addTask( file.first, file.second,
-                             imresh::io::writeOutFuncs::justFree,
-                             "free" /* gives an identifier for debugging */ );
-#   else
-        delete[] file.first;
 #   endif
 
     // The last step is always deinitializing the library.

@@ -54,6 +54,7 @@ namespace cuda
 
     /**
      * Can reuse gaussian kernels already sent to the GPU.
+     * not threadsafe !
      *
      * Problematic to generalize for arbitrary kernels, because they don't
      * have a nice key value like sigma. We would have to compare every
@@ -653,6 +654,8 @@ namespace cuda
         const double & rSigma
     )
     {
+        CUDA_ERROR( cudaDeviceSynchronize() );
+
         static unsigned firstFree = 0;
         static float kernelSigmas[ nMaxKernels ];
         static float kernelSizes [ nMaxKernels ];
@@ -729,6 +732,8 @@ namespace cuda
         const double & rSigma
     )
     {
+        CUDA_ERROR( cudaDeviceSynchronize() );
+
         /**
          * Object which manages kernels sent to the GPU to possibly reuse them
          *
@@ -961,7 +966,7 @@ namespace cuda
          * buffer will exactly suffice, meaning the loop will only be run 1 time */
         for ( unsigned iRow = 0; iRow < rnDataY; iRow += blockDim.y )
         {
-            T_PREC * const curDataRow = data + iRow * rnDataX;
+            T_PREC * const curDataRow = data + ( iRow + threadIdx.y ) * rnDataX;
             /* move last N rows to the front of the buffer */
             __syncthreads();
             /* memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) ); */
@@ -980,14 +985,14 @@ namespace cuda
             {
                 T_PREC * pTarget = smBuffer +
                     N * nColsCacheLine /*skip first N rows*/ + linThreadId;
-                for ( unsigned iRow = threadIdx.y;
+                for ( unsigned curRow = threadIdx.y;
                       pTarget < smBuffer + nBufferSize;
-                      pTarget += blockDim.y * nColsCacheLine, iRow += blockDim.y )
+                      pTarget += blockDim.y * nColsCacheLine, curRow += blockDim.y )
                 {
                     #ifdef GAUSSIAN_PERIODIC
-                        const int iRowMod = iRow % rnDataY;
+                        const int iRowMod = curRow % rnDataY;
                     #else
-                        const int iRowMod = min( iRow, rnDataY-1 );
+                        const int iRowMod = min( curRow, rnDataY-1 );
                     #endif
                     *pTarget = data[ iRowMod*rnDataX ];
                 }
@@ -1001,7 +1006,7 @@ namespace cuda
                 if ( not iAmSleeping )
                 {
                     T_PREC * const datum = ptrMin(
-                        &curDataRow[ threadIdx.y * rnDataX ],
+                        curDataRow,
                         pLastData
                     );
                     assert( iBuf < nBufferSize );
@@ -1014,7 +1019,7 @@ namespace cuda
                         for ( unsigned iBufRow = N+blockDim.y; iBufRow < nRowsCacheLine; ++iBufRow )
                         {
                             T_PREC * const datum = ptrMin(
-                                &curDataRow[ (iBufRow-N) * rnDataX ],
+                                &data[ (iRow+iBufRow-N) * rnDataX ],
                                 pLastData
                             );
                             const unsigned iBuffer = iBufRow*nColsCacheLine + threadIdx.x;
@@ -1027,7 +1032,7 @@ namespace cuda
 
             /* calculated weighted sum on inner rows in buffer, but only if
              * the value we are at is inside the image */
-            if ( ( not iAmSleeping ) and iRow < rnDataY )
+            if ( ( not iAmSleeping ) and iRow+threadIdx.y < rnDataY )
             {
                 T_PREC sum = T_PREC(0);
                 /* this for loop is done by each thread and should for large
@@ -1044,7 +1049,8 @@ namespace cuda
                 /* write result back into memory (in-place). No need to wait for
                  * all threads to finish, because we write into global memory, to
                  * values we already buffered into shared memory! */
-                curDataRow[ threadIdx.y * rnDataX ] = sum;
+                assert( curDataRow < &rdpData[ rnDataX * rnDataY ] );
+                *curDataRow = sum;
             }
         }
 
@@ -1060,6 +1066,8 @@ namespace cuda
         const double & rSigma
     )
     {
+        CUDA_ERROR( cudaDeviceSynchronize() );
+
         static GaussianKernelGpuBuffer<T_PREC> kernelBuffer;
         unsigned kernelSize;
         T_PREC * dpKernel;

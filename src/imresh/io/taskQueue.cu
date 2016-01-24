@@ -65,7 +65,7 @@ namespace io
      * This is determined while imresh::io::fillStreamList() as the number of
      * available streams.
      */
-    unsigned threadPoolMaxSize = 0;
+    unsigned int threadPoolMaxSize = 0;
 
     /**
      * Function to add a image processing task to the queue.
@@ -126,9 +126,11 @@ namespace io
 #       endif
 
         // Call shrinkWrap in the selected stream on the selected device.
-        imresh::algorithms::cuda::shrinkWrap( _h_mem,
-                                              _size,
+        imresh::algorithms::cuda::cudaShrinkWrap( _h_mem,
+                                              _size.first,
+                                              _size.second,
                                               str,
+                                              device,
                                               _numberOfCycles,
                                               _targetError,
                                               _HIOBeta,
@@ -173,7 +175,15 @@ namespace io
                 std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
                     << std::endl;
 #           endif
-            threadPool.front( ).join( );
+            if ( threadPool.front().joinable() )
+                threadPool.front( ).join( );
+            else
+            {
+#               ifdef IMRESH_DEBUG
+                    std::cout << "[Warning] " << __FILE__ << " line " << __LINE__
+                              << ": a thread from the thread pool is not joinable!\n";
+#               endif
+            }
             threadPool.pop_front( );
         }
 

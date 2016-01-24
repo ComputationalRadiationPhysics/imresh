@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,12 +23,12 @@
  */
 
 
-#include "cudacommon.h"
+#pragma once
 
-#include <cstdio>
-#include <cassert>
-#include <cstdlib>    // EXIT_FAILURE, exit
+#include <cufft.h>
 
+
+#define CUFFT_ERROR(X) imresh::libs::checkCufftError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
@@ -36,16 +36,7 @@ namespace libs
 {
 
 
-    void checkCudaError
-    ( const cudaError_t rValue, const char * file, int line )
-    {
-        if ( (rValue) != cudaSuccess )
-        {
-            printf( "CUDA error in %s line:%i : %s\n",
-                    file, line, cudaGetErrorString(rValue) );
-            exit( EXIT_FAILURE );
-        }
-    }
+    void checkCufftError( const cufftResult rValue, const char * file, int line );
 
 
 } // namespace libs

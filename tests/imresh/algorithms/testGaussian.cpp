@@ -565,7 +565,7 @@ struct TestGaussian
 
         std::cout << "\n";
         std::cout << "Gaussian blur timings in milliseconds:\n";
-        std::cout << "image size (nCols,nRows) : CUDA const memory horizontal | CUDA shared memory horizontal | CPU horizontal | CUDA vertical | CPU vertical \n";
+        std::cout << "image size (nCols,nRows) : CUDA const memory horizontal | CUDA shared memory horizontal | CPU horizontal | CUDA vertical | CPU vertical | CPU vertical with software cache\n";
         using namespace imresh::tests;
         //for ( auto sigma : std::vector<float>{ 1.5,2,3 } )
         for ( auto sigma : std::vector<float>{ 3 } )
@@ -576,7 +576,8 @@ struct TestGaussian
             assert( nCols*nRows <= nMaxElements );
             nElements = nCols*nRows;
 
-            std::cout << std::setw(8) << "("<<nCols<<","<<nRows<<") : ";
+            std::cout << "(" << std::setw(5) << nCols << ","
+                             << std::setw(5) << nRows << ") : ";
 
             /* time CUDA horizontal blur (constant memory kernel) */
             minTime = FLT_MAX;
