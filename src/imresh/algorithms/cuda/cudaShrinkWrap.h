@@ -78,7 +78,6 @@ namespace cuda
         unsigned rImageWidth,
         unsigned rImageHeight,
         cudaStream_t rStream = 0,
-        int rDevice = 0,
         unsigned rnCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,

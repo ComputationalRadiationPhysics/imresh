@@ -321,7 +321,6 @@ namespace cuda
         unsigned rImageWidth,
         unsigned rImageHeight,
         cudaStream_t rStream,
-        int rDevice,
         unsigned rnCycles,
         float rTargetError,
         float rHioBeta,
@@ -338,7 +337,6 @@ namespace cuda
         /* Evaluate input parameters and fill with default values if necessary */
         assert( rImageWidth > 0 );
         assert( rImageHeight > 0 );
-        assert( rDevice >= 0 );
         assert( rIntensity != NULL );
         /* this makes it possible to specifiy new values for e.g. rSigma0,
          * while still using the default values for rHioBeta, rTargetError,
