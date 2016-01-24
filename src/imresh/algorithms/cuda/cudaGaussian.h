@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <cuda_runtime_api.h>    // cudaStream_t
+
 
 namespace imresh
 {
@@ -80,7 +82,9 @@ namespace cuda
     (
         T_PREC * const & rdpData,
         const unsigned & rnData,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     );
 
     /**
@@ -109,7 +113,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     );
 
 
@@ -119,7 +125,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     );
 
     /**
@@ -134,7 +142,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     );
 
     /**
@@ -149,7 +159,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     );
 
 
@@ -170,10 +182,13 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
     )
     {
-        cudaGaussianBlurHorizontalSharedWeights( rdpData, rnDataX, rnDataY, rSigma );
+        cudaGaussianBlurHorizontalSharedWeights
+        ( rdpData, rnDataX, rnDataY, rSigma, rStream, rAsync );
     }
 
 } // namespace cuda

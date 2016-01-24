@@ -253,33 +253,35 @@ namespace cuda
     }
 
 
-    /**
-     * checks if the imaginary parts are all 0 for debugging purposes
-     **/
-    template< class T_COMPLEX >
-    void checkIfReal
-    (
-        const T_COMPLEX * const & rData,
-        const unsigned & rnElements
-    )
-    {
-        float avgRe = 0;
-        float avgIm = 0;
-
-        for ( unsigned i = 0; i < rnElements; ++i )
+#   ifdef IMRESH_DEBUG
+        /**
+         * checks if the imaginary parts are all 0. For debugging purposes
+         **/
+        template< class T_COMPLEX >
+        void checkIfReal
+        (
+            const T_COMPLEX * const & rData,
+            const unsigned & rnElements
+        )
         {
-            avgRe += fabs( rData[i][0] );
-            avgIm += fabs( rData[i][1] );
+            float avgRe = 0;
+            float avgIm = 0;
+
+            for ( unsigned i = 0; i < rnElements; ++i )
+            {
+                avgRe += fabs( rData[i][0] );
+                avgIm += fabs( rData[i][1] );
+            }
+
+            avgRe /= (float) rnElements;
+            avgIm /= (float) rnElements;
+
+            std::cout << std::scientific
+                      << "Avg. Re = " << avgRe << "\n"
+                      << "Avg. Im = " << avgIm << "\n";
+            assert( avgIm <  1e-5 );
         }
-
-        avgRe /= (float) rnElements;
-        avgIm /= (float) rnElements;
-
-        std::cout << std::scientific
-                  << "Avg. Re = " << avgRe << "\n"
-                  << "Avg. Im = " << avgIm << "\n";
-        assert( avgIm <  1e-5 );
-    }
+#   endif
 
 
     template< class T_PREC >
@@ -378,8 +380,8 @@ namespace cuda
 
         CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
         cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream >>>( dpIsMasked, dpCurData, nElements );
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma );
+        cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream,
+                          true /* don't call cudaDeviceSynchronize */ );
 
         /* apply threshold to make binary mask */
         CUDA_ERROR( cudaDeviceSynchronize() );
@@ -407,8 +409,7 @@ namespace cuda
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );
-            CUDA_ERROR( cudaDeviceSynchronize() );
-            cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma );
+            cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
 
             /* apply threshold to make binary mask */
             CUDA_ERROR( cudaDeviceSynchronize() );
