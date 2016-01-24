@@ -23,7 +23,11 @@
  */
 
 
-#include "vectorReduce.hpp"
+#include "vectorElementwise.hpp"
+
+#include <algorithm>  // max
+#include <cmath>
+#include <fftw3.h>
 
 
 namespace imresh

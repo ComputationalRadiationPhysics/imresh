@@ -25,6 +25,21 @@
 
 #include "hybridInputOutput.hpp"
 
+#include <cstddef>    // NULL
+#include <cstdint>    // uint8_t
+#include <climits>    // INT_MAX
+#include <cstring>    // memcpy
+#include <cmath>      // sqrtf
+#include <complex>
+#include <cassert>
+#include <cfloat>     // FLT_EPSILON
+#include <iostream>
+#include <vector>
+#include <omp.h>      // omp_get_num_procs, omp_set_num_procs
+#include <fftw3.h>
+#include "libs/vectorIndex.hpp"
+
+
 namespace imresh
 {
 namespace libs

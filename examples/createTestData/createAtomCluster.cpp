@@ -25,22 +25,32 @@
 
 #include "createAtomCluster.hpp"
 
+#include <iostream>
+#include <vector>
+#include <cassert>
+#include <cstdlib>  // srand, RAND_MAX, rand
+#include <cmath>    // fmin, sqrtf, max
+#include "libs/gaussian.hpp"
+
 
 namespace examples
 {
+namespace createTestData
+{
+
+
+    #define SCALE_EXAMPLE_IMAGE 1
 
 
     float * createAtomCluster
     (
-        const std::pair<unsigned int,unsigned int>& rSize
+        const unsigned & Nx,
+        const unsigned & Ny
     )
     {
-        const auto & Ny = rSize.second;
-        const auto & Nx = rSize.first;
+        assert( Nx > 0 and Ny );
 
-        assert( rSize.first > 0 && rSize.second > 0 );
-        unsigned nElements = Nx * Ny;
-
+        const unsigned nElements = Nx * Ny;
         float * data = new float[nElements];
 
         /* Add random background noise and blur it, so that it isn't pixelwise */
@@ -55,8 +65,14 @@ namespace examples
 
         /* choose a radious, so that the atom cluster will fit into the image
          * and will fill it pretty well */
-        const float atomRadius = fmin( 0.05f*Nx, 0.01f*Ny );
-        std::cout << "atomRadius = "<<atomRadius<<" px\n";
+        #if SCALE_EXAMPLE_IMAGE == 1
+            const float atomRadius = fmin( 0.05f*Nx, 0.01f*Ny );
+        #else
+            const float atomRadius = 1.6;
+        #endif
+        #ifndef NDEBUG
+            std::cout << "atomRadius = "<<atomRadius<<" px\n";
+        #endif
         /* The centers are given as offsets in multiplies of 2*atomradius
          * The virtual position is at ix=iy=0 at first */
         std::vector< std::vector<float> > atomCenters = {
@@ -129,4 +145,5 @@ namespace examples
     }
 
 
+} // namespace createTestData
 } // namespace examples

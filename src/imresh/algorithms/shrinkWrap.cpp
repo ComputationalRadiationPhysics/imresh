@@ -25,6 +25,21 @@
 
 #include "algorithms/shrinkWrap.hpp"
 
+#include <cstddef>    // NULL
+#include <cstring>    // memcpy
+#include <cassert>
+#include <cmath>
+#include <iostream>
+#include <iomanip>    // setw
+#include <string>
+#include <fstream>
+#include <vector>
+#include <fftw3.h>
+#include "libs/gaussian.hpp"
+#include "libs/hybridInputOutput.hpp" // calculateHioError
+#include "algorithms/vectorReduce.hpp"
+#include "algorithms/vectorElementwise.hpp"
+
 
 namespace imresh
 {
@@ -98,21 +113,8 @@ namespace algorithms
     }
 
 
-    /**
-     *
-     * In contrast to the normal hybrid input output this function takes
-     * pointers to memory buffers instead of allocating them itself.
-     * Furthermore it doesn't touch rIntensity and it returns F instead of f
-     * in curData.
-     * It also doesn't bother to calculate the error at each step.
-     *
-     * @param[in] rIntensity real measured intensity without phase
-     * @param[in] rIntensityFirstGuess first guess for the phase of the
-     *            intensity, e.g. a random phase
-     * @param[in] gPrevious this isn't actually a guess for the object f, but
-     *            an intermediary result for the HIO algorithm. For the first
-     *            call it should be equal to g' = IFT[G == rIntensityFirstGuess]
-     **/
+    #define DEBUG_SHRINKWRAPP_CPP 1
+
     int shrinkWrap
     (
         float * const & rIntensity,
@@ -124,8 +126,7 @@ namespace algorithms
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles,
-        unsigned rnCores
+        unsigned rnHioCycles
     )
     {
         if ( rSize.size() != 2 ) return 1;
@@ -180,6 +181,20 @@ namespace algorithms
         //fftShift( isMasked, Nx,Ny );
         libs::gaussianBlur( isMasked, Nx, Ny, sigma );
 
+        #if DEBUG_SHRINKWRAPP_CPP == 1
+            std::ofstream file;
+            std::string fname = std::string("shrinkWrap-init-mask-blurred");
+            file.open( ( fname + std::string(".dat") ).c_str() );
+            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
+            {
+                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
+                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
+                file << "\n";
+            }
+            file.close();
+            std::cout << "Written out " << fname << ".png\n";
+        #endif
+
         /* apply threshold to make binary mask */
         {
             const auto absMax = vectorMax( isMasked, nElements );
@@ -188,6 +203,19 @@ namespace algorithms
             for ( unsigned i = 0; i < nElements; ++i )
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
         }
+
+        #if DEBUG_SHRINKWRAPP_CPP == 1
+            fname = std::string("shrinkWrap-init-mask");
+            file.open( ( fname + std::string(".dat") ).c_str() );
+            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
+            {
+                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
+                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
+                file << "\n";
+            }
+            file.close();
+            std::cout << "Written out " << fname << ".png\n";
+        #endif
 
         /* copy original image into fftw_complex array and add random phase */
         #pragma omp parallel for
@@ -276,6 +304,7 @@ namespace algorithms
 
         return 0;
     }
+
 
 } // namespace algorithms
 } // namespace imresh

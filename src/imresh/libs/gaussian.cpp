@@ -25,6 +25,19 @@
 
 #include "gaussian.hpp"
 
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+#include <type_traits>
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
+#include <cassert>
+#include <cstring>  // memcpy, memset
+#include <cstddef>  // NULL
+#include <cstdlib>  // malloc, free
+#include "calcGaussianKernel.hpp"
+
 
 namespace imresh
 {
@@ -149,91 +162,6 @@ namespace libs
         }
     }
 
-
-    /**
-     * We need to choose a size depending on the sigma, for which the kernel
-     * will still be 100% accurate, even though we cut of quite a bit.
-     * For 8bit images the channels can only store 0 to 255. The most extreme
-     * case, where the farest neighbors could still influence the current pixel
-     * would be all the pixels inside the kernel being 0 and all the others
-     * being 255:
-     * @verbatim
-     *      255  -----+       +-------
-     *                |       |
-     *        0       |_______|
-     *                    ^
-     *             pixel to calculate
-     *                <------->
-     *      kernel size = 7, i.e. Nw = 3
-     *  (number of neighbors in each directions)
-     * @endverbatim
-     * The only way the outer can influence the interior would be, if the
-     * weighted sum over all was > 0.5. Meaning:
-     * @f[
-     * 255 \int\limits_{-\infty}^{x_\mathrm{cutoff}} \frac{1}{\sqrt{2\pi}\sigma}
-     * e^{-\frac{x^2}{2\sigma^2}} \mathrm{d}x = 255 \frac{1}{2}
-     * \mathrm{erfc}\left( -\frac{ x_\mathrm{cutoff} }{ \sqrt{2}\sigma } \right)
-     * \overset{!}{=} 0.5
-     * \Rightarrow x_\mathrm{cutoff} = -\sqrt{2}\sigma
-     *   \mathrm{erfc}^{-1}\left( \frac{1}{2 \cdot 255} \right)
-     *   = -2.884402748387961466 \sigma
-     * @f]
-     * This result means, that for @f[ \sigma=1 @f] the kernel size should
-     * be 3 to the left and 3 to the right, meaning 7 weights large.
-     * The center pixel, which we want to update goes is in the range [-0.5,0.5]
-     * The neighbor pixel in [-1.5,-0.5], then [-2.5,-1.5]. So we are very
-     * very close to the 2.88440, but we should nevertheless include the
-     * pixel at [-3.5,-2.5] to be correct.
-     **/
-    template<class T_PREC>
-    int calcGaussianKernel
-    (
-        const double & rSigma,
-        T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
-    )
-    {
-    /* @todo: inverfc, e.g. with minimax (port python version to C/C++)
-     *        the inverse erfc diverges at 0, this makes it hard to find a
-     *        a polynomial approximation there, but maybe I could rewrite
-     *        minimax algorithm to work with \sum a_n/x**n
-     *        Anyway, the divergence is also bad for the kernel Size. In order
-     *        to reach floating point single precision of 1e-7 absolute error
-     *        the kernel size would be: 3.854659 ok, it diverges much slower
-     *        than I though */
-        //const int nNeighbors = ceil( erfcinv( 2.0*rMinAbsoluteError ) - 0.5 );
-        assert( rSigma >= 0 );
-        const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
-        const int nWeights   = 2*nNeighbors + 1;
-        assert( nWeights > 0 );
-        if ( (unsigned) nWeights > rnWeights )
-            return nWeights;
-
-        double sumWeightings = 0;
-        /* Calculate the weightings. I'm not sure, if this is correct.
-         * I mean it could be, that the weights are the integrated gaussian
-         * values over the pixel interval, but I guess that would force
-         * no interpolation. Depending on the interpolation it wouldn't even
-         * be pixel value independent anymore, making this useless, so I guess
-         * the normal distribution evaluated at -1,0,1 for a kernel size of 3
-         * should be correct ??? */
-        const double a =  1.0/( sqrt(2.0*M_PI)*rSigma );
-        const double b = -1.0/( 2.0*rSigma*rSigma );
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-        {
-            const T_PREC weight = T_PREC( a*exp( i*i*b ) );
-            rWeights[nNeighbors+i] = weight;
-            sumWeightings += weight;
-        }
-
-        /* scale up or down the kernel, so that the sum of the weights will be 1 */
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-            rWeights[nNeighbors+i] /= sumWeightings;
-
-        return nWeights;
-    }
-
     template<class T_PREC>
     void gaussianBlur
     (
@@ -242,8 +170,8 @@ namespace libs
         const double & rSigma
     )
     {
-        const int nKernelElements = 64;
-        T_PREC pKernel[64];
+        constexpr int nKernelElements = 64;
+        T_PREC pKernel[nKernelElements];
         const int kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
         assert( kernelSize <= nKernelElements );
         applyKernel( rData, rnData, (T_PREC*) pKernel, kernelSize );
@@ -269,7 +197,7 @@ namespace libs
     }
 
     template<class T_PREC>
-    void gaussianBlurVertical
+    void gaussianBlurVerticalUncached
     (
         T_PREC * const & rData,
         const unsigned & rnDataX,
@@ -301,7 +229,7 @@ namespace libs
          * we would have to write-back the buffer before the weighted sum
          * completed! */
         const unsigned bufferSize = nRowsCacheLine*nColsCacheLine;
-        T_PREC buffer[bufferSize];  /* could be in shared memory or cache */
+        auto buffer = new T_PREC[bufferSize];  /* could be in shared memory or cache */
         //assert( rnDataY <= bufferSize/nColsCacheLine );
 
         /**
@@ -523,7 +451,287 @@ namespace libs
             memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
         }
 
+        delete[] buffer;
     }
+
+    inline int min( const int & a, const int & b )
+    {
+        return a < b ? a : b; // a <? b GNU C++ extension does the same :S!
+    }
+    inline int max( const int & a, const int & b )
+    {
+        return a > b ? a : b;
+    }
+    inline unsigned min( const unsigned & a, const unsigned & b )
+    {
+        return a < b ? a : b; // a <? b GNU C++ extension does the same :S!
+    }
+    inline unsigned max( const unsigned & a, const unsigned & b )
+    {
+        return a > b ? a : b;
+    }
+
+
+    /**
+     * Provides a class for a moving window type 2d cache
+     **/
+    template<class T_PREC>
+    struct MovingWindowCache2D
+    {
+        T_PREC const * const & rData;
+        unsigned const & rnDataX;
+        unsigned const & rnDataY;
+
+        T_PREC * const & buffer; /**< pointer to allocated buffer, will not be allocated on constructor because this class needs to be trivial to work on GPU */
+        unsigned const & nRowsBuffer;
+        unsigned const & nColsBuffer;
+
+        unsigned const & nThreads;
+        unsigned const & nKernelHalf;
+
+        inline T_PREC & operator[]( unsigned i ) const
+        {
+            return buffer[i];
+        }
+
+        /**
+         * @param[in] nThreads specifies how many values should be calculatable.
+         *            Meaning this sets the numbers of rows we need to cache.
+         * @param[in] iCol specifies the start column of rData from which we
+         *            are to cache data
+         **/
+        inline void loadNextColumns( unsigned const & iCol ) const
+        {
+            assert( iCol < rnDataX );
+
+            /* In the first step initialize the left halo buffer cells which will then be moved to the start to the first  */
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                /* makes it easier to see if we cache the correct data */
+                memset( buffer, 0, nBufferSize*sizeof( buffer[0] ) );
+                std::cout << "Copy some initial data to buffer:\n";
+            #endif
+            #endif
+
+            for ( unsigned iRowBuf = nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
+            {
+                /* if rnDataY == 1, then we can only load 2*nKernelHalf+1 rows! */
+                if ( iRowBuf-nThreads >= rnDataY + 2*nKernelHalf+1 )
+                    break;
+
+                for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                {
+                    if ( iCol+iColBuf >= rnDataX )
+                        break;
+
+                    const int signedDataRow = int(iRowBuf-nThreads) - (int)nKernelHalf;
+                    /* periodic */
+                    //const int tmpRow = signedRow % rnDataY;
+                    //const int newRow = tmpRow < 0 ? tmpRow + rnDataY : tmpRow;
+                    /* extend */
+                    const unsigned newRow = min( rnDataY-1, (unsigned) max( 0, signedDataRow ) );
+                        assert( newRow < rnDataY );
+                    const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
+                        assert( iBuf < nRowsBuffer*nColsBuffer );
+                    const unsigned iData = newRow*rnDataX + iCol+iColBuf;
+                        assert( iData < rnDataX*rnDataY );
+
+                    (*this)[ iBuf ] = rData[ iData ];
+                }
+            }
+
+            #ifndef NDEBUG
+            #if DEBUG_GAUSSIAN_CPP == 1
+                for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
+                {
+                    std::cout << std::setw(3);
+                    std::cout << iRowBuf << ": ";
+                    std::cout << std::setw(11);
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                        std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
+                    std::cout << "\n";
+                }
+            #endif
+            #endif
+        }
+    };
+
+    template<class T_PREC>
+    void gaussianBlurVertical
+    (
+        T_PREC * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    )
+    {
+        /* calculate Gaussian kernel */
+        const unsigned nKernelElements = 64;
+        T_PREC pKernel[64];
+        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+            assert( kernelSize <= nKernelElements );
+            assert( kernelSize % 2 == 1 );
+        const unsigned nKernelHalf = (kernelSize-1)/2;
+
+        T_PREC * const w = pKernel+nKernelHalf; /* now we can use w[-1],... */
+
+        #ifndef NDEBUG
+        #if DEBUG_GAUSSIAN_CPP == 1
+            std::cout << "\nConvolve Kernel : \n";
+            for ( unsigned iW = 0; iW < kernelSize; ++iW )
+                std::cout << pKernel[iW] << ( iW == kernelSize-1 ? "" : " " );
+            std::cout << "\n";
+
+            std::cout << "\nInput Matrix to convolve vertically : \n";
+            for ( unsigned iRow = 0; iRow < rnDataY; ++iRow )
+            {
+                std::cout << std::setw(11);
+                for ( unsigned iCol = 0; iCol < rnDataX; ++iCol )
+                    std::cout << rData[ iRow*rnDataX + iCol ] << " ";
+                std::cout << "\n";
+            }
+        #endif
+        #endif
+
+        /* 16*4 Byte (Float) = 64 Byte ~ 1 cache line on sandybridge */
+        const unsigned nColsBuffer = 64 / sizeof( rData[0] );
+        /* must be at least kernelSize rows! and should fit into L1-Cache of
+         * e.g. 32KB */
+        const unsigned nRowsBuffer = 30000 / 4 / nColsBuffer;
+            assert( nRowsBuffer >= kernelSize );
+        const unsigned nThreads = nRowsBuffer - 2*nKernelHalf;
+            assert( nThreads > 0 );
+        const unsigned nBufferSize = nColsBuffer * nRowsBuffer;
+        auto pBuffer = new T_PREC[nBufferSize];
+
+        /* actually C++11, but only implemented in GCC 5 ! */
+        //static_assert( std::is_trivially_copyable< MovingWindowCache2D<T_PREC> >::value );
+        MovingWindowCache2D<T_PREC> buffer
+        {
+            rData, rnDataX, rnDataY,
+            pBuffer, nRowsBuffer, nColsBuffer,
+            nThreads, nKernelHalf
+        };
+
+        for ( unsigned iCol = 0; iCol < rnDataX; iCol += nColsBuffer )
+        {
+            buffer.loadNextColumns( iCol );
+
+            for ( unsigned iRow = 0; iRow < rnDataY; iRow += nRowsBuffer-kernelSize+1 )
+            {
+                /* move as many rows as we calculated in last iteration with
+                 * threads */
+                //memcpy( buffer, buffer + nThreads*nColsBuffer, (nBufferSize - nThreads*nColsBuffer) * sizeof( buffer[0] ) );
+                for ( unsigned iRow = 0; iRow < nRowsBuffer-nThreads; ++iRow )
+                for ( unsigned iCol = 0; iCol < nColsBuffer; ++iCol )
+                {
+                    const unsigned iTarget = iRow*nColsBuffer + iCol;
+                        assert( iTarget < nBufferSize );
+                    const unsigned iSrc = (iRow+nThreads)*nColsBuffer + iCol;
+                        assert( iSrc < nBufferSize );
+                    buffer[ iTarget ] = buffer[ iSrc ];
+                }
+
+                /* cache new values to freed places to the right  */
+                for ( unsigned iRowBuf = nRowsBuffer - nThreads; iRowBuf < nRowsBuffer; ++iRowBuf )
+                {
+                    if ( iRow+iRowBuf >= rnDataY + 2*nKernelHalf )
+                        break;
+
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                    {
+                        if ( iCol+iColBuf >= rnDataX )
+                            break;
+
+                        //std::cout << "Buffer " << iRowBuf << "," << iColBuf << " -> ";
+                        /* periodic */
+                        //const int signedRow = ( iRow + iW ) % rnDataY;
+                        //const int newRow = signedRow < 0 ? signedRow + rnDataY : signedRow;
+                        /* extend */
+                            assert( rnDataY >= 1 );
+                        const unsigned newRow = min( rnDataY-1, (unsigned) max( 0,
+                            (int)iRow - (int)nKernelHalf + (int)iRowBuf ) );
+                        const unsigned iBuf = iRowBuf*nColsBuffer + iColBuf;
+                            assert( iBuf < nBufferSize );
+                        const unsigned iData = newRow*rnDataX + iCol+iColBuf;
+                            assert( iData < rnDataX*rnDataY );
+
+                        buffer[ iBuf ] = rData[ iData ];
+
+                        //std::cout << newRow << "," << iCol+iColBuf << "\n";
+                    }
+                }
+                #ifndef NDEBUG
+                #if DEBUG_GAUSSIAN_CPP == 1
+                    std::cout << "Move buffer data to beginning and fill end:\n";
+                    for ( unsigned iRowBuf = 0; iRowBuf < nRowsBuffer; ++iRowBuf )
+                    {
+                        std::cout << std::setw(3);
+                        std::cout << iRowBuf << ": ";
+                        std::cout << std::setw(11);
+                        for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                            std::cout << buffer[ iRowBuf*nColsBuffer + iColBuf ] << " ";
+                        std::cout << "\n";
+                    }
+                #endif
+                #endif
+
+                /* calculate on buffer */
+                #ifndef NDEBUG
+                #if DEBUG_GAUSSIAN_CPP == 1
+                    std::cout << "Calculated values:\n";
+                #endif
+                #endif
+                for ( unsigned iRowBuf = nKernelHalf; iRowBuf < nRowsBuffer-nKernelHalf; ++iRowBuf )
+                {
+                    if ( iRow + (iRowBuf-nKernelHalf) >= rnDataY )
+                        break;
+
+                    #ifndef NDEBUG
+                    #if DEBUG_GAUSSIAN_CPP == 1
+                        std::cout << std::setw(3) << iRow + (iRowBuf-nKernelHalf) << ": ";
+                    #endif
+                    #endif
+
+                    for ( unsigned iColBuf = 0; iColBuf < nColsBuffer; ++iColBuf )
+                    {
+                        if ( iCol+iColBuf >= rnDataX )
+                            break;
+
+                        //std::cout << "Buffer " << iRowBuf << "," << iColBuf << "\n";
+                        /* calculate weighted sum */
+                        T_PREC sum = 0;
+                        for ( int iW = -nKernelHalf; iW <= (int)nKernelHalf; ++iW )
+                        {
+                            assert( iRowBuf+iW >= 0 );
+                            const unsigned iBuf = unsigned( iRowBuf+iW ) * nColsBuffer + iColBuf;
+                            assert( iBuf < nBufferSize );
+                            sum += buffer[iBuf] * w[iW];
+                        }
+                        assert( iRowBuf-nKernelHalf >= 0 );
+                        const unsigned iData = ( iRow + (iRowBuf-nKernelHalf) ) * rnDataX + iCol+iColBuf;
+                        assert( iData < rnDataX*rnDataY );
+                        rData[ iData ] = sum;
+
+                        #ifndef NDEBUG
+                        #if DEBUG_GAUSSIAN_CPP == 1
+                            std::cout << std::setw(11) << sum << " ";
+                        #endif
+                        #endif
+                    }
+
+                    #ifndef NDEBUG
+                    #if DEBUG_GAUSSIAN_CPP == 1
+                        std::cout << "\n";
+                    #endif
+                    #endif
+                }
+            }
+        }
+
+        delete[] pBuffer;
+    }
+
 
     template<class T_PREC>
     void gaussianBlur
@@ -534,6 +742,7 @@ namespace libs
         const double & rSigma
     )
     {
+        assert( rData != NULL );
         gaussianBlurHorizontal( rData,rnDataX,rnDataY,rSigma );
         gaussianBlurVertical  ( rData,rnDataX,rnDataY,rSigma );
     }
@@ -604,19 +813,19 @@ namespace libs
         const double & rSigma
     );
 
-    template int calcGaussianKernel<float>
+    template void gaussianBlurVerticalUncached<float>
     (
-        const double & rSigma,
-        float * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
     );
-    template int calcGaussianKernel<double>
+    template void gaussianBlurVerticalUncached<double>
     (
-        const double & rSigma,
-        double * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
     );
 
     template void gaussianBlurHorizontal<float>

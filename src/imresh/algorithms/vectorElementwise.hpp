@@ -25,10 +25,6 @@
 
 #pragma once
 
-#include <algorithm>  // max
-#include <cmath>
-#include <fftw3.h>
-
 
 namespace imresh
 {

@@ -25,19 +25,6 @@
 
 #pragma once
 
-#include <iostream>
-#include <cmath>
-#include <cassert>
-#include <cstddef>        // NULL
-#include <cstdlib>
-#include <cstdio>
-#include <cuda.h>
-#include "libs/gaussian.hpp"  // calcGaussianKernel
-
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
-
 
 namespace imresh
 {
@@ -125,14 +112,6 @@ namespace cuda
         const double & rSigma
     );
 
-    template<class T_PREC>
-    void cudaGaussianBlurHorizontal
-    (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
-    );
 
     template<class T_PREC>
     void cudaGaussianBlurVertical
@@ -143,6 +122,59 @@ namespace cuda
         const double & rSigma
     );
 
+    /**
+     * Should only be used for benchmarking purposes.
+     *
+     * Makes use of constant memory to store the kernel.
+     * @see cudaGaussianBlurHorizontal
+     **/
+    template<class T_PREC>
+    void cudaGaussianBlurHorizontalConstantWeights
+    (
+        T_PREC * const & rdpData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    /**
+     * Should only be used for benchmarking purposes.
+     *
+     * Buffers the kernel to shared memory.
+     * @see cudaGaussianBlurHorizontal
+     **/
+    template<class T_PREC>
+    void cudaGaussianBlurHorizontalSharedWeights
+    (
+        T_PREC * const & rdpData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+
+    /**
+     * Apply Gaussian blur on a 2D data set in the horizontal axis.
+     *
+     * This function is just a wrapper which should call one of the
+     * 'cudaGaussianBlurHorizontal.+' (regex) functions above. Normally
+     * it should be the fastest version.
+     *
+     * 'Horizontal' means lines of contiguous memory.
+     *
+     * @see cudaGaussianBlur
+     **/
+    template<class T_PREC>
+    inline void cudaGaussianBlurHorizontal
+    (
+        T_PREC * const & rdpData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    )
+    {
+        cudaGaussianBlurHorizontalSharedWeights( rdpData, rnDataX, rnDataY, rSigma );
+    }
 
 } // namespace cuda
 } // namespace algorithms

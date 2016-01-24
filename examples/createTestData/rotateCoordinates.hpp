@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,27 +25,20 @@
 
 #pragma once
 
-#include <cstdlib>  // srand, RAND_MAX, rand
-#include <cmath>    // fmin, sqrtf
-#include <utility>  // std::pair
-#include <cstdlib>  // srand, rand
-#include "libs/gaussian.hpp"
-
 
 namespace examples
 {
+namespace createTestData
+{
 
-
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float* createAtomCluster
+    void rotateCoordinates2d
     (
-        const std::pair<unsigned int,unsigned int>& rSize
+        float & x,
+        float & y,
+        float const & xCenter,
+        float const & yCenter,
+        float const & phi
     );
 
-
+} // namespace createTestData
 } // namespace examples

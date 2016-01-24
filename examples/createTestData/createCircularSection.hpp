@@ -25,59 +25,43 @@
 
 #pragma once
 
+#include <cmath>    // atan2
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
-namespace imresh
+
+namespace examples
 {
-namespace algorithms
+namespace createTestData
 {
 
 
     /**
-     * Calculate the maximum absolute difference between to arrays
+     * Create a sample data of a circular section with values 1.0 else 0.0
      *
-     * Useful for comparing two vectors of floating point numbers
+     * By default, if only 3 parameters given a full circle will be drawn
+     *
+     * @param[in] Nx width  of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @param[in] r width  of the slit (percentage of Nx) 0 <= Dx <= 1
+     * @param[in] x0 position of circle in relativ coordinates
+     * @param[in] y0 position of circle in relativ coordinates
+     * @param[in] Dy height of the slit (percentage of Ny) 0 <= Dy <= 1
+     * @param[in] phi can be used to rotate the whole rectangle
+     * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    template<class T>
-    T vectorMaxAbsDiff
+    float * createCircularSection
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & r,
+        float    const & x0 = 0.5,
+        float    const & y0 = 0.5,
+        float    const & phi0 = 0,
+        float    const & phi1 = 2.0*M_PI
     );
 
 
-} // namespace algorithms
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples

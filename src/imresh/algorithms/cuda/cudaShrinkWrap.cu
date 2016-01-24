@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2015-2016 Maximilian Knespel, Phillip Trommler
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,9 +22,31 @@
  * SOFTWARE.
  */
 
-#include <utility>                              // std::pair
-
 #include "algorithms/cuda/cudaShrinkWrap.h"
+
+#ifndef NDEBUG
+#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
+#else
+#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
+#endif
+
+#include <iostream>
+#include <cstddef>      // NULL
+#include <cstring>      // memcpy
+#include <cassert>
+#include <cstdint>      // uint64_t
+#include <cmath>
+#include <vector>
+#include <cuda.h>       // atomicCAS
+#include <cufft.h>
+#include <utility>      // std::pair
+#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaVectorReduce.hpp"
+#if DEBUG_CUDASHRINKWRAP == 1
+#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
+#    include "algorithms/vectorReduce.hpp"
+#    include "algorithms/vectorElementwise.hpp"
+#endif
 #include "libs/cudacommon.h"
 
 
@@ -193,250 +215,6 @@ namespace cuda
 
 
     /**
-     * simple functors to just get the sum of two numbers. To be used
-     * for the binary vectorReduce function to make it a vectorSum or
-     * vectorMin or vectorMax
-     **/
-    template<class T> struct SumFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
-        { return a+b; }
-    };
-    template<class T> struct MinFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
-        { if (a<b) return a; else return b; }
-    };
-    template<class T> struct MaxFunctor {
-        __device__ __host__ T operator() ( const T & a, const T & b )
-        { if (a>b) return a; else return b; }
-    };
-    SumFunctor<float> sumFunctor;
-    MaxFunctor<float> maxFunctor;
-    MinFunctor<float> minFunctor;
-
-
-    template<class T_FUNC>
-    __device__ float atomicFunc
-    (
-        float * const rdpTarget,
-        const float rValue,
-        T_FUNC f
-    )
-    {
-        /* atomicCAS only is defined for int and long long int, thats why we
-         * need these roundabout casts */
-        int assumed;
-        int old = * (int*) rdpTarget;
-
-        /* atomicCAS returns the value with which the current value 'assumed'
-         * was compared. If the value changed between reading out to assumed
-         * and calculating the reduced value and storing it back, then we
-         * need to call this function again. (I hope the GPU has some
-         * functionality to prevent synchronized i.e. neverending races ... */
-        do
-        {
-            assumed = old;
-            old = atomicCAS( (int*) rdpTarget, assumed,
-                __float_as_int( f( __int_as_float(assumed), rValue ) ) );
-        } while ( assumed != old );
-
-        return __int_as_float( old );
-    }
-
-
-    /**
-     * Saves result of vector reduce in b
-     *
-     * e.g. call with kernelVectorReduceShared<<<4,128>>>( data, 1888, 4, result,
-     *  [](float a, float b){ return fmax(a,b); } )
-     * @todo use recursion in order to implement a log_2(n) algorithm
-     *
-     * @param[in]  rData      vector to reduce
-     * @param[in]  rnData     length of vector to reduce in elements
-     * @param[in]  rResult    reduced result value (sum, max, min,..)
-     * @param[in]  rInitValue initial value for reduction, e.g. 0 for sum or max
-     *                        and FLT_MAX for min
-     **/
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceShared
-    (
-        const T_PREC * const rdpData,
-        const unsigned rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        const T_PREC rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
-
-        T_PREC localReduced = T_PREC(rInitValue);
-        for ( ; i < rnData; i += nTotalThreads )
-            localReduced = f( localReduced, rdpData[i] );
-
-        __shared__ T_PREC smReduced;
-        /* master thread of every block shall set shared mem variable to 0 */
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            smReduced = T_PREC(rInitValue);
-        __syncthreads();
-
-        //atomicMax( &smReduced, localReduced );
-        atomicFunc( &smReduced, localReduced, f );
-
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            atomicFunc( rdpResult, smReduced, f );
-    }
-
-
-    template<class T_PREC, class T_FUNC>
-    T_PREC cudaReduce
-    (
-        const T_PREC * const rdpData,
-        const unsigned rnElements,
-        T_FUNC f,
-        const T_PREC rInitValue
-    )
-    {
-        const unsigned nThreads = 256;
-        const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
-
-        float reducedValue;
-        float * dpReducedValue;
-        float initValue = (float) rInitValue;
-
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
-        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
-
-        kernelVectorReduceShared<<<nBlocks,nThreads>>>
-            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
-
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
-
-        CUDA_ERROR( cudaFree( dpReducedValue ) );
-
-        return reducedValue;
-    }
-
-
-    /**
-     * "For the input-output algorithms the error E_F is
-     *  usually meaningless since the input g_k(X) is no longer
-     *  an estimate of the object. Then the meaningful error
-     *  is the object-domain error E_0 given by Eq. (15)."
-     *                                      (Fienup82)
-     * Eq.15:
-     * @f[ E_{0k}^2 = \sum\limits_{x\in\gamma} |g_k'(x)^2|^2 @f]
-     * where \gamma is the domain at which the constraints are
-     * not met. SO this is the sum over the domain which should
-     * be 0.
-     *
-     * Eq.16:
-     * @f[ E_{Fk}^2 = \sum\limits_{u} |G_k(u) - G_k'(u)|^2 / N^2
-                    = \sum_x |g_k(x) - g_k'(x)|^2 @f]
-     **/
-    template< class T_COMPLEX, class T_MASK_ELEMENT >
-    __global__ void cudaKernelCalculateHioError
-    (
-        const T_COMPLEX * const rdpgPrime,
-        const T_MASK_ELEMENT * const rdpIsMasked,
-        const unsigned rnData,
-        const bool rInvertMask,
-        float * const rdpTotalError,
-        float * const rdpnMaskedPixels
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
-
-        float localTotalError    = 0;
-        float localnMaskedPixels = 0;
-        for ( ; i < rnData; i += nTotalThreads )
-        {
-            const auto & re = rdpgPrime[i].x;
-            const auto & im = rdpgPrime[i].y;
-
-            /* only add up norm where no object should be (rMask == 0) */
-            assert( rdpIsMasked[i] >= 0.0 and rdpIsMasked[i] <= 1.0 );
-            float shouldBeZero = rdpIsMasked[i];
-            if ( rInvertMask )
-                shouldBeZero = 1 - shouldBeZero;
-
-            localTotalError    += shouldBeZero * ( re*re+im*im );
-            localnMaskedPixels += shouldBeZero;
-        }
-
-        __shared__ float smTotalError, smnMaskedPixels;
-        /* master thread of every block shall set shared mem variable to 0 */
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-        {
-            smTotalError    = 0;
-            smnMaskedPixels = 0;
-        }
-        __syncthreads();
-
-        SumFunctor<float> sum;
-        atomicFunc( &smTotalError   , localTotalError   , sum );
-        atomicFunc( &smnMaskedPixels, localnMaskedPixels, sum );
-
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-        {
-            atomicFunc( rdpTotalError, smTotalError, sum );
-            atomicFunc( rdpnMaskedPixels, smnMaskedPixels, sum );
-        }
-    }
-
-
-    template<class T_COMPLEX, class T_MASK_ELEMENT>
-    float calculateHioError
-    (
-        const T_COMPLEX * const & rdpData,
-        const T_MASK_ELEMENT * const & rdpIsMasked,
-        const unsigned & rnElements,
-        const bool & rInvertMask = false
-    )
-    {
-        const unsigned nThreads = 256;
-        const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
-
-        float     totalError,     nMaskedPixels;
-        float * dpTotalError, * dpnMaskedPixels;
-
-        CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
-        CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-        CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
-
-        cudaKernelCalculateHioError<<<nBlocks,nThreads>>>
-            ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
-        CUDA_ERROR( cudaDeviceSynchronize() );
-
-        CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError, sizeof(float), cudaMemcpyDeviceToHost ) );
-        CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels, sizeof(float), cudaMemcpyDeviceToHost ) );
-
-        CUDA_ERROR( cudaFree( dpTotalError    ) );
-        CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
-
-        return sqrtf(totalError) / nMaskedPixels;
-    }
-
-
-    /**
      * Shifts the Fourier transform result in frequency space to the center
      *
      * @verbatim
@@ -536,21 +314,6 @@ namespace cuda
     }
 
 
-    /**
-     *
-     * In contrast to the normal hybrid input output this function takes
-     * pointers to memory buffers instead of allocating them itself.
-     * Furthermore it doesn't touch rIntensity and it returns F instead of f
-     * in curData.
-     * It also doesn't bother to calculate the error at each step.
-     *
-     * @param[in] rIntensity real measured intensity without phase
-     * @param[in] rIntensityFirstGuess first guess for the phase of the
-     *            intensity, e.g. a random phase
-     * @param[in] gPrevious this isn't actually a guess for the object f, but
-     *            an intermediary result for the HIO algorithm. For the first
-     *            call it should be equal to g' = IFT[G == rIntensityFirstGuess]
-     **/
     int cudaShrinkWrap
     (
         float * const & rIntensity,
@@ -562,8 +325,7 @@ namespace cuda
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles,
-        unsigned rnCores
+        unsigned rnHioCycles
     )
     {
         if ( rSize.size() != 2 ) return 1;
@@ -622,7 +384,7 @@ namespace cuda
         cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
         /* apply threshold to make binary mask */
-        const float maskedAbsMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements );
         const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
         cudaKernelCutOff<<<nBlocks,nThreads>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
 
@@ -647,7 +409,7 @@ namespace cuda
             cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
             /* apply threshold to make binary mask */
-            const float absMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+            const float absMax = cudaVectorMax( dpIsMasked, nElements );
             const float threshold = rIntensityCutOff * absMax;
             cudaKernelCutOff<<<nBlocks,nThreads>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
@@ -693,9 +455,6 @@ namespace cuda
         return 0;
     }
 
-    /**
-     * Same as cudaShrinkWrap but with support for async calls.
-     */
     int shrinkWrap
     (
         float* const& rIntensity,
@@ -708,8 +467,7 @@ namespace cuda
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles,
-        unsigned rnCores
+        unsigned rnHioCycles
     )
     {
         const unsigned& Ny = rSize.second;
@@ -763,7 +521,7 @@ namespace cuda
         cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
         /* apply threshold to make binary mask */
-        const float maskedAbsMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements );
         const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
         cudaKernelCutOff<<<nBlocks,nThreads,0,strm>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
 
@@ -790,7 +548,7 @@ namespace cuda
             cudaGaussianBlur( dpIsMasked, Nx, Ny, sigma );
 
             /* apply threshold to make binary mask */
-            const float absMax = cudaReduce( dpIsMasked, nElements, maxFunctor, 0.0f );
+            const float absMax = cudaVectorMax( dpIsMasked, nElements );
             const float threshold = rIntensityCutOff * absMax;
             cudaKernelCutOff<<<nBlocks,nThreads,0,strm>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
@@ -838,6 +596,8 @@ namespace cuda
 
         return 0;
     }
+
+
 } // namespace cuda
 } // namespace algorithms
 } // namespace imresh

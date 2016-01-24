@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,58 +26,40 @@
 #pragma once
 
 
-namespace imresh
+namespace examples
 {
-namespace algorithms
+namespace createTestData
 {
 
 
     /**
-     * Calculate the maximum absolute difference between to arrays
+     * Create checkerboarsd sample data alternating between 0 and 1
      *
-     * Useful for comparing two vectors of floating point numbers
+     * @verbatim
+     *    +------+ ^
+     *    |##  ##| |
+     *    |  ##  | Ny   ->  ## Dy
+     *    |##  ##| |        Dx
+     *    +------+ v
+     *    <--Nx-->
+     * @endverbatim
+     *
+     * @param[in] Nx width  of the test image to produce
+     * @param[in] Ny height of the test image to produce
+     * @param[in] Dx width  of the rectangles (percentage of Nx) 0 <= Dx <= 1
+     * @param[in] Dy height of the rectangles (percentage of Ny) 0 <= Dy <= 1
+     * @param[in] phi can be used to rotate the whole pattern
+     * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    template<class T>
-    T vectorMaxAbsDiff
+    float * createCheckerboard
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx = 0.1,
+        float    const & Dy = 0.1,
+        float    const & phi = 0
     );
 
 
-} // namespace algorithms
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples
