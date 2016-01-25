@@ -27,7 +27,6 @@
 #include <functional>               // std::function
 #include <list>                     // std::list
 #include <utility>                  // std::pair
-#include <thread>
 
 
 namespace imresh

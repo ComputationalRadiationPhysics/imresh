@@ -82,15 +82,15 @@ namespace writeOutFuncs
 
             pngwriter png( Nx, Ny, 0, _filename.c_str( ) );
 
-            float max = algorithms::vectorMax( _mem, Nx*Ny );
+            float max = algorithms::vectorMax( _mem, Nx * Ny );
             for( unsigned iy = 0; iy < Ny; ++iy )
             {
                 for( unsigned ix = 0; ix < Nx; ++ix )
                 {
-                    auto const index = iy*Nx + ix;
-                    assert( index < Nx*Ny );
+                    auto const index = iy * Nx + ix;
+                    assert( index < Nx * Ny );
                     const auto & value = _mem[index] / max;
-                    if ( not value == value ) // isNaN
+                    if ( not ( value == value ) ) // isNaN
                         png.plot( ix, iy, 255, 0, 0 );
                     else
                         png.plot( ix, iy, value, value, value );
