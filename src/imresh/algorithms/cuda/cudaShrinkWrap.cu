@@ -384,8 +384,7 @@ namespace cuda
                           true /* don't call cudaDeviceSynchronize */ );
 
         /* apply threshold to make binary mask */
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements );
+        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements, rStream );
         const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
         cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
 
@@ -412,8 +411,7 @@ namespace cuda
             cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
 
             /* apply threshold to make binary mask */
-            CUDA_ERROR( cudaDeviceSynchronize() );
-            const float absMax = cudaVectorMax( dpIsMasked, nElements );
+            const float absMax = cudaVectorMax( dpIsMasked, nElements, rStream );
             const float threshold = rIntensityCutOff * absMax;
             cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
@@ -437,8 +435,7 @@ namespace cuda
             } // HIO loop
 
             /* check if we are done */
-            CUDA_ERROR( cudaDeviceSynchronize() );
-            const float currentError = calculateHioError( dpCurData /*g'*/, dpIsMasked, nElements );
+            const float currentError = calculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
 #           ifdef IMRESH_DEBUG
                 std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                           << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
@@ -453,7 +450,7 @@ namespace cuda
         CUDA_ERROR( cudaMemcpyAsync( rIntensity, dpIntensity, sizeof(rIntensity[0])*nElements, cudaMemcpyDeviceToHost, rStream ) );
 
         /* wait for everything to finish */
-        CUDA_ERROR( cudaDeviceSynchronize() );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
         /* free buffers and plans */
         CUFFT_ERROR( cufftDestroy( ftPlan ) );

@@ -40,28 +40,12 @@ namespace algorithms
 namespace cuda
 {
 
-
-    /**
-     * simple functors to just get the sum of two numbers. To be used
-     * for the binary vectorReduce function to make it a vectorSum or
-     * vectorMin or vectorMax
-     **/
-    template<class T> struct SumFunctor {
-        __device__ __host__ inline T operator() ( const T & a, const T & b )
-        { return a+b; }
-    };
-    template<class T> struct MinFunctor {
-        __device__ __host__ inline T operator() ( const T & a, const T & b )
-        { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
-    };
-    template<class T> struct MaxFunctor {
-        __device__ __host__ inline T operator() ( const T & a, const T & b )
-        { if (a>b) return a; else return b; }
-    };
-    template<> struct MaxFunctor<float> {
-        __device__ __host__ inline float operator() ( const float & a, const float & b )
-        { return fmax(a,b); }
-    };
+    SumFunctor<float > sumFunctorf;
+    MinFunctor<float > minFunctorf;
+    MaxFunctor<float > maxFunctorf;
+    SumFunctor<double> sumFunctord;
+    MinFunctor<double> minFunctord;
+    MaxFunctor<double> maxFunctord;
 
 
     template<class T_PREC, class T_FUNC>
@@ -265,7 +249,8 @@ namespace cuda
         const T_PREC * const rdpData,
         const unsigned rnElements,
         T_FUNC f,
-        const T_PREC rInitValue
+        const T_PREC rInitValue,
+        cudaStream_t rStream
     )
     {
         const unsigned nThreads = 128;
@@ -284,14 +269,15 @@ namespace cuda
         T_PREC initValue = rInitValue;
 
         CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
-        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
+        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice, rStream ) );
 
-        kernelVectorReduceWarps<<<nBlocks,nThreads>>>
+        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
+        kernelVectorReduceWarps<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
-
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream) );
         CUDA_ERROR( cudaFree( dpReducedValue ) );
 
         return reducedValue;
@@ -304,7 +290,8 @@ namespace cuda
         const T_PREC * const rdpData,
         const unsigned rnElements,
         T_FUNC f,
-        const T_PREC rInitValue
+        const T_PREC rInitValue,
+        cudaStream_t rStream
     )
     {
         /* the more threads we have the longer the reduction will be
@@ -318,14 +305,15 @@ namespace cuda
         T_PREC initValue = rInitValue;
 
         CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
-        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
+        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice, rStream ) );
 
-        kernelVectorReduceShared<<<nBlocks,nThreads>>>
+        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
+        kernelVectorReduceShared<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
-
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream) );
         CUDA_ERROR( cudaFree( dpReducedValue ) );
 
         return reducedValue;
@@ -338,7 +326,8 @@ namespace cuda
         const T_PREC * const rdpData,
         const unsigned rnElements,
         T_FUNC f,
-        const T_PREC rInitValue
+        const T_PREC rInitValue,
+        cudaStream_t rStream
     )
     {
         const unsigned nThreads = 256;
@@ -350,14 +339,15 @@ namespace cuda
         T_PREC initValue = rInitValue;
 
         CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(float) ) );
-        CUDA_ERROR( cudaMemcpy( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice ) );
+        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(float), cudaMemcpyHostToDevice, rStream ) );
 
-        kernelVectorReduceSharedMemoryWarps<<<nBlocks,nThreads>>>
+        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
+        kernelVectorReduceSharedMemoryWarps<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
-        CUDA_ERROR( cudaDeviceSynchronize() );
-        CUDA_ERROR( cudaMemcpy( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost ) );
-
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream) );
         CUDA_ERROR( cudaFree( dpReducedValue ) );
 
         return reducedValue;
@@ -368,11 +358,12 @@ namespace cuda
     T_PREC cudaVectorMin
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     )
     {
         MinFunctor<T_PREC> minFunctor;
-        return cudaReduce( rdpData, rnElements, minFunctor, std::numeric_limits<T_PREC>::max() );
+        return cudaReduce( rdpData, rnElements, minFunctor, std::numeric_limits<T_PREC>::max(), rStream );
     }
 
 
@@ -380,11 +371,12 @@ namespace cuda
     T_PREC cudaVectorMax
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     )
     {
         MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduce( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
+        return cudaReduce( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest(), rStream );
     }
 
 
@@ -392,11 +384,12 @@ namespace cuda
     T_PREC cudaVectorSum
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     )
     {
         SumFunctor<T_PREC> sumFunctor;
-        return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0) );
+        return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
     }
 
 
@@ -407,22 +400,24 @@ namespace cuda
     T_PREC cudaVectorMaxSharedMemory
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     )
     {
         MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduceSharedMemory( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
+        return cudaReduceSharedMemory( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest(), rStream );
     }
 
     template<class T_PREC>
     T_PREC cudaVectorMaxSharedMemoryWarps
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     )
     {
         MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduceSharedMemoryWarps( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
+        return cudaReduceSharedMemoryWarps( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest(), rStream );
     }
 
 
@@ -508,7 +503,8 @@ namespace cuda
         const T_COMPLEX * const & rdpData,
         const T_MASK_ELEMENT * const & rdpIsMasked,
         const unsigned & rnElements,
-        const bool & rInvertMask
+        const bool & rInvertMask,
+        cudaStream_t rStream
     )
     {
         const unsigned nThreads = 256;
@@ -521,15 +517,17 @@ namespace cuda
 
         CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
         CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
-        CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-        CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
+        CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
+        CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
-        cudaKernelCalculateHioError<<<nBlocks,nThreads>>>
+        /* memset is on the same stream as kernel will be, so no synchronize needed! */
+        cudaKernelCalculateHioError<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
-        CUDA_ERROR( cudaDeviceSynchronize() );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
-        CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError, sizeof(float), cudaMemcpyDeviceToHost ) );
-        CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels, sizeof(float), cudaMemcpyDeviceToHost ) );
+        CUDA_ERROR( cudaMemcpyAsync( &totalError   , dpTotalError   , sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( &nMaskedPixels, dpnMaskedPixels, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
         CUDA_ERROR( cudaFree( dpTotalError    ) );
         CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
@@ -544,13 +542,15 @@ namespace cuda
     float cudaVectorMin<float>
     (
         const float * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
     template
     double cudaVectorMin<double>
     (
         const double * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
 
 
@@ -558,13 +558,15 @@ namespace cuda
     float cudaVectorMax<float>
     (
         const float * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
     template
     double cudaVectorMax<double>
     (
         const double * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
 
 
@@ -572,13 +574,15 @@ namespace cuda
     float cudaVectorSum<float>
     (
         const float * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
     template
     double cudaVectorSum<double>
     (
         const double * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
 
     template
@@ -601,7 +605,8 @@ namespace cuda
         const cufftComplex * const & rdpData,
         const float * const & rdpIsMasked,
         const unsigned & rnElements,
-        const bool & rInvertMask
+        const bool & rInvertMask,
+        cudaStream_t rStream
     );
 
 
@@ -609,14 +614,16 @@ namespace cuda
     float cudaVectorMaxSharedMemory<float>
     (
         const float * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
 
     template
     float cudaVectorMaxSharedMemoryWarps<float>
     (
         const float * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream
     );
 
 

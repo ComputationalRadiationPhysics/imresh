@@ -200,7 +200,8 @@ namespace cuda
         (
             T_PREC const & rSigma,
             T_PREC* * rdppKernel,
-            unsigned * rpKernelSize
+            unsigned * rpKernelSize,
+            cudaStream_t rStream = 0
         )
         {
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -258,8 +259,9 @@ namespace cuda
 
                     /* upload to GPU */
                     *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
-                    CUDA_ERROR( cudaMemcpy( *rdppKernel, pKernel,
-                        kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice ) );
+                    CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
+                        kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
@@ -737,8 +739,9 @@ namespace cuda
             /* upload to GPU */
             CUDA_ERROR( cudaGetSymbolAddress( (void**) &dpWeights, gdpGaussianWeights ) );
             dpWeights += iKernel * nMaxWeights;
-            CUDA_ERROR( cudaMemcpy( dpWeights, pKernel,
-                kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice ) );
+            CUDA_ERROR( cudaMemcpyAsync( dpWeights, pKernel,
+                kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         }
         else
         {
@@ -763,7 +766,7 @@ namespace cuda
         >>>( rdpData, rnDataX, rnDataY, dpWeights, kernelSize );
 
         if ( not rAsync )
-            CUDA_ERROR( cudaDeviceSynchronize() );
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
@@ -836,7 +839,7 @@ namespace cuda
         >>>( rdpData, rnDataX, dpKernel, N );
 
         if ( not rAsync )
-            CUDA_ERROR( cudaDeviceSynchronize() );
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
@@ -1150,7 +1153,7 @@ namespace cuda
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
 
         if ( not rAsync )
-            CUDA_ERROR( cudaDeviceSynchronize() );
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
