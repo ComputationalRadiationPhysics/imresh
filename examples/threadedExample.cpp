@@ -36,6 +36,15 @@
 #endif
 
 
+
+void dummyWriteOutFunc(
+    float const * const _mem,
+    std::pair<unsigned, unsigned> const _size,
+    std::string const _filename
+)
+{}
+
+
 int main( void )
 {
     // First step is to initialize the library.
@@ -55,12 +64,7 @@ int main( void )
 #   endif
     // This step is only needed because we have no real images
     imresh::libs::diffractionIntensity( file.first, file.second );
-
-    // Now we can run the algorithm for testing purposes and free the data
-    // afterwards
-    imresh::io::addTask( file.first, file.second,
-                         imresh::io::writeOutFuncs::justFree,
-                         "free" /* gives an identifier for debugging */ );
+    delete[] file.first;
 
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
@@ -76,12 +80,9 @@ int main( void )
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
             imresh::io::addTask( file.first, file.second,
-                                 imresh::io::writeOutFuncs::writeOutPNG,
+                                 dummyWriteOutFunc, //imresh::io::writeOutFuncs::writeOutPNG,
                                  filename.str(),
                                  i /* sets the number of iterations */ );
-            imresh::io::addTask( file.first, file.second,
-                                 imresh::io::writeOutFuncs::justFree,
-                                 "free" /* gives an identifier for debugging */ );
         }
 #   endif
 
@@ -96,11 +97,6 @@ int main( void )
                              file.second,
                              imresh::io::writeOutFuncs::writeOutHDF5,
                              "imresh_out" );
-        imresh::io::addTask( file.first, file.second,
-                             imresh::io::writeOutFuncs::justFree,
-                             "free" /* gives an identifier for debugging */ );
-#   else
-        delete[] file.first;
 #   endif
 
     // The last step is always deinitializing the library.

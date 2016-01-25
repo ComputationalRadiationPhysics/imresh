@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include <vector>
-#include <utility>  // pair
 #include <cuda_runtime_api.h> // cudaStream_t
 
 
@@ -76,8 +74,10 @@ namespace cuda
      **/
     int cudaShrinkWrap
     (
-        float * const & rIoData,
-        const std::vector<unsigned> & rSize,
+        float * rIoData,
+        unsigned rImageWidth,
+        unsigned rImageHeight,
+        cudaStream_t rStream = 0,
         unsigned rnCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,
@@ -86,24 +86,6 @@ namespace cuda
         float sigma0 = 3.0,
         float rSigmaChange = 0.01,
         unsigned rnHioCycles = 20
-    );
-
-    /**
-     * Same as @see cudaShrinkWrap but with support for async calls.
-     **/
-    int shrinkWrap
-    (
-        float* const& rIntensity,
-        const std::pair<unsigned,unsigned>& rSize,
-        cudaStream_t strm,
-        unsigned rnCycles,
-        float rTargetError,
-        float rHioBeta,
-        float rIntensityCutOffAutoCorel,
-        float rIntensityCutOff,
-        float sigma0,
-        float rSigmaChange,
-        unsigned rnHioCycles
     );
 
 

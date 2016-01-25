@@ -30,6 +30,7 @@
 #include <mutex>                    // std::mutex
 #include <thread>                   // std::thread
 #include <utility>                  // std::pair
+#include <cassert>
 
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "libs/cudacommon.h"        // CUDA_ERROR
@@ -38,6 +39,7 @@ namespace imresh
 {
 namespace io
 {
+
     /**
      * Struct containing a CUDA stream with it's associated device.
      */
@@ -65,7 +67,7 @@ namespace io
      * This is determined while imresh::io::fillStreamList() as the number of
      * available streams.
      */
-    unsigned threadPoolMaxSize = 0;
+    unsigned int threadPoolMaxSize = 0;
 
     /**
      * Function to add a image processing task to the queue.
@@ -79,17 +81,7 @@ namespace io
      * If you need your write out function to be thread safe, you'll have to
      * use your own lock mechanisms inside of this function.
      *
-     * @param _h_mem Pointer to the image data.
-     * @param _size Size of the memory to be adressed.
-     * @param _writeOutFunc A function pointer (std::function) that will be
-     * used to handle the processed data.
-     * @param _filename The filename to use to save the processed image. Note
-     * that some write out functions will take a file extension (as '.png') and
-     * some others may not.
-     * @param _numberOfCycles Number of iterations to run shrink wrap for.
-     * @param _numberOfHIOCycles Number of iterations to run the initial
-     * hybrid input output for.
-     * @param _targetError The target error to stop the program when reached.
+     * @see addTask
      */
     void addTaskAsync(
         float* _h_mem,
@@ -114,6 +106,7 @@ namespace io
         auto strm = streamList.front( );
         streamList.pop_front( );
         streamList.push_back( strm );
+        mtx.unlock();
         auto device = strm.device;
         auto str = strm.str;
 
@@ -126,8 +119,9 @@ namespace io
 #       endif
 
         // Call shrinkWrap in the selected stream on the selected device.
-        imresh::algorithms::cuda::shrinkWrap( _h_mem,
-                                              _size,
+        imresh::algorithms::cuda::cudaShrinkWrap( _h_mem,
+                                              _size.first,
+                                              _size.second,
                                               str,
                                               _numberOfCycles,
                                               _targetError,
@@ -138,8 +132,6 @@ namespace io
                                               _sigmaChange,
                                               _numberOfHIOCycles );
 
-        mtx.unlock( );
-
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::addTaskAsync(): CUDA work finished, mutex unlocked. Calling write out function."
                 << std::endl;
@@ -148,9 +140,6 @@ namespace io
         _writeOutFunc( _h_mem, _size, _filename );
     }
 
-    /**
-     * Calls imresh::io::addTaskAsync() in a thread.
-     */
     void addTask(
         float* _h_mem,
         std::pair<unsigned int,unsigned int> _size,
@@ -167,13 +156,23 @@ namespace io
         float _sigmaChange = 0.01f
     )
     {
+        assert( threadPoolMaxSize > 0 and "Did you make a call to taskQueueInit?" );
+
         while( threadPool.size( ) >= threadPoolMaxSize )
         {
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
                     << std::endl;
 #           endif
-            threadPool.front( ).join( );
+            if ( threadPool.front().joinable() )
+                threadPool.front( ).join( );
+            else
+            {
+#               ifdef IMRESH_DEBUG
+                    std::cout << "[Warning] " << __FILE__ << " line " << __LINE__
+                              << ": a thread from the thread pool is not joinable!\n";
+#               endif
+            }
             threadPool.pop_front( );
         }
 
@@ -227,14 +226,14 @@ namespace io
             cudaDeviceProp prop;
             CUDA_ERROR( cudaGetDeviceProperties( &prop, i ) );
 
-            if( prop.multiProcessorCount <= 0 )
-            {
-#               ifdef IMRESH_DEBUG
-                    std::cout << "imresh::io::fillStreamList(): Devices has no multiprocessors. Aborting."
-                        << std::endl;
-#               endif
-                exit( EXIT_FAILURE );
-            }
+            assert( prop.multiProcessorCount >= 0 );
+#           ifdef IMRESH_DEBUG
+                /* 0 makes no problems with the next for loop */
+                if( prop.multiProcessorCount <= 0 )
+                {
+                    std::cout << "[Warning] imresh::io::fillStreamList(): Devices has no multiprocessors. Ignoring this device." << std::endl;
+                }
+#           endif
 
             for( int j = 0; j < prop.multiProcessorCount; j++ )
             {
@@ -256,11 +255,6 @@ namespace io
         return streamList.size( );
     }
 
-    /**
-     * Initializes the library.
-     *
-     * This is the _first_ call you should make in order to use this library.
-     */
     void taskQueueInit( )
     {
         threadPoolMaxSize = fillStreamList( );
@@ -270,12 +264,6 @@ namespace io
 #       endif
     }
 
-    /**
-     * Deinitializes the library.
-     *
-     * This is the last call you should make in order to clear the library's
-     * members.
-     */
     void taskQueueDeinit( )
     {
         threadPoolMaxSize = 0;
@@ -297,5 +285,6 @@ namespace io
                 << std::endl;
 #       endif
     }
+
 } // namespace io
 } // namespace imresh

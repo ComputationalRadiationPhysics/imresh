@@ -26,10 +26,14 @@
 #include "algorithms/cuda/cudaGaussian.h"
 
 #include <iostream>
-#include <cstdio>         // printf
+#include <cstdio>           // printf
+#include <cstdlib>          // exit, EXIT_FAILURE
 #include <cassert>
-#include <cstddef>        // NULL
+#include <cstddef>          // NULL
 #include <map>
+#include <mutex>
+#include <list>
+#include <utility>          // pair
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.h"
@@ -54,6 +58,7 @@ namespace cuda
 
     /**
      * Can reuse gaussian kernels already sent to the GPU.
+     * not threadsafe !
      *
      * Problematic to generalize for arbitrary kernels, because they don't
      * have a nice key value like sigma. We would have to compare every
@@ -98,44 +103,90 @@ namespace cuda
          **/
         static constexpr unsigned mMaxKernelSize = 32;
 
-        /* array of length mnMaxKernels * mMaxKernelSize * sizeof(T_PREC) */
-        T_PREC * mdpKernelBuffer;
-        /* first free kernel space */
-        unsigned mFirstFree;
-        /* use std::map for O(log N) search on the key == sigma and the value
-         * being an index which can be used for mKernelSizes and to calculate
-         * the offset from mdpKernelBuffer */
-        std::map<T_PREC,int> mKernelSigmas;
+        struct DeviceGaussianKernels
+        {
+            /* array of length mnMaxKernels * mMaxKernelSize * sizeof(T_PREC) */
+            T_PREC * dpKernelBuffer;
+            /* first free kernel space */
+            unsigned firstFree;
+            /* use std::map for O(log N) search on the key == sigma and the value
+             * being an index which can be used for mKernelSizes and to calculate
+             * the offset from mdpKernelBuffer */
+            std::map<T_PREC,int> kernelSigmas;
+        };
 
-        /* this pointer will be used if the asked for kernel is too large to
-         * fit into the kernel buffer. It will be freed the next time a kernel
-         * is too large or on the destructor call */
-        T_PREC * mdpEmergencyKernel;
+        /* list of ( iDevice, bufferStruct ) tuples */
+        std::list< std::pair< int, DeviceGaussianKernels > > mDeviceBuffers;
+        /* it would be bad, if we already had added some sigma value, for the
+         * other thread to read, but the data wasn't uploaded successfully yet.
+         * Also we don't want other threads to think that sigma isn't available
+         * while another thread is adding it, meaning two threads will add
+         * that kernel */
+        std::mutex mBuffersMutex;
+
+        /* not thread-safe! call mBuffersMutex.lock(); prior to calling this */
+        DeviceGaussianKernels & getDeviceBuffer ( void )
+        {
+            int curDevice;
+            CUDA_ERROR( cudaGetDevice( &curDevice ) );
+
+            for ( auto & deviceTuple : mDeviceBuffers )
+            {
+                if ( deviceTuple.first == curDevice )
+                    return deviceTuple.second;
+            }
+
+            /* if no match was found and returned, then create new buffer
+             * on new GPU */
+
+            DeviceGaussianKernels buffer;
+            buffer.dpKernelBuffer = NULL;
+            CUDA_ERROR( cudaMalloc( &buffer.dpKernelBuffer, mnMaxKernels *
+                mMaxKernelSize * sizeof( buffer.dpKernelBuffer[0] ) ) );
+            buffer.firstFree = 0;
+            assert( mnMaxKernels <= buffer.kernelSigmas.max_size() );
+
+            mDeviceBuffers.push_back( { curDevice, buffer } ); // !copy into list
+            auto & added = mDeviceBuffers.back().second;
+
+            #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                std::cout << "[Note] GaussianKernelGpuBuffer no buffer for device found, created new one at " << buffer.dpKernelBuffer << " in global memory on device" << curDevice << std::endl;
+            #endif
+            return added;
+        }
+
+        GaussianKernelGpuBuffer() {}; /* forbid construction except from itself */
+        GaussianKernelGpuBuffer( const GaussianKernelGpuBuffer & ); /* forbid copy */
+        GaussianKernelGpuBuffer & operator=( const GaussianKernelGpuBuffer & ); /* ibid */
 
     public:
 
-        /* Default Constructor */
-        GaussianKernelGpuBuffer()
-        : mdpKernelBuffer( NULL ), mFirstFree( 0 ), mdpEmergencyKernel( NULL )
+        static GaussianKernelGpuBuffer & getInstance()
         {
-            #ifndef NDEBUG
-                //std::cout << "Allocate Gaussian Kernel Buffer\n";
-            #endif
-            CUDA_ERROR( cudaMalloc( &mdpKernelBuffer,
-                mnMaxKernels * mMaxKernelSize * sizeof(mdpKernelBuffer[0]) ) );
-            assert( mnMaxKernels <= mKernelSigmas.max_size() );
+            /* This will be thread safe since C++11, where static variables
+             * is always thread-safe (according to section 6.7 of The Standard) */
+            static GaussianKernelGpuBuffer mInstance;
+            return mInstance;
         }
 
         /* Destructor */
         ~GaussianKernelGpuBuffer()
         {
-            #ifndef NDEBUG
-                //std::cout << "Freeing Gaussian Kernel Buffer\n";
+            #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                std::cout << "[Note] GaussianKernelGpuBuffer Destructor called.\n" << std::endl;
             #endif
-            if ( mdpKernelBuffer != NULL )
-                CUDA_ERROR( cudaFree( mdpKernelBuffer ) );
-            if ( mdpEmergencyKernel != NULL )
-                CUDA_ERROR( cudaFree( mdpEmergencyKernel ) );
+            int oldDevice;
+            CUDA_ERROR( cudaGetDevice( &oldDevice ) );
+            for ( auto & deviceTuple : mDeviceBuffers )
+            {
+                CUDA_ERROR( cudaSetDevice( deviceTuple.first ) );
+                if ( deviceTuple.second.dpKernelBuffer != NULL )
+                {
+                    CUDA_ERROR( cudaFree( deviceTuple.second.dpKernelBuffer ) );
+                    deviceTuple.second.dpKernelBuffer = NULL;
+                }
+            }
+            CUDA_ERROR( cudaSetDevice( oldDevice ) );
         }
 
         /**
@@ -149,24 +200,32 @@ namespace cuda
         (
             T_PREC const & rSigma,
             T_PREC* * rdppKernel,
-            unsigned * rpKernelSize
+            unsigned * rpKernelSize,
+            cudaStream_t rStream = 0
         )
         {
+            #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                std::cout << "[Note] GaussianKernelGpuBuffer::getGpuPointer called.\n" << std::endl;
+            #endif
+            mBuffersMutex.lock();
+
+            auto & buffer = getDeviceBuffer();
+
             /* look if we already have that kernel buffered */
             /* The single element versions (1) return a pair, with its member pair::first set to an iterator pointing to either the newly inserted element or to the element with an equivalent key in the map. The pair::second element in the pair is set to true if a new element was inserted or false if an equivalent key already existed. */
             /* In this case the return value is:
              * std::pair<std::map<T_PREC,int>::iterator,bool> */
-            auto inserted = mKernelSigmas.insert( std::pair<T_PREC,int>( rSigma, mFirstFree ) );
-            #ifndef NDEBUG
-                assert( inserted.first->first  == rSigma );
-                if ( inserted.second == true )
-                    assert( inserted.first->second == (int) mFirstFree );
-            #endif
+            auto inserted = buffer.kernelSigmas.insert( std::pair<T_PREC,int>( rSigma, buffer.firstFree ) );
+
+            assert( inserted.first->first  == rSigma );
+            if ( inserted.second == true )
+                assert( inserted.first->second == (int) buffer.firstFree );
+
             int & iKernel = inserted.first->second;
             /* calculate return values. If there are problems they will be
              * changed to more correct values, e.g. if the kernel doesn't fit
              * into the standard buffer */
-            *rdppKernel = mdpKernelBuffer + iKernel * mMaxKernelSize;
+            *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
             unsigned kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) NULL, 0 );
             *rpKernelSize = kernelSize;
 
@@ -189,47 +248,32 @@ namespace cuda
                         #ifndef NDEBUG
                             std::cout << "Warning, couldn't find sigma in kernel buffer and no space to store it. Clearing buffer completely! In order to avoid this increase mnMaxKernels in " << __FILE__ << "\n";
                         #endif
-                        mFirstFree = 0;
+                        buffer.firstFree = 0;
                         iKernel = 0;
-                        mKernelSigmas.clear();
-                        mKernelSigmas.insert( std::pair<T_PREC,int>( rSigma, mFirstFree ) );
+                        buffer.kernelSigmas.clear();
+                        buffer.kernelSigmas.insert( std::pair<T_PREC,int>( rSigma, buffer.firstFree ) );
                     }
 
                     /* remember kernel size */
-                    ++mFirstFree;
+                    ++buffer.firstFree;
 
                     /* upload to GPU */
-                    *rdppKernel = mdpKernelBuffer + iKernel * mMaxKernelSize;
-                    CUDA_ERROR( cudaMemcpy( *rdppKernel, pKernel,
-                        kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice ) );
+                    *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
+                    CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
+                        kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
                 else
                 {
-                    #ifndef NDEBUG
-                        std::cout << "Warning, the kernel size " << kernelSize << " is larger than the default Gaussian kernel buffer kernel size of " << mMaxKernelSize << ". The kernel can't be buffered and needs to be transferred directly which slows down execution. In order to avoid this increase mnMaxKernels in " << __FILE__ << "\n";
-                    #endif
-                    /* calc kernel again */
-                    auto maxKernelSize = kernelSize;
-                    auto pKernelLarge = new T_PREC[ maxKernelSize ];
-                    kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernelLarge, maxKernelSize );
-                    assert( kernelSize <= maxKernelSize );
-
-                    /* upload kernel to gpu */
-                    if ( mdpEmergencyKernel != NULL )
-                        CUDA_ERROR( cudaFree( mdpEmergencyKernel ) );
-                    CUDA_ERROR( cudaMalloc( &mdpEmergencyKernel,
-                                            kernelSize * sizeof(T_PREC) ) );
-                    CUDA_ERROR( cudaMemcpy( mdpEmergencyKernel, pKernelLarge,
-                        kernelSize * sizeof( pKernelLarge[0] ), cudaMemcpyHostToDevice ) );
-
-                    /* clean up */
-                    delete[] pKernelLarge;
-                    *rdppKernel = mdpEmergencyKernel;
-                    mKernelSigmas.erase( inserted.first );
+                    std::cout << "[ERROR] The kernel size " << kernelSize << " is larger than the default Gaussian kernel buffer kernel size of " << mMaxKernelSize << ". Because of thread-safety this currently is a fatal error and program limtation! " << __FILE__ << std::endl;
+                    mBuffersMutex.unlock(); /* not sure if other threads just continue :S and would hang */
+                    abort();
                 }
             }
+
+            mBuffersMutex.unlock();
         }
     };
     template<class T_PREC> constexpr unsigned GaussianKernelGpuBuffer<T_PREC>::mnMaxKernels;
@@ -650,7 +694,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     )
     {
         static unsigned firstFree = 0;
@@ -693,8 +739,9 @@ namespace cuda
             /* upload to GPU */
             CUDA_ERROR( cudaGetSymbolAddress( (void**) &dpWeights, gdpGaussianWeights ) );
             dpWeights += iKernel * nMaxWeights;
-            CUDA_ERROR( cudaMemcpy( dpWeights, pKernel,
-                kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice ) );
+            CUDA_ERROR( cudaMemcpyAsync( dpWeights, pKernel,
+                kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         }
         else
         {
@@ -714,9 +761,12 @@ namespace cuda
 
         cudaKernelApplyKernelConstantWeights<<<
             nBlocks,nThreads,
-            sizeof(T_PREC) * bufferSize
+            sizeof(T_PREC) * bufferSize,
+            rStream
         >>>( rdpData, rnDataX, rnDataY, dpWeights, kernelSize );
-        CUDA_ERROR( cudaDeviceSynchronize() );
+
+        if ( not rAsync )
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
@@ -726,7 +776,9 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     )
     {
         /**
@@ -765,10 +817,10 @@ namespace cuda
          * because it is only an offset (It doesn't scale with the problem
          * size)
          **/
-        static GaussianKernelGpuBuffer<T_PREC> kernelBuffer;
+
         unsigned kernelSize;
         T_PREC * dpKernel;
-        kernelBuffer.getGpuPointer( rSigma, &dpKernel, &kernelSize );
+        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize );
 
         /* the image must be at least nThreads threads wide, else many threads
          * will only sleep. The number of blocks is equal to the image height.
@@ -782,9 +834,12 @@ namespace cuda
 
         cudaKernelApplyKernelSharedWeights<<<
             nBlocks,nThreads,
-            sizeof(T_PREC)*( kernelSize + bufferSize )
+            sizeof(T_PREC)*( kernelSize + bufferSize ),
+            rStream
         >>>( rdpData, rnDataX, dpKernel, N );
-        CUDA_ERROR( cudaDeviceSynchronize() );
+
+        if ( not rAsync )
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
@@ -856,13 +911,11 @@ namespace cuda
         const unsigned nRowsCacheLine = blockDim.y + 2*N;
 
         /* Each block works on a separate group of columns */
-        T_PREC * const data = &rdpData[ blockIdx.x * blockDim.x ];
+        const unsigned iCol = blockIdx.x * blockDim.x + threadIdx.x;
+        T_PREC * const data = rdpData + iCol;
         /* the rightmost block might not be full. In that case we need to mask
          * those threads working on the columns right of the image border */
-        const bool iAmSleeping = blockIdx.x * blockDim.x + threadIdx.x >= rnDataX;
-        /* with this e.g. the multithreaded copy instead of memcpy won't work! */
-        //if ( iAmSleeping )
-        //    return; // safe ??? I mean this is even done in the cuda examples
+        const bool iAmSleeping = iCol >= rnDataX;
 
         /* The dynamically allocated shared memory buffer will fit the weights and
          * the values to calculate + the 2*N neighbors needed to calculate them */
@@ -873,16 +926,11 @@ namespace cuda
         const unsigned nBufferSize = nColsCacheLine * nRowsCacheLine;
         T_PREC * const smWeights   = smBlock;
         T_PREC * const smBuffer    = smBlock + nWeights;
-        __syncthreads();
 
         /* cache the weights to shared memory */
-        #if true
-            for ( int i = linThreadId; i < nWeights; i += nThreads )
-                smWeights[i] = rdpWeights[i];
-        #else
-            if ( threadIdx.x == 0 )
-                memcpy( smWeights, rdpWeights, sizeof(rdpWeights[0])*nWeights );
-        #endif
+        __syncthreads();
+        for ( int i = linThreadId; i < nWeights; i += nThreads )
+            smWeights[i] = rdpWeights[i];
 
         /**
          * @verbatim
@@ -897,15 +945,19 @@ namespace cuda
          *    | a_00 | a_01 | a_02 | a_02 |   cache line wide i.e. nRows)
          *    +------+------+------+------+        (shared memory)
          *    | a_10 | a_11 | a_12 | a_12 |         result buffer
-         *    +------+------+------+------+        +------+------+
-         *    | a_20 | a_21 | a_22 | a_22 |        | b_00 | b_01 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_30 | a_31 | a_32 | a_32 |        | b_10 | b_11 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_40 | a_41 | a_42 | a_42 |        | b_20 | b_21 |
-         *    +------+------+------+------+        +------+------+
-         *    | a_50 | a_51 | a_52 | a_52 |
-         *    +------+------+------+------+
+         *    +------+------+------+------+        +------+------+  |
+         *    | a_20 | a_21 | a_22 | a_22 |        | b_00 | b_01 |  |
+         *    +------+------+------+------+        +------+------+  | threadIdx
+         *    | a_30 | a_31 | a_32 | a_32 |        | b_10 | b_11 |  |    .y
+         *    +------+------+------+------+        +------+------+  |
+         *    | a_40 | a_41 | a_42 | a_42 |        | b_20 | b_21 |  |
+         *    +------+------+------+------+        +------+------+  v
+         *    | a_50 | a_51 | a_52 | a_52 |        -------------->
+         *    +------+------+------+------+          threadIdx.x
+         *    <-------------><------------>
+         *      threadIdx.x    threadIdx.x
+         *    <--------------------------->
+         *             blockIdx.x
          *
          *        b_0x = w_-1*a_1x + w_0*a_2x + w_1*a_3x
          *        b_1x = w_-1*a_2x + w_0*a_3x + w_1*a_4x
@@ -938,86 +990,73 @@ namespace cuda
          * before the lower border-N, beacause in the first step in the loop
          * these elements will be moved to the upper border, see below. */
         T_PREC * const smTargetRow = &smBuffer[ nBufferSize - 2*N*nColsCacheLine ];
-        #if true
-            const T_PREC upperBorderValue = data[ threadIdx.x ];
+        #ifdef GAUSSIAN_PERIODIC
+            if ( not iAmSleeping )
+            {
+                for ( unsigned iRow = threadIdx.y; iRow < N; iRow += blockDim.y )
+                {
+                    smTargetRow[ iRow * nColsCacheLine ] =
+                    data[ ( iRow % rnDataY ) * nColsCacheLine ];
+                }
+            }
+        #else
+        {
+            const T_PREC upperBorderValue = *data;
             for ( auto pTarget = smTargetRow + linThreadId;
                   pTarget < smTargetRow + N * nColsCacheLine;
                   pTarget += nThreads )
             {
                 *pTarget = upperBorderValue;
             }
-        #else
-            if ( threadIdx.y == 0 and not iAmSleeping )
-            {
-                const T_PREC upperBorderValue = data[ threadIdx.x ];
-                for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
-                    smTargetRow[ iB+threadIdx.x ] = upperBorderValue;
-            }
+        }
         #endif
 
 
         /* Loop over and calculate the rows. If rnDataY == blockDim.y, then the
          * buffer will exactly suffice, meaning the loop will only be run 1 time */
-        for ( T_PREC * curDataRow = data; curDataRow < &data[rnDataX*rnDataY];
-              curDataRow += blockDim.y * rnDataX )
+        for ( unsigned iRow = 0; iRow < rnDataY; iRow += blockDim.y )
         {
+            T_PREC * const curDataRow = data + ( iRow + threadIdx.y ) * rnDataX;
             /* move last N rows to the front of the buffer */
             __syncthreads();
-            #if true
-                for ( T_PREC * pTarget = smBuffer + linThreadId,
-                             * pSource = smTargetRow + linThreadId;
-                      pTarget < smBuffer + N * nColsCacheLine;
-                      pTarget += nThreads, pSource += nThreads )
-                {
-                    *pTarget = *pSource;
-                }
-            #elif false
-                /* @todo: memcpy doesn't respect iAmSleeping yet! */
-                assert( smTargetRow + N*nColsCacheLine < smBuffer[ bufferSize ] );
-                if ( threadIdx.y == 0 and threadIdx.x == 0 )
-                    memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) );
-            #else
-                /* memcpy version above parallelized. @todo: benchmark what is faster! */
-                if ( threadIdx.y == 0 and not iAmSleeping )
-                {
-                    for ( unsigned iB = 0; iB < N*nColsCacheLine; iB += nColsCacheLine )
-                    {
-                        const unsigned iBuffer = iB + threadIdx.x;
-                            assert( iBuffer < nBufferSize );
-                        smBuffer[ iBuffer ] = smTargetRow[ iBuffer ];
-                    }
-                }
-            #endif
+            /* memcpy( smBuffer, smTargetRow, N*nColsCacheLine*sizeof(smBuffer[0]) ); */
+            for ( T_PREC * pTarget = smBuffer    + linThreadId,
+                         * pSource = smTargetRow + linThreadId;
+                  pTarget < smBuffer + N * nColsCacheLine;
+                  pTarget += nThreads, pSource += nThreads )
+            {
+                *pTarget = *pSource;
+            }
 
             /* Load blockDim.y + N rows into buffer.
              * If data end reached, fill buffer rows with last row */
             #if false
-                if ( not iAmSleeping )
+            if ( not iAmSleeping )
+            {
+                T_PREC * pTarget = smBuffer +
+                    N * nColsCacheLine /*skip first N rows*/ + linThreadId;
+                for ( unsigned curRow = threadIdx.y;
+                      pTarget < smBuffer + nBufferSize;
+                      pTarget += blockDim.y * nColsCacheLine, curRow += blockDim.y )
                 {
-                    T_PREC * pTarget = smBuffer +
-                        N * nColsCacheLine /*skip first N rows*/ + linThreadId;
-                    for ( int iRow = threadIdx.y;
-                          pTarget < smBuffer + nBufferSize;
-                          pTarget += blockDim.y * nColsCacheLine, iRow += blockDim.y )
-                    {
-                        #ifdef GAUSSIAN_PERIODIC
-                            const int i = ( iRow % rnDataY ) * rnDataX + threadIdx.x;
-                        #else
-                            const int i = min( iRow, rnDataY-1 ) * rnDataX + threadIdx.x;
-                        #endif
-                        *pTarget = curDataRow[i];
-                    }
+                    #ifdef GAUSSIAN_PERIODIC
+                        const int iRowMod = curRow % rnDataY;
+                    #else
+                        const int iRowMod = min( curRow, rnDataY-1 );
+                    #endif
+                    *pTarget = data[ iRowMod*rnDataX ];
                 }
+            }
             #else
                 /*   a) Load blockDim.y rows in parallel */
-                T_PREC * const pLastData = &data[ (rnDataY-1)*rnDataX + threadIdx.x ];
+                T_PREC * const pLastData = &data[ (rnDataY-1)*rnDataX ];
                 const unsigned iBuf = /*skip first N rows*/ N * nColsCacheLine
                                     + threadIdx.y * nColsCacheLine + threadIdx.x;
                 __syncthreads();
                 if ( not iAmSleeping )
                 {
                     T_PREC * const datum = ptrMin(
-                        &curDataRow[ threadIdx.y * rnDataX + threadIdx.x ],
+                        curDataRow,
                         pLastData
                     );
                     assert( iBuf < nBufferSize );
@@ -1030,7 +1069,7 @@ namespace cuda
                         for ( unsigned iBufRow = N+blockDim.y; iBufRow < nRowsCacheLine; ++iBufRow )
                         {
                             T_PREC * const datum = ptrMin(
-                                &curDataRow[ (iBufRow-N) * rnDataX + threadIdx.x ],
+                                &data[ (iRow+iBufRow-N) * rnDataX ],
                                 pLastData
                             );
                             const unsigned iBuffer = iBufRow*nColsCacheLine + threadIdx.x;
@@ -1043,14 +1082,14 @@ namespace cuda
 
             /* calculated weighted sum on inner rows in buffer, but only if
              * the value we are at is inside the image */
-            if ( ( not iAmSleeping )
-                 and curDataRow + threadIdx.y*rnDataX < rdpData + rnDataX*rnDataY )
+            if ( ( not iAmSleeping ) and iRow+threadIdx.y < rnDataY )
             {
                 T_PREC sum = T_PREC(0);
                 /* this for loop is done by each thread and should for large
                  * enough kernel sizes sufficiently utilize raw computing power */
                 T_PREC * w = smWeights;
                 T_PREC * x = &smBuffer[ threadIdx.y * nColsCacheLine + threadIdx.x ];
+                #pragma unroll
                 for ( ; w < &smWeights[nWeights]; ++w, x += nColsCacheLine )
                 {
                     assert( w < smWeights + nWeights );
@@ -1060,7 +1099,8 @@ namespace cuda
                 /* write result back into memory (in-place). No need to wait for
                  * all threads to finish, because we write into global memory, to
                  * values we already buffered into shared memory! */
-                curDataRow[ threadIdx.y * rnDataX + threadIdx.x ] = sum;
+                assert( curDataRow < &rdpData[ rnDataX * rnDataY ] );
+                *curDataRow = sum;
             }
         }
 
@@ -1073,27 +1113,34 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     )
     {
-        static GaussianKernelGpuBuffer<T_PREC> kernelBuffer;
         unsigned kernelSize;
         T_PREC * dpKernel;
-        kernelBuffer.getGpuPointer( rSigma, &dpKernel, &kernelSize );
+        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize );
 
         /**
-         * the image must be at least nThreadsX threads wide, else many threads
-         * will only sleep. The number of blocks is ceil( image height / nThreadsX )
-         * Every block works on nThreadsX image columns.
-         * Those columns use nThreadsY threads to parallelize the calculation per
-         * column.
-         * The number of Threads is limited by the hardware to be e.g. 512 or 1024.
-         * The reason for this is the limited shared memory size!
-         * nThreadsX should be a multiple of a cache line / superword = 32 warps *
-         * 1 float per warp = 128 Byte => nThreadsX = 32. For double 16 would also
-         * suffice.
-         */
-        dim3 nThreads( 32, 256/32, 1 );
+         *  - The image should be at least nThreadsX threads wide, else many
+         *    threads will only sleep. The number of blocks is
+         *      ceil( image height / nThreadsX )
+         *    Every block works on nThreadsX image columns.
+         *  - blockDim.x * gridDim.x must be larger or equal to the image size
+         *    or else only that amount of image columns will be blurred
+         *  - Those columns use nThreadsY threads to parallelize the
+         *    calculation per column. nThreadsY should be large compared to
+         *    kernelSize, or else the kernel will spent most of its time
+         *    shifting data inside the shared memory
+         *    @todo implement index cycling instead of shifting
+         *  - The number of Threads is limited by the hardware, but more
+         *    imminently by the shared memory being used, @see bufferSize
+         *  - nThreadsX should be a multiple of a cache line / superword =
+         *    32 warps * 1 float per warp = 128 Byte => nThreadsX = 32.
+         *    For double 16 would also suffice.
+         **/
+        dim3 nThreads( 32, 1024/32, 1 );
         dim3 nBlocks ( 1, 1, 1 );
         nBlocks.x = (unsigned) ceilf( (float) rnDataX / nThreads.x );
         const unsigned kernelHalfSize = (kernelSize-1)/2;
@@ -1101,9 +1148,12 @@ namespace cuda
 
         cudaKernelApplyKernelVertically<<<
             nBlocks,nThreads,
-            sizeof( dpKernel[0] ) * ( kernelSize + bufferSize )
+            sizeof( dpKernel[0] ) * ( kernelSize + bufferSize ),
+            rStream
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
-        CUDA_ERROR( cudaDeviceSynchronize() );
+
+        if ( not rAsync )
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
@@ -1113,11 +1163,13 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     )
     {
-        cudaGaussianBlurHorizontal( rdpData,rnDataX,rnDataY,rSigma );
-        cudaGaussianBlurVertical  ( rdpData,rnDataX,rnDataY,rSigma );
+        cudaGaussianBlurHorizontal<T_PREC>( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
+        cudaGaussianBlurVertical  <T_PREC>( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
     }
 
 
@@ -1127,11 +1179,13 @@ namespace cuda
         T_PREC * const & rdpData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     )
     {
-        cudaGaussianBlurHorizontalSharedWeights( rdpData,rnDataX,rnDataY,rSigma );
-        cudaGaussianBlurVertical  ( rdpData,rnDataX,rnDataY,rSigma );
+        cudaGaussianBlurHorizontalSharedWeights( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
+        cudaGaussianBlurVertical               ( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
     }
 
 
@@ -1142,14 +1196,37 @@ namespace cuda
         float * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
     template void cudaGaussianBlur<double>
     (
         double * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
+    );
+
+    template void cudaGaussianBlurVertical<float>
+    (
+        float * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
+    );
+    template void cudaGaussianBlurVertical<double>
+    (
+        double * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
 
 
@@ -1158,14 +1235,18 @@ namespace cuda
         float * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
     template void cudaGaussianBlurHorizontalConstantWeights<double>
     (
         double * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
 
     template void cudaGaussianBlurHorizontalSharedWeights<float>
@@ -1173,14 +1254,18 @@ namespace cuda
         float * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
     template void cudaGaussianBlurHorizontalSharedWeights<double>
     (
         double * const & rData,
         const unsigned & rnDataX,
         const unsigned & rnDataY,
-        const double & rSigma
+        const double & rSigma,
+        cudaStream_t rStream,
+        bool rAsync
     );
 
     /**

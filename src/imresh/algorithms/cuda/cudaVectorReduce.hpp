@@ -25,6 +25,9 @@
 
 #pragma once
 
+#include <cuda_runtime_api.h>   // cudaStream_t
+#include <cmath>                // fmax
+
 
 namespace imresh
 {
@@ -33,22 +36,81 @@ namespace algorithms
 namespace cuda
 {
 
+    /**
+     * simple functors to just get the sum of two numbers. To be used
+     * for the binary vectorReduce function to make it a vectorSum or
+     * vectorMin or vectorMax
+     **/
+    template<class T> struct SumFunctor {
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
+        { return a+b; }
+    };
+    template<class T> struct MinFunctor {
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
+        { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
+    };
+    template<class T> struct MaxFunctor {
+        __device__ __host__ inline T operator() ( const T & a, const T & b )
+        { if (a>b) return a; else return b; }
+    };
+    template<> struct MaxFunctor<float> {
+        __device__ __host__ inline float operator() ( const float & a, const float & b )
+        { return fmax(a,b); }
+    };
 
     /**
-     * Saves result of vector reduce in b
-     *
-     * e.g. call with kernelVectorReduceShared<<<4,128>>>( data, 1888, 4, result,
-     *  [](float a, float b){ return fmax(a,b); } )
-     * @todo use recursion in order to implement a log_2(n) algorithm
-     *
-     * @param[in]  rData      vector to reduce
-     * @param[in]  rnData     length of vector to reduce in elements
-     * @param[in]  rResult    reduced result value (sum, max, min,..)
-     * @param[in]  rInitValue initial value for reduction, e.g. 0 for sum or max
-     *                        and FLT_MAX for min
+     * @see kernelVectorReduceWarps but uses only shared memory to reduce
+     * per block
      **/
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduceShared
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        const T_PREC rInitValue
+    );
+
+    /**
+     * @see kernelVectorReduceWarps but uses also shared memory to reduce
+     * per block
+     **/
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceSharedWarps
+    (
+        const T_PREC * const rdpData,
+        const unsigned rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        const T_PREC rInitValue
+    );
+
+    /**
+     * Uses __shfl to reduce per warp before atomicAdd to global memory
+     *
+     * e.g. call with kernelVectorReduceShared<<<4,128>>>(
+     *  data, 1888, 4, result, [](float a, float b){ return fmax(a,b); } )
+     *
+     * @tparam T_FUNC  Only the functors from this headers are instantiated
+     *         for this template type. for other functors you need to
+     *         include the body instead of this header or you need to add
+     *         it to the list of explicit template instantitions
+     *         Reasons against std::function:
+     *             @see http://stackoverflow.com/questions/14677997/
+     * @tparam T_PREC datatype of array to reduce. Only float and double are
+     *         explicitly instantiated, but you could add more easily.
+     *
+     * @param[in]  rdpData device pointer to array of data to reduce
+     * @param[in]  rnData length of array to reduce
+     * @param[out] rdpResult pointer to global memory variable which will hold
+     *             the reduce result
+     * @param[in]  f reduce functor which takes two arguments and returns 1.
+     * @param[in]  rInitValue The init value for rdpResult. E.g. for a
+     *             summation this should be 0.
+     **/
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceWarps
     (
         const T_PREC * const rdpData,
         const unsigned rnData,
@@ -62,7 +124,8 @@ namespace cuda
     T_PREC cudaVectorMin
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream = 0
     );
 
 
@@ -70,7 +133,8 @@ namespace cuda
     T_PREC cudaVectorMax
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream = 0
     );
 
 
@@ -78,7 +142,8 @@ namespace cuda
     T_PREC cudaVectorSum
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream = 0
     );
 
 
@@ -100,7 +165,8 @@ namespace cuda
         const T_COMPLEX * const & rdpData,
         const T_MASK_ELEMENT * const & rdpIsMasked,
         const unsigned & rnElements,
-        const bool & rInvertMask = false
+        const bool & rInvertMask = false,
+        cudaStream_t rStream = 0
     );
 
 
@@ -108,14 +174,16 @@ namespace cuda
     T_PREC cudaVectorMaxSharedMemory
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream = 0
     );
 
     template<class T_PREC>
     T_PREC cudaVectorMaxSharedMemoryWarps
     (
         const T_PREC * const rdpData,
-        const unsigned rnElements
+        const unsigned rnElements,
+        cudaStream_t rStream = 0
     );
 
 
