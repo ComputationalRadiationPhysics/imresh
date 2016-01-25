@@ -36,6 +36,15 @@
 #endif
 
 
+
+void dummyWriteOutFunc(
+    float const * const _mem,
+    std::pair<unsigned, unsigned> const _size,
+    std::string const _filename
+)
+{}
+
+
 int main( void )
 {
     // First step is to initialize the library.
@@ -71,7 +80,7 @@ int main( void )
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
             imresh::io::addTask( file.first, file.second,
-                                 imresh::io::writeOutFuncs::writeOutPNG,
+                                 dummyWriteOutFunc, //imresh::io::writeOutFuncs::writeOutPNG,
                                  filename.str(),
                                  i /* sets the number of iterations */ );
         }

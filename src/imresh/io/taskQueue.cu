@@ -106,6 +106,7 @@ namespace io
         auto strm = streamList.front( );
         streamList.pop_front( );
         streamList.push_back( strm );
+        mtx.unlock();
         auto device = strm.device;
         auto str = strm.str;
 
@@ -130,8 +131,6 @@ namespace io
                                               _sigma0,
                                               _sigmaChange,
                                               _numberOfHIOCycles );
-
-        mtx.unlock( );
 
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::addTaskAsync(): CUDA work finished, mutex unlocked. Calling write out function."
