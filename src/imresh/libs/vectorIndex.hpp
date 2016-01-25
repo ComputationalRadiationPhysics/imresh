@@ -26,7 +26,7 @@
 #pragma once
 
 #include <vector>
-#include <cassert>
+
 
 namespace imresh
 {

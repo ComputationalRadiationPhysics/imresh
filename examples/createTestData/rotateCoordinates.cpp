@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,61 +23,31 @@
  */
 
 
-#pragma once
+#include "rotateCoordinates.hpp"
+
+#include <cmath>   // cos,sin
 
 
-namespace imresh
+namespace examples
 {
-namespace algorithms
+namespace createTestData
 {
 
-
-    /**
-     * Calculate the maximum absolute difference between to arrays
-     *
-     * Useful for comparing two vectors of floating point numbers
-     **/
-    template<class T>
-    T vectorMaxAbsDiff
+    void rotateCoordinates2d
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
+        float & x,
+        float & y,
+        float const & xCenter,
+        float const & yCenter,
+        float const & phi
+    )
+    {
+        float xTmp = x - xCenter;
+        float yTmp = y - yCenter;
+        x = xCenter + cos(phi) * xTmp - sin(phi) * yTmp;
+        y = yCenter + sin(phi) * xTmp + cos(phi) * yTmp;
+    }
 
 
-} // namespace algorithms
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples

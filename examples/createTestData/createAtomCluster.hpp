@@ -26,58 +26,24 @@
 #pragma once
 
 
-namespace imresh
+namespace examples
 {
-namespace algorithms
+namespace createTestData
 {
 
 
     /**
-     * Calculate the maximum absolute difference between to arrays
+     * Create a sample data of two atom clusters
      *
-     * Useful for comparing two vectors of floating point numbers
+     * @param[in] rSize image dimensions
+     * @return pointer to allocated data. Must be deallocated with delete[]
      **/
-    template<class T>
-    T vectorMaxAbsDiff
+    float* createAtomCluster
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        const unsigned & Nx,
+        const unsigned & Ny
     );
 
 
-} // namespace algorithms
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples

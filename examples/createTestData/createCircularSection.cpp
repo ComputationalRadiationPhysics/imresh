@@ -23,30 +23,58 @@
  */
 
 
-#include "cudacommon.h"
+#include "createCircularSection.hpp"
 
-#include <cstdio>
+#include <cmath>    // atan2
 #include <cassert>
-#include <cstdlib>    // EXIT_FAILURE, exit
+
+#ifndef M_PI
+#   define M_PI 3.141592653589793238462643383279502884
+#endif
 
 
-namespace imresh
+namespace examples
 {
-namespace libs
+namespace createTestData
 {
 
 
-    void checkCudaError
-    ( const cudaError_t rValue, const char * file, int line )
+    float * createCircularSection
+    (
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & r,
+        float    const & x0,
+        float    const & y0,
+        float    const & phi0,
+        float    const & phi1
+    )
     {
-        if ( (rValue) != cudaSuccess )
+        assert( 0.0f <= r );
+        assert( 0.0f <= x0 and x0 <= 1.0f );
+        assert( 0.0f <= y0 and y0 <= 1.0f );
+        assert( phi0 <= phi1 );
+
+        float * data = new float[ Nx*Ny ];
+        const unsigned Nmin = ( Nx < Ny ) ? Nx : Ny;
+
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
         {
-            printf( "CUDA error in %s line:%i : %s\n",
-                    file, line, cudaGetErrorString(rValue) );
-            exit( EXIT_FAILURE );
+            float x = (float) ix / Nmin - x0;
+            float y = (float) iy / Nmin - y0;
+            float r2  = x*x + y*y;
+            float phi = M_PI + atan2( y, x );
+
+            if ( phi0 <= phi and phi <= phi1 and r2 <= r*r )
+                data[iy*Nx + ix] = 1;
+            else
+                data[iy*Nx + ix] = 0;
         }
+
+        return data;
     }
 
 
-} // namespace libs
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples

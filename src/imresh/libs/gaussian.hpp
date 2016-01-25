@@ -25,16 +25,6 @@
 
 #pragma once
 
-#include <iostream>
-#include <cmath>
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
-#include <cassert>
-#include <cstring>  // memcpy
-#include <cstddef>  // NULL
-#include <cstdlib>  // malloc, free
-#include <vector>
 
 
 namespace imresh
@@ -74,31 +64,6 @@ namespace libs
         const T_PREC * const & rWeights,
         const unsigned & rnWeights,
         const unsigned & rnThreads = 128
-    );
-
-    /**
-     * Calculates the weights for a gaussian kernel
-     *
-     * @param[in]  T_PREC precision. Should only be a floating point type. For
-     *             integers the sum of the weights may not be 1!
-     * @param[in]  rSigma standard deviation for the gaussian. This determines
-     *             the kernel size
-     * @param[out] rWeights array the kernel will be written into
-     * @param[in]  rnWeights maximum writable size of rWeights
-     * @param[in]  rMinAbsoluteError when using integers an absolute error of
-     *             0.5/255 should be targeted, so that for the maximum range
-     *             the absolute error never is bigger than 0.5
-     * @return kernel size. If the returned kernel size > rnWeights, then
-     *         rWeights wasn't changed. Normally you would want to check for
-     *         that, allocate a larger array and call this function again.
-     **/
-    template<class T_PREC>
-    int calcGaussianKernel
-    (
-        const double & rSigma,
-        T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError = 0.5/255
     );
 
     /**
@@ -160,6 +125,15 @@ namespace libs
 
     template<class T_PREC>
     void gaussianBlurVertical
+    (
+        T_PREC * const & rData,
+        const unsigned & rnDataX,
+        const unsigned & rnDataY,
+        const double & rSigma
+    );
+
+    template<class T_PREC>
+    void gaussianBlurVerticalUncached
     (
         T_PREC * const & rData,
         const unsigned & rnDataX,

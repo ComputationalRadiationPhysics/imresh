@@ -23,30 +23,55 @@
  */
 
 
-#include "createSlit.hpp"
+#include "createRectangle.hpp"
+
+#include <cassert>
+#include "rotateCoordinates.hpp"
 
 
 namespace examples
 {
-
-
-float * createVerticalSingleSlit
-(
-    const unsigned & Nx,
-    const unsigned & Ny
-)
+namespace createTestData
 {
-    float * data = new float[Nx*Ny];
-    memset( data, 0, Nx*Ny*sizeof(float) );
-
-    const int slitHalfHeight = (int) ceilf( 0.3*Nx );
-    const int slitHalfWidth  = (int) ceilf( 0.1*Nx );
-    for ( unsigned iy = Ny/2 - slitHalfHeight+1; iy < Ny/2 + slitHalfHeight; ++iy )
-    for ( unsigned ix = Nx/2 - slitHalfWidth +1; ix < Nx/2 + slitHalfWidth ; ++ix )
-        data[iy*Nx + ix] = 1;
-
-    return data;
-}
 
 
+    float * createRectangle
+    (
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx,
+        float    const & Dy,
+        float    const & x0,
+        float    const & y0,
+        float    const & phi
+    )
+    {
+        assert( 0.0f <= Dx and Dx <= 1.0f );
+        assert( 0.0f <= Dy and Dy <= 1.0f );
+        assert( 0.0f <= x0 and x0 <= 1.0f );
+        assert( 0.0f <= y0 and y0 <= 1.0f );
+
+        float * data = new float[ Nx*Ny ];
+
+        const int yLow  = ( y0 - Dy/2 ) * Ny;
+        const int yHigh = ( y0 + Dy/2 ) * Ny;
+        const int xLow  = ( x0 - Dx/2 ) * Nx;
+        const int xHigh = ( x0 + Dx/2 ) * Nx;
+
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float x = ix, y = iy;
+            rotateCoordinates2d( x,y, x0*Nx, y0*Ny, phi );
+            if ( x >= xLow and x <= xHigh and y >= yLow and y <= yHigh )
+                data[iy*Nx + ix] = 1;
+            else
+                data[iy*Nx + ix] = 0;
+        }
+
+        return data;
+    }
+
+
+} // namespace createTestData
 } // namespace examples

@@ -25,6 +25,8 @@
 
 #include "vectorIndex.hpp"
 
+#include <cassert>
+
 
 namespace imresh
 {

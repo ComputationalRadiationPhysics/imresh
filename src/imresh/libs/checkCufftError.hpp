@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,59 +25,19 @@
 
 #pragma once
 
+#include <cufft.h>
+
+
+#define CUFFT_ERROR(X) imresh::libs::checkCufftError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
-namespace algorithms
+namespace libs
 {
 
 
-    /**
-     * Calculate the maximum absolute difference between to arrays
-     *
-     * Useful for comparing two vectors of floating point numbers
-     **/
-    template<class T>
-    T vectorMaxAbsDiff
-    (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
+    void checkCufftError( const cufftResult rValue, const char * file, int line );
 
 
-} // namespace algorithms
+} // namespace libs
 } // namespace imresh

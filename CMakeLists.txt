@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.5)
+cmake_minimum_required(VERSION 3.4.1)
 project(imresh)
 
 # Options
@@ -38,16 +38,27 @@ if(BUILD_DOC)
 endif()
 
 if(IMRESH_DEBUG)
-    list(APPEND CMAKE_CXX_FLAGS "-O1 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo")
 else()
-    list(APPEND CMAKE_CXX_FLAGS "-O1 -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2 -arch=sm_30 -Xptxas=-v")
 
 if(BUILD_EXAMPLES)
-    file(GLOB_RECURSE EXAMPLES_SOURCE_FILES ${PROJECT_SOURCE_DIR}/examples/*.cpp ${PROJECT_SOURCE_DIR}/examples/*.hpp)
-    add_executable("examples" ${EXAMPLES_SOURCE_FILES})
-    target_link_libraries("examples" ${PROJECT_NAME})
+    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
+    add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
+    target_link_libraries( examples )
+
+    add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
+    target_link_libraries( "threadedExample" ${PROJECT_NAME} examples )
+
+    add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
+    target_link_libraries( "miniExample" ${PROJECT_NAME} examples )
+
+    add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
+    target_link_libraries( "outputExampleCreation" ${PROJECT_NAME} examples )
 endif()
 
 if(USE_PNG)
@@ -66,3 +77,36 @@ cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${FFTW_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+
+# Tests and Benchmarks
+set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
+include_directories( ${PROJECT_SOURCE_DIR}/tests )
+if(RUN_TESTS)
+    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp )
+    add_library("tests" ${TEST_SOURCE_FILES})
+    target_link_libraries("tests")
+
+    add_executable("testVectorIndex" ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp)
+    target_link_libraries("testVectorIndex" ${PROJECT_NAME} "tests")
+
+    add_executable("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp)
+    target_link_libraries("testVectorReduce" ${PROJECT_NAME} "tests")
+
+    add_executable("testGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp)
+    target_link_libraries("testGaussian" ${PROJECT_NAME} "tests")
+
+    enable_testing()
+    add_test(NAME testVectorIndex COMMAND testVectorIndex)
+    add_test(NAME testVectorReduce COMMAND testVectorReduce)
+
+    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
+                  DEPENDS testVectorIndex testVectorReduce)
+
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
+
+    add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
+    target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
+
+    add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
+    target_link_libraries("profileGaussian" ${PROJECT_NAME} )
+endif()

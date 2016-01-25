@@ -23,36 +23,27 @@
  */
 
 
-#pragma once
+#include <iostream>
+#include <cassert>
+#include <vector>
 
-#include <cstring>  // memset
-#include <cmath>    // ceilf
 
-
-namespace examples
+namespace imresh
+{
+namespace tests
 {
 
 
     /**
-     * Create a sample data of a rectangular object valued 1.0
-     *
-     * @verbatim
-     *    +------+
-     *    |      |
-     *    |  ##  |
-     *    |      |
-     *    +------+
-     * @endverbatim
-     *
-     * @param[in] Nx width of the test image to produce
-     * @param[in] Ny height of the test image to produce
-     * @return pointer to allocated data. Must be deallocated with delete[]
+     * Returns a list of rnPoints logspaced points
      **/
-    float * createVerticalSingleSlit
+    std::vector<int> getLogSpacedSamplingPoints
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        const unsigned & riStartPoint,
+        const unsigned & riEndPoint,
+        const unsigned & rnPoints
     );
 
 
-} // namespace examples
+} // namespace tests
+} // namespace imresh

@@ -25,25 +25,17 @@
 
 #pragma once
 
-#include <cstddef>    // NULL
 #include <cstdint>    // uint8_t
-#include <climits>    // INT_MAX
-#include <cstring>    // memcpy
-#include <cmath>      // sqrtf
-#include <complex>
-#include <cassert>
-#include <cfloat>     // FLT_EPSILON
-#include <iostream>
 #include <vector>
-#include <omp.h>      // omp_get_num_procs, omp_set_num_procs
-#include <fftw3.h>
-#include "libs/vectorIndex.hpp"
+#include <climits>    // UINT_MAX
 
 
 namespace imresh
 {
 namespace libs
 {
+
+
     template< class T_COMPLEX, class T_MASK_ELEMENT >
     float calculateHioError
     (
@@ -88,5 +80,7 @@ namespace libs
         float rBeta = 0.9,
         unsigned rnCores = 0
     );
+
+
 } // namespace libs
 } // namespace imresh

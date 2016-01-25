@@ -26,8 +26,6 @@
 #pragma once
 
 #include <utility>
-#include <cmath>     // sqrtf
-#include "libs/vectorIndex.hpp"
 
 
 namespace imresh

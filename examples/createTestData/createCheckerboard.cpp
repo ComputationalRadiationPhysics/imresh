@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,61 +23,48 @@
  */
 
 
-#pragma once
+#include "createCheckerboard.hpp"
+
+#include <cmath>   // ceil
+#include "rotateCoordinates.hpp"
 
 
-namespace imresh
+namespace examples
 {
-namespace algorithms
+namespace createTestData
 {
 
 
-    /**
-     * Calculate the maximum absolute difference between to arrays
-     *
-     * Useful for comparing two vectors of floating point numbers
-     **/
-    template<class T>
-    T vectorMaxAbsDiff
+    float * createCheckerboard
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
+        unsigned const & Nx,
+        unsigned const & Ny,
+        float    const & Dx,
+        float    const & Dy,
+        float    const & phi
+    )
+    {
+        float * data = new float[ Nx*Ny ];
 
-    template<class T>
-    T vectorMaxAbs
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        for ( unsigned ix = 0; ix < Nx; ++ix )
+        {
+            float x = ix, y = iy;
+            rotateCoordinates2d( x,y, 0.5*Nx, 0.5*Ny, phi );
+            if ( ( int( x / ( Dx * Nx ) + std::ceil( Nx / Dx ) ) ) % 2 == 0 and
+                 ( int( y / ( Dy * Ny ) + std::ceil( Ny / Dy ) ) ) % 2 == 0 )
+            {
+                data[iy*Nx + ix] = 1;
+            }
+            else
+            {
+                data[iy*Nx + ix] = 0;
+            }
+        }
 
-    template<class T>
-    T vectorMax
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorMin
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
-
-    template<class T>
-    T vectorSum
-    (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
-    );
+        return data;
+    }
 
 
-} // namespace algorithms
-} // namespace imresh
+} // namespace createTestData
+} // namespace examples
