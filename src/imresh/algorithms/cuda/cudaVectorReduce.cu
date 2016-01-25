@@ -453,8 +453,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const uint32_t nTotalThreads = gridDim.x * blockDim.x;
-        uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
 
         float localTotalError    = 0;
@@ -465,34 +465,39 @@ namespace cuda
             const auto & im = rdpgPrime[i].y;
 
             /* only add up norm where no object should be (rMask == 0) */
+            /* note: invert   + masked   -> unmasked  <=> 1 ? 1 -> 0
+             *       noinvert + masked   -> masked    <=> 0 ? 1 -> 1
+             *       invert   + unmasked -> masked    <=> 1 ? 0 -> 1
+             *       noinvert + unmasked -> unmasked  <=> 0 ? 0 -> 0
+             *   => ? is xor    => no thread divergence
+             */
+            assert( rdpIsMasked[i] == 0 or rdpIsMasked[i] == 1 );
+            const bool shouldBeZero = rInvertMask xor (bool) rdpIsMasked[i];
             assert( rdpIsMasked[i] >= 0.0 and rdpIsMasked[i] <= 1.0 );
+            //float shouldBeZero = rInvertMask + ( 1-2*rInvertMask )*rdpIsMasked[i];
+            /*
             float shouldBeZero = rdpIsMasked[i];
             if ( rInvertMask )
                 shouldBeZero = 1 - shouldBeZero;
+            */
 
             localTotalError    += shouldBeZero * ( re*re+im*im );
             localnMaskedPixels += shouldBeZero;
         }
 
-        __shared__ float smTotalError, smnMaskedPixels;
-        /* master thread of every block shall set shared mem variable to 0 */
-        __syncthreads();
-        if ( threadIdx.x == 0 )
+        /* reduce per warp (warpSize == 32 assumed) */
+        const int32_t laneId = threadIdx.x % 32;
+        #pragma unroll
+        for ( int32_t warpDelta = 32 / 2; warpDelta > 0; warpDelta /= 2 )
         {
-            smTotalError    = 0;
-            smnMaskedPixels = 0;
+            localTotalError    += __shfl_down( localTotalError   , warpDelta );
+            localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
         }
-        __syncthreads();
-
         SumFunctor<float> sum;
-        atomicFunc( &smTotalError   , localTotalError   , sum );
-        atomicFunc( &smnMaskedPixels, localnMaskedPixels, sum );
-
-        __syncthreads();
-        if ( threadIdx.x == 0 )
+        if ( laneId == 0 )
         {
-            atomicFunc( rdpTotalError, smTotalError, sum );
-            atomicFunc( rdpnMaskedPixels, smnMaskedPixels, sum );
+            atomicFunc( rdpTotalError   , localTotalError   , sum );
+            atomicFunc( rdpnMaskedPixels, localnMaskedPixels, sum );
         }
     }
 
