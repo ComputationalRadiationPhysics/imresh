@@ -39,9 +39,9 @@ namespace tests
      **/
     std::vector<int> getLogSpacedSamplingPoints
     (
-        const unsigned & riStartPoint,
-        const unsigned & riEndPoint,
-        const unsigned & rnPoints
+        unsigned riStartPoint,
+        unsigned riEndPoint,
+        unsigned rnPoints
     );
 
 

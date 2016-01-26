@@ -14,11 +14,17 @@ option(USE_FFTW       "If true a CPU reference version is compiled also. It is u
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Finding packages, calling FindX.cmake and so on
-find_package(CUDA REQUIRED)
+find_package(CUDA 7.0 REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(Threads REQUIRED)
 if(USE_FFTW)
     find_package(FFTW REQUIRED)
+endif()
+
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
+        message(FATAL_ERROR "GCC version must be at least 4.7 for -std=c++11 option!")
+    endif()
 endif()
 
 if(BUILD_DOC)

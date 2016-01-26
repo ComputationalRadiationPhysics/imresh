@@ -52,7 +52,7 @@ struct TestGaussian
 {
 
     float * pData, * dpData, * pResult, * pResultCpu, * pSolution;
-    const unsigned nMaxElements = 4*1024*1024;
+    static constexpr unsigned int nMaxElements = 4*1024*1024;
     static constexpr int maxKernelWidth = 30; // (sigma=4), needed to calculate upper bound of maximum rounding error
 
 

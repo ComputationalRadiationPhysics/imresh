@@ -221,7 +221,7 @@ namespace cuda
             if ( inserted.second == true )
                 assert( inserted.first->second == (int) buffer.firstFree );
 
-            int & iKernel = inserted.first->second;
+            auto & iKernel = inserted.first->second;
             /* calculate return values. If there are problems they will be
              * changed to more correct values, e.g. if the kernel doesn't fit
              * into the standard buffer */
@@ -243,7 +243,7 @@ namespace cuda
                 if ( kernelSize <= mMaxKernelSize )
                 {
                     /* if buffer full, then clear buffer */
-                    if ( iKernel == mnMaxKernels )
+                    if ( iKernel == (int) mnMaxKernels )
                     {
                         #ifndef NDEBUG
                             std::cout << "Warning, couldn't find sigma in kernel buffer and no space to store it. Clearing buffer completely! In order to avoid this increase mnMaxKernels in " << __FILE__ << "\n";
