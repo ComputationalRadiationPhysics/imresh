@@ -26,6 +26,7 @@
 #include <iomanip>          // setw, setfill
 #include <string>           // std::string
 #include <sstream>
+#include <cstring>
 
 #include "io/taskQueue.cu"
 #include "io/readInFuncs/readInFuncs.hpp"
@@ -62,17 +63,20 @@ int main( void )
         file.first = NULL;
     }
 
-
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
         // Let's see, how the images look after several different time steps.
         for( int i = 1; i < 33; i++)
         {
-            // How about the PNG input? BEWARE! This path is dependent on the folder structure!
-            file = imresh::io::readInFuncs::readPNG( "../examples/testData/imresh.png" );
-            // Again, this step is only needed because we have no real images
-            imresh::libs::diffractionIntensity( file.first, file.second );
-
+            #if false
+                // How about the PNG input? BEWARE! This path is dependent on the folder structure!
+                file = imresh::io::readInFuncs::readPNG( "../examples/testData/lattice-aspect-ratio-2.png" );
+                // Again, this step is only needed because we have no real images
+                imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
+            #else
+                file.first = new float[ file.second.first * file.second.second ];
+                memcpy( file.first, atomExample, file.second.first * file.second.second * sizeof( file.first[0] ) );
+            #endif
             std::ostringstream filename;
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
@@ -90,7 +94,7 @@ int main( void )
         // overwritten) BEWARE! This path is dependent on the folder structure!
         file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
         // Again, this step is only needed because we have no real images
-        imresh::libs::diffractionIntensity( file.first, file.second );
+        imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
         imresh::io::addTask( file.first,
                              file.second,
                              imresh::io::writeOutFuncs::writeOutHDF5,

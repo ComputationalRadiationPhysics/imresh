@@ -34,7 +34,6 @@
 #include <cstddef>      // NULL
 #include <cstring>      // memcpy
 #include <cassert>
-#include <cstdint>      // uint64_t
 #include <cmath>
 #include <vector>
 #include <cuda.h>       // atomicCAS
@@ -49,6 +48,7 @@
 #endif
 #include "libs/cudacommon.h"
 #include "libs/checkCufftError.hpp"
+#include "cudaVectorElementwise.hpp"
 
 
 namespace imresh
@@ -57,129 +57,6 @@ namespace algorithms
 {
 namespace cuda
 {
-
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelCopyToRealPart
-    (
-        T_COMPLEX * const rTargetComplexArray,
-        T_PREC    * const rSourceRealArray,
-        unsigned    const rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rTargetComplexArray[i].x = rSourceRealArray[i]; /* Re */
-            rTargetComplexArray[i].y = 0;
-        }
-    }
-
-
-    template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelCopyFromRealPart
-    (
-        T_PREC    * const rTargetComplexArray,
-        T_COMPLEX * const rSourceRealArray,
-        unsigned    const rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rTargetComplexArray[i] = rSourceRealArray[i].x; /* Re */
-        }
-    }
-
-
-    template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelComplexNormElementwise
-    (
-        T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            const float & re = rdpDataSource[i].x;
-            const float & im = rdpDataSource[i].y;
-            rdpDataTarget[i] = sqrtf( re*re + im*im );
-        }
-    }
-
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyComplexModulus
-    (
-        T_COMPLEX * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const T_PREC * const rdpComplexModulus,
-        const unsigned rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            const auto & re = rdpDataSource[i].x;
-            const auto & im = rdpDataSource[i].y;
-            auto norm = sqrtf(re*re+im*im);
-            if ( norm == 0 ) // in order to avoid NaN
-                norm = 1;
-            const float factor = rdpComplexModulus[i] / norm;
-            rdpDataTarget[i].x = re * factor;
-            rdpDataTarget[i].y = im * factor;
-        }
-    }
-
-
-    template< class T_PREC >
-    __global__ void cudaKernelCutOff
-    (
-        T_PREC * const rData,
-        unsigned const rnElements,
-        const T_PREC rThreshold,
-        const T_PREC rLowerValue,
-        const T_PREC rUpperValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rData[i] = rData[i] < rThreshold ? rLowerValue : rUpperValue;
-        }
-    }
 
 
     template< class T_COMPLEX, class T_PREC >
@@ -197,8 +74,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
             if ( rdpIsMasked[i] == 1 or /* g' */ rdpgPrime[i].x < 0 )
@@ -368,7 +245,7 @@ namespace cuda
 
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
-        CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageWidth, rImageHeight, CUFFT_C2C ) );
+        CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
         CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
 
         /* create first guess for mask from autocorrelation (fourier transform

@@ -37,6 +37,7 @@
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaGaussian.h"
 #include "libs/gaussian.hpp"
+#include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.h"
 #include "benchmarkHelper.hpp"
 

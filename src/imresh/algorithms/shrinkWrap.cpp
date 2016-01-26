@@ -34,7 +34,9 @@
 #include <string>
 #include <fstream>
 #include <vector>
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 #include "libs/gaussian.hpp"
 #include "libs/hybridInputOutput.hpp" // calculateHioError
 #include "algorithms/vectorReduce.hpp"
@@ -84,6 +86,7 @@ namespace algorithms
         }
     }
 
+#ifdef USE_FFTW
     /**
      * checks if the imaginary parts are all 0 for debugging purposes
      **/
@@ -304,6 +307,7 @@ namespace algorithms
 
         return 0;
     }
+#endif
 
 
 } // namespace algorithms

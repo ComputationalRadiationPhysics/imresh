@@ -36,7 +36,9 @@
 #include <iostream>
 #include <vector>
 #include <omp.h>      // omp_get_num_procs, omp_set_num_procs
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 #include "libs/vectorIndex.hpp"
 
 
@@ -92,6 +94,7 @@ namespace libs
         return sqrtf( totalError ) / (float) nMaskedPixels;
     }
 
+#ifdef USE_FFTW
     template float calculateHioError<fftwf_complex,float>
     (
         const fftwf_complex * const & gPrime,
@@ -108,11 +111,11 @@ namespace libs
     );
 
 
-    template< class T_COMPLEX, class T_PREC >
+    template< class T_PREC >
     void addRandomPhase
     (
         const T_PREC * const & rNorm,
-        T_COMPLEX * const & rOutput,
+        fftwf_complex * const & rOutput,
         const std::vector<unsigned> & rSize,
         const unsigned & rnElements
     )
@@ -289,5 +292,8 @@ namespace libs
 
         return 0; // success
     }
+#endif
+
+
 } // namespace libs
 } // namespace imresh

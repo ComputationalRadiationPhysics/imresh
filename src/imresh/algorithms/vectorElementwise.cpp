@@ -27,7 +27,9 @@
 
 #include <algorithm>  // max
 #include <cmath>
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 
 
 namespace imresh
@@ -78,34 +80,35 @@ namespace algorithms
     }
 
     /* explicitely instantiate needed data types */
+    #ifdef USE_FFTW
+        template void complexNormElementwise<float,fftwf_complex>
+        (
+            float * const & rDataTarget,
+            const fftwf_complex * const & rDataSource,
+            const unsigned & rnData
+        );
+        template void complexNormElementwise<double,fftw_complex>
+        (
+            double * const & rDataTarget,
+            const fftw_complex * const & rDataSource,
+            const unsigned & rnData
+        );
 
-    template void complexNormElementwise<float,fftwf_complex>
-    (
-        float * const & rDataTarget,
-        const fftwf_complex * const & rDataSource,
-        const unsigned & rnData
-    );
-    template void complexNormElementwise<double,fftw_complex>
-    (
-        double * const & rDataTarget,
-        const fftw_complex * const & rDataSource,
-        const unsigned & rnData
-    );
-
-    template void applyComplexModulus<fftwf_complex,float>
-    (
-        fftwf_complex * const & rDataTarget,
-        const fftwf_complex * const & rDataSource,
-        const float * const & rComplexModulus,
-        const unsigned & rnData
-    );
-    template void applyComplexModulus<fftw_complex,double>
-    (
-        fftw_complex * const & rDataTarget,
-        const fftw_complex * const & rDataSource,
-        const double * const & rComplexModulus,
-        const unsigned & rnData
-    );
+        template void applyComplexModulus<fftwf_complex,float>
+        (
+            fftwf_complex * const & rDataTarget,
+            const fftwf_complex * const & rDataSource,
+            const float * const & rComplexModulus,
+            const unsigned & rnData
+        );
+        template void applyComplexModulus<fftw_complex,double>
+        (
+            fftw_complex * const & rDataTarget,
+            const fftw_complex * const & rDataSource,
+            const double * const & rComplexModulus,
+            const unsigned & rnData
+        );
+    #endif
 
 } // namespace algorithms
 } // namespace imresh

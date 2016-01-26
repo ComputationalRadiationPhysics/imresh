@@ -52,7 +52,7 @@ int main( void )
     file.close( );
     std::cout << "Wrote atomClusterInput to atomClusterInput.dat\n";
 
-    imresh::libs::diffractionIntensity( pAtomCluster, imageSizePair );
+    imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
 
     file.open( "diffractionIntensity.dat" );
     for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
@@ -64,8 +64,11 @@ int main( void )
     file.close( );
     std::cout << "Wrote diffractionIntensity to diffractionIntensity.dat\n";
 
-    imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
-    //imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
+    #if USE_FFTW
+        imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
+    #else
+        imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize[0], imageSize[1], cudaStream_t(0) /* stream */, 64 /*cycles*/, 1e-6 /* targetError */ );
+    #endif
     /* pAtomCluster now holds the original image again (with some deviation)
      * you could compare the current state with the data returned by
      * createAtomCluster now */

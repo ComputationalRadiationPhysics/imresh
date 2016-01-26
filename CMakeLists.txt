@@ -8,6 +8,7 @@ option(IMRESH_DEBUG   "Enables debugging code, especially many asserts to check 
 option(BUILD_DOC      "Builds Doxygen Documentation" ON)
 option(USE_PNG        "Enables PNG output of reconstructed image" OFF)
 option(USE_SPLASH     "Enables HDF5 input and output of images" OFF)
+option(USE_FFTW       "If true a CPU reference version is compiled also. It is used internally for benchmarks and error checking tests, but it can also be used externally" OFF)
 
 # General definitions
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -15,8 +16,10 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # Finding packages, calling FindX.cmake and so on
 find_package(CUDA REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(FFTW REQUIRED)
 find_package(Threads REQUIRED)
+if(USE_FFTW)
+    find_package(FFTW REQUIRED)
+endif()
 
 if(BUILD_DOC)
     find_package(Doxygen)
@@ -40,11 +43,12 @@ endif()
 if(IMRESH_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo -Xptxas=-v")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2 -arch=sm_30 -Xptxas=-v")
+# sm_30 is needed for __shfl_down
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30")
 
 if(BUILD_EXAMPLES)
     file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
@@ -71,11 +75,18 @@ if(USE_SPLASH)
     add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
 endif()
 
+if(USE_FFTW)
+    include_directories( ${FFTW_INCLUDES} )
+    set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${FFTW_LIBRARIES} )
+    add_definitions("-DUSE_FFTW" ${FFTW_DEFINITIONS})
+endif()
+
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
-include_directories(${PROJECT_SOURCE_DIR}/src/imresh SYSTEM ${CUDA_INCLUDE_DIRS} ${PNGwriter_INCLUDE_DIRS} ${Splash_INCLUDE_DIRS} ${OpenMP_INCLUDE_DIRS} ${FFTW_INCLUDES})
+include_directories(${PROJECT_SOURCE_DIR}/src/imresh SYSTEM ${CUDA_INCLUDE_DIRS} ${PNGwriter_INCLUDE_DIRS} ${Splash_INCLUDE_DIRS} ${OpenMP_INCLUDE_DIRS})
 cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
-target_link_libraries(${PROJECT_NAME} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${FFTW_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 # Tests and Benchmarks
