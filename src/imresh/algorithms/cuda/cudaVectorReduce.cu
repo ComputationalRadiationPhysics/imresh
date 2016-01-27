@@ -48,18 +48,19 @@ namespace cuda
     MaxFunctor<double> maxFunctord;
 
 
-    template<class T_PREC, class T_FUNC>
+
+    template<class T_FUNC>
     __device__ inline void atomicFunc
     (
-        T_PREC * const rdpTarget,
-        const T_PREC rValue,
+        float * const rdpTarget,
+        const float rValue,
         T_FUNC f
     )
     {
         /* atomicCAS only is defined for int and long long int, thats why we
          * need these roundabout casts */
-        int assumed;
-        int old = * (int*) rdpTarget;
+        uint32_t assumed;
+        uint32_t old = * (uint32_t*) rdpTarget;
 
         /* atomicCAS returns the value with which the current value 'assumed'
          * was compared. If the value changed between reading out to assumed
@@ -81,8 +82,28 @@ namespace cuda
             /* compare and swap after the value was read with assumend, return
              * old value, if assumed isn't anymore the value at rdpTarget,
              * then we will have to try again to write it */
-            old = atomicCAS( (int*) rdpTarget, assumed,
+            old = atomicCAS( (uint32_t*) rdpTarget, assumed,
                 __float_as_int( f( __int_as_float(assumed), rValue ) ) );
+        }
+        while ( assumed != old );
+    }
+
+    template<class T_FUNC>
+    __device__ inline void atomicFunc
+    (
+        double * const rdpTarget,
+        const double rValue,
+        T_FUNC f
+    )
+    {
+        using ull = unsigned long long int;
+        ull assumed;
+        ull old = * (ull*) rdpTarget;
+        do
+        {
+            assumed = old;
+            old = atomicCAS( (ull*) rdpTarget, assumed,
+                __double_as_longlong( f( __longlong_as_double(assumed), rValue ) ) );
         }
         while ( assumed != old );
     }

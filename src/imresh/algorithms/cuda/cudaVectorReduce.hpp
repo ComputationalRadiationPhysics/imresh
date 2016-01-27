@@ -36,6 +36,31 @@ namespace algorithms
 namespace cuda
 {
 
+
+    template<class T_PREC, class T_FUNC>
+    __device__ inline void atomicFunc
+    (
+        T_PREC * const rdpTarget,
+        const T_PREC rValue,
+        T_FUNC f
+    );
+
+    template<class T_FUNC>
+    __device__ inline void atomicFunc
+    (
+        float * const rdpTarget,
+        const float rValue,
+        T_FUNC f
+    );
+
+    template<class T_FUNC>
+    __device__ inline void atomicFunc
+    (
+        double * const rdpTarget,
+        const double rValue,
+        T_FUNC f
+    );
+
     /**
      * simple functors to just get the sum of two numbers. To be used
      * for the binary vectorReduce function to make it a vectorSum or
