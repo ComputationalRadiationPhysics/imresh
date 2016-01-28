@@ -10,9 +10,9 @@ To compile this library you need
 
 * C++ Compiler (with `c++11` support)
 
-* CUDA (`7.5+`)
+* CUDA (`7.0+`)
 
-* CMake (`3.4.1+`)
+* CMake (`3.3.1+`)
 
 * OpenMP
 
@@ -113,7 +113,7 @@ where image loading and writing can also be handled outside the library.
 
     > Your self-written functions have to provide you both the image dimensions
     > and the host memory containing the image. This memory has to be allocated
-    > via `new` if you're using the build-in write-out functions.
+    > via `new` if you're using the built-in write-out functions.
 
 3. Image processing is just a call to `imresh::io::addTask( )` (for explanation
     of the parameters please have a look at the Doxygen). This will start a
@@ -136,6 +136,13 @@ where image loading and writing can also be handled outside the library.
     > If you're using _imresh_'s own loading functions in combination with your
     > own write-out functions be sure you're freeing the image memory with
     > `delete`.
+
+    > _Note:_
+
+    > _imresh_'s workflow is designed in a way that you'd free your memory inside
+    > of your write out function. It's never called before the algorithm finishs
+    > and therefore the ideal place for freeing the image data. _imresh_'s
+    > built-in functions handle it that way.
 
 5. Library deinitialization is again just a call to `imresh::io::taskQueueDeinit( )`.
     This will handle stream destroying, memory freeing and so on for you.
