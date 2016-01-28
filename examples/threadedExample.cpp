@@ -36,15 +36,6 @@
 #endif
 
 
-
-void dummyWriteOutFunc(
-    float const * const _mem,
-    std::pair<unsigned, unsigned> const _size,
-    std::string const _filename
-)
-{}
-
-
 int main( void )
 {
     // First step is to initialize the library.
@@ -52,7 +43,7 @@ int main( void )
 
 #   ifdef USE_SPLASH
         // Read in a HDF5 file containing a grey scale image as a table
-        auto file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+        auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
         std::pair<unsigned,unsigned> imageSize { 300, 300 };
@@ -85,10 +76,11 @@ int main( void )
             std::ostringstream filename;
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
-            imresh::io::addTask( file.first, file.second,
-                                 imresh::io::writeOutFuncs::writeOutPNG,
-                                 filename.str(),
-                                 i /* sets the number of iterations */ );
+            imresh::io::addTask( file.first,
+                                  file.second,
+                                  imresh::io::writeOutFuncs::writeOutPNG,
+                                  filename.str(),
+                                  i /* sets the number of iterations */ );
         }
 #   endif
 

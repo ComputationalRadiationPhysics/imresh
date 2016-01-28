@@ -42,9 +42,9 @@ namespace examples
 
     void saveToPng
     (
-        float const * const data,
-        std::pair< unsigned, unsigned > const & size,
-        std::string const & filename
+        float* data,
+        std::pair<unsigned int,unsigned int> const& size,
+        std::string const& filename
     )
     {
 #       ifdef USE_PNG

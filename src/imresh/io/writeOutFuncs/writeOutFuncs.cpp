@@ -54,8 +54,8 @@ namespace writeOutFuncs
     void justFree
     (
         float* _mem,
-        std::pair<unsigned int,unsigned int> const _size,
-        std::string const _filename
+        std::pair<unsigned int,unsigned int> const& _size,
+        std::string const& _filename
     )
     {
         if( _mem != NULL )
@@ -73,8 +73,8 @@ namespace writeOutFuncs
         void writeOutPNG
         (
             float* _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            std::pair<unsigned int,unsigned int> const& _size,
+            std::string const& _filename
         )
         {
             pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
@@ -118,8 +118,8 @@ namespace writeOutFuncs
         void writeOutHDF5
         (
             float* _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            std::pair<unsigned int,unsigned int> const& _size,
+            std::string const& _filename
         )
         {
             splash::SerialDataCollector sdc( 0 );

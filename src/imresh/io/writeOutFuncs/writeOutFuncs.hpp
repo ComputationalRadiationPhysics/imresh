@@ -45,8 +45,8 @@ namespace writeOutFuncs
      */
     void justFree(
         float* _mem,
-        std::pair<unsigned int,unsigned int> const _size,
-        std::string const _filname
+        std::pair<unsigned int,unsigned int> const& _size,
+        std::string const& _filname
     );
 
 #   ifdef USE_PNG
@@ -55,8 +55,8 @@ namespace writeOutFuncs
          */
         void writeOutPNG(
             float* _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            std::pair<unsigned int,unsigned int> const& _size,
+            std::string const& _filename
         );
 #   endif
 
@@ -68,8 +68,8 @@ namespace writeOutFuncs
          */
         void writeOutHDF5(
             float* _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            std::pair<unsigned int,unsigned int> const& _size,
+            std::string const& _filename
         );
 #   endif
 
