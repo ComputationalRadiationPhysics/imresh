@@ -10,9 +10,9 @@ To compile this library you need
 
 * C++ Compiler (with `c++11` support)
 
-* CUDA (`7.5+`)
+* CUDA (`7.0+`)
 
-* CMake (`3.3+`)
+* CMake (`3.3.1+`)
 
 * OpenMP
 
@@ -67,9 +67,13 @@ To compile this library you need
 
         cmake ..
 
+    For a clean build with debugging information, try
+
+        cmake .. -DIMRESH_DEBUG=on -DBUILD_DOC=off
+
     To build and run everything, try
 
-        cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on
+        cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on -DUSE_PNG=on -DUSE_SPLASH=on
 
 3. Invoking make
 
@@ -109,7 +113,7 @@ where image loading and writing can also be handled outside the library.
 
     > Your self-written functions have to provide you both the image dimensions
     > and the host memory containing the image. This memory has to be allocated
-    > via `cudaMallocHost` in order to ensure _imresh_'s correct behaviour.
+    > via `new` if you're using the built-in write-out functions.
 
 3. Image processing is just a call to `imresh::io::addTask( )` (for explanation
     of the parameters please have a look at the Doxygen). This will start a
@@ -127,6 +131,19 @@ where image loading and writing can also be handled outside the library.
     (`size.first` is horizontal, `size.second` is vertical) and `filename` the
     name of the file to store the image in.
 
+    > _Note:_
+
+    > If you're using _imresh_'s own loading functions in combination with your
+    > own write-out functions be sure you're freeing the image memory with
+    > `delete`.
+
+    > _Note:_
+
+    > _imresh_'s workflow is designed in a way that you'd free your memory inside
+    > of your write out function. It's never called before the algorithm finishs
+    > and therefore the ideal place for freeing the image data. _imresh_'s
+    > built-in functions handle it that way.
+
 5. Library deinitialization is again just a call to `imresh::io::taskQueueDeinit( )`.
     This will handle stream destroying, memory freeing and so on for you.
 
@@ -134,6 +151,22 @@ where image loading and writing can also be handled outside the library.
 
     > When you're using your own data reading and/or writing functions, you'll
     > have to handle the memory inside of this functions yourself.
+
+### Advanced usage
+
+There's a set of in-action examples in the `examples` directory. These can be
+compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
+
+    cmake .. -DBUILD_EXAMPLES=on
+
+1. For a simple but complete example of how to use this library try `miniExample`
+    and have a look at `miniExample.cpp`.
+
+2. For a more complex example with batch processing please have a look at
+    `threadedExample` and `threadedExamples.cpp` resp.
+
+3. If you need more example data for your tests, please run
+    `outputExampleCreation`
 
 ## Authors
 
