@@ -52,7 +52,7 @@ namespace readInFuncs
 
     std::pair<float*,std::pair<unsigned int,unsigned int>>
     readTxt(
-        std::string const _filename
+        std::string const& _filename
     )
     {
         std::ifstream file;
@@ -108,7 +108,7 @@ namespace readInFuncs
 #   ifdef USE_PNG
         std::pair<float*,std::pair<unsigned int,unsigned int>>
         readPNG(
-            std::string const _filename
+            std::string const& _filename
         )
         {
             pngwriter png( 1, 1, 0, "tmp.png" );
@@ -159,7 +159,7 @@ namespace readInFuncs
 #   ifdef USE_SPLASH
         std::pair<float*,std::pair<unsigned int,unsigned int>>
         readHDF5(
-            std::string const _filename
+            std::string const& _filename
         )
         {
             splash::SerialDataCollector sdc( 0 );
