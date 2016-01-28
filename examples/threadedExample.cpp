@@ -56,7 +56,7 @@ int main( void )
 #   else
         using namespace examples::createTestData;
         std::pair<unsigned,unsigned> imageSize { 300, 300 };
-        std::pair< float*, std::pair<unsigned,unsigned> > file
+        std::pair<float*,std::pair<unsigned,unsigned>> file
         {
             createAtomCluster( imageSize.first, imageSize.second ),
             imageSize
@@ -64,7 +64,13 @@ int main( void )
 #   endif
     // This step is only needed because we have no real images
     imresh::libs::diffractionIntensity( file.first, file.second );
-    delete[] file.first;
+    // And now we free it again.
+    if( file.first != NULL )
+    {
+        delete[] file.first;
+        file.first = NULL;
+    }
+
 
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
@@ -80,7 +86,7 @@ int main( void )
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
             imresh::io::addTask( file.first, file.second,
-                                 dummyWriteOutFunc, //imresh::io::writeOutFuncs::writeOutPNG,
+                                 imresh::io::writeOutFuncs::writeOutPNG,
                                  filename.str(),
                                  i /* sets the number of iterations */ );
         }
