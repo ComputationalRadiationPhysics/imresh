@@ -53,14 +53,14 @@ namespace writeOutFuncs
 
     void justFree
     (
-        float * _mem,
-        std::pair<unsigned, unsigned> const _size,
+        float* _mem,
+        std::pair<unsigned int,unsigned int> const _size,
         std::string const _filename
     )
     {
-        if ( _mem != NULL )
+        if( _mem != NULL )
         {
-            free( _mem );
+            delete[] _mem;
             _mem = NULL;
         }
 #       ifdef IMRESH_DEBUG
@@ -72,32 +72,40 @@ namespace writeOutFuncs
 #   ifdef USE_PNG
         void writeOutPNG
         (
-            float const * const _mem,
-            std::pair<unsigned,unsigned> const _size,
+            float* _mem,
+            std::pair<unsigned int,unsigned int> const _size,
             std::string const _filename
         )
         {
-            auto const & Nx = _size.first;
-            auto const & Ny = _size.second;
+            pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
 
-            pngwriter png( Nx, Ny, 0, _filename.c_str( ) );
-
-            float max = algorithms::vectorMax( _mem, Nx * Ny );
-            for( unsigned iy = 0; iy < Ny; ++iy )
+            float max = algorithms::vectorMax( _mem,
+                                        _size.first * _size.second );
+            for( unsigned int iy = 0; iy < _size.second; ++iy )
             {
-                for( unsigned ix = 0; ix < Nx; ++ix )
+                for( unsigned int ix = 0; ix < _size.first; ++ix )
                 {
-                    auto const index = iy * Nx + ix;
-                    assert( index < Nx * Ny );
-                    const auto & value = _mem[index] / max;
+                    auto const index = iy * _size.first + ix;
+                    assert( index < _size.first * _size.second );
+                    const auto& value = _mem[index] / max;
                     if ( not ( value == value ) ) // isNaN
+                    {
                         png.plot( ix, iy, 255, 0, 0 );
+                    }
                     else
+                    {
                         png.plot( ix, iy, value, value, value );
+                    }
                 }
             }
 
             png.close( );
+
+            if( _mem != NULL )
+            {
+                delete[] _mem;
+                _mem = NULL;
+            }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): "
                              "Successfully written image data to PNG ("
@@ -109,8 +117,8 @@ namespace writeOutFuncs
 #   ifdef USE_SPLASH
         void writeOutHDF5
         (
-            float const * const _mem,
-            std::pair<unsigned, unsigned> const _size,
+            float* _mem,
+            std::pair<unsigned int,unsigned int> const _size,
             std::string const _filename
         )
         {
@@ -133,6 +141,12 @@ namespace writeOutFuncs
                        _mem );
 
             sdc.close( );
+
+            if( _mem != NULL )
+            {
+                delete[] _mem;
+                _mem = NULL;
+            }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): "
                              "Successfully written image data to HDF5 ("

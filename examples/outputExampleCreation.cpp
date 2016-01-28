@@ -48,10 +48,8 @@ namespace examples
     )
     {
 #       ifdef USE_PNG
-            //std::cout << "size = (" << size.first << "," << size.second << ")\n";
             imresh::io::writeOutFuncs::writeOutPNG( data, size, filename );
 #       endif
-        delete[] data;
     }
 
 
