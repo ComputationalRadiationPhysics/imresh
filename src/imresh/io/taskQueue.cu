@@ -224,6 +224,7 @@ namespace io
         for( int i = 0; i < deviceCount; i++ )
         {
             cudaDeviceProp prop;
+            CUDA_ERROR( cudaSetDevice( i ) );
             CUDA_ERROR( cudaGetDeviceProperties( &prop, i ) );
 
             assert( prop.multiProcessorCount >= 0 );
