@@ -132,7 +132,7 @@ namespace readInFuncs
             {
                 for( auto j = 0; j < x; j++ )
                 {
-                    mem[(i * x) + j] = (float) png.read( i, j, 1 ) / 65535;
+                    mem[(i * x) + j] = (float) png.read( j, i, 1 ) / 65535;
                 }
             }
 
