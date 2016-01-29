@@ -42,16 +42,14 @@ namespace examples
 
     void saveToPng
     (
-        float const * const data,
-        std::pair< unsigned, unsigned > const & size,
-        std::string const & filename
+        float * data,
+        std::pair<unsigned int,unsigned int> const& size,
+        std::string const filename
     )
     {
 #       ifdef USE_PNG
-            //std::cout << "size = (" << size.first << "," << size.second << ")\n";
             imresh::io::writeOutFuncs::writeOutPNG( data, size, filename );
 #       endif
-        delete[] data;
     }
 
 

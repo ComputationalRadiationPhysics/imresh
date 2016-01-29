@@ -35,33 +35,33 @@
 
 int main( void )
 {
-    std::vector<unsigned> imageSize { 300, 300 };
-    std::pair<unsigned,unsigned> imageSizePair{ imageSize[0], imageSize[1] };
+    std::vector<unsigned int> imageSize { 300, 300 };
+    std::pair<unsigned int,unsigned int> imageSizePair{ imageSize[0], imageSize[1] };
     using namespace examples::createTestData;
     float * pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
 
     /* debug output of image */
     std::ofstream file;
-    file.open("atomClusterInput.dat");
-    for ( unsigned ix = 0; ix < imageSize[0]; ++ix )
+    file.open( "atomClusterInput.dat" );
+    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
     {
-        for ( unsigned iy = 0; iy < imageSize[1]; ++iy )
+        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
             file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
         file << "\n";
     }
-    file.close();
+    file.close( );
     std::cout << "Wrote atomClusterInput to atomClusterInput.dat\n";
 
     imresh::libs::diffractionIntensity( pAtomCluster, imageSizePair );
 
-    file.open("diffractionIntensity.dat");
-    for ( unsigned ix = 0; ix < imageSize[0]; ++ix )
+    file.open( "diffractionIntensity.dat" );
+    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
     {
-        for ( unsigned iy = 0; iy < imageSize[1]; ++iy )
+        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
             file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
         file << "\n";
     }
-    file.close();
+    file.close( );
     std::cout << "Wrote diffractionIntensity to diffractionIntensity.dat\n";
 
     imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
@@ -70,14 +70,14 @@ int main( void )
      * you could compare the current state with the data returned by
      * createAtomCluster now */
 
-    file.open("atomClusterOutput.dat");
-    for ( unsigned ix = 0; ix < imageSize[0]; ++ix )
+    file.open( "atomClusterOutput.dat" );
+    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
     {
-        for ( unsigned iy = 0; iy < imageSize[1]; ++iy )
+        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
             file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
         file << "\n";
     }
-    file.close();
+    file.close( );
     std::cout << "Wrote atomClusterOutput to atomClusterOutput.dat\n";
 
 

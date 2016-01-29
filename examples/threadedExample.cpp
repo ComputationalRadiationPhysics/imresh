@@ -36,15 +36,6 @@
 #endif
 
 
-
-void dummyWriteOutFunc(
-    float const * const _mem,
-    std::pair<unsigned, unsigned> const _size,
-    std::string const _filename
-)
-{}
-
-
 int main( void )
 {
     // First step is to initialize the library.
@@ -52,11 +43,11 @@ int main( void )
 
 #   ifdef USE_SPLASH
         // Read in a HDF5 file containing a grey scale image as a table
-        auto file = imresh::io::readInFuncs::readHDF5( "../examples/imresh" );
+        auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
-        std::pair<unsigned,unsigned> imageSize { 300, 300 };
-        std::pair< float*, std::pair<unsigned,unsigned> > file
+        std::pair<unsigned int,unsigned int> imageSize { 300, 300 };
+        std::pair<float *,std::pair<unsigned int,unsigned int>> file
         {
             createAtomCluster( imageSize.first, imageSize.second ),
             imageSize
@@ -64,7 +55,13 @@ int main( void )
 #   endif
     // This step is only needed because we have no real images
     imresh::libs::diffractionIntensity( file.first, file.second );
-    delete[] file.first;
+    // And now we free it again.
+    if( file.first != NULL )
+    {
+        delete[] file.first;
+        file.first = NULL;
+    }
+
 
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
@@ -79,10 +76,11 @@ int main( void )
             std::ostringstream filename;
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
-            imresh::io::addTask( file.first, file.second,
-                                 dummyWriteOutFunc, //imresh::io::writeOutFuncs::writeOutPNG,
-                                 filename.str(),
-                                 i /* sets the number of iterations */ );
+            imresh::io::addTask( file.first,
+                                  file.second,
+                                  imresh::io::writeOutFuncs::writeOutPNG,
+                                  filename.str(),
+                                  i /* sets the number of iterations */ );
         }
 #   endif
 

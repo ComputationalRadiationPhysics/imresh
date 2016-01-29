@@ -50,7 +50,7 @@ namespace readInFuncs
 {
 
 
-    std::pair<float*,std::pair<unsigned int,unsigned int>>
+    std::pair<float *,std::pair<unsigned int,unsigned int>>
     readTxt(
         std::string const _filename
     )
@@ -88,7 +88,7 @@ namespace readInFuncs
                 strList.pop_front( );
             }
 
-            auto ret = std::make_pair( (float*) retArray, std::make_pair( xDim, yDim ) );
+            auto ret = std::make_pair( (float *) retArray, std::make_pair( xDim, yDim ) );
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::readInFuncs::readTxt(): Successfully read file."
                     << std::endl;
@@ -106,7 +106,7 @@ namespace readInFuncs
     }
 
 #   ifdef USE_PNG
-        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        std::pair<float *,std::pair<unsigned int,unsigned int>>
         readPNG(
             std::string const _filename
         )
@@ -127,7 +127,7 @@ namespace readInFuncs
                 return { NULL, { 0, 0 } };
             }
 
-            float* mem = new float[x * y];
+            float * mem = new float[x * y];
             for( auto i = 0; i < y; i++ )
             {
                 for( auto j = 0; j < x; j++ )
@@ -157,7 +157,7 @@ namespace readInFuncs
 #   endif
 
 #   ifdef USE_SPLASH
-        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        std::pair<float *,std::pair<unsigned int,unsigned int>>
         readHDF5(
             std::string const _filename
         )
@@ -170,9 +170,9 @@ namespace readInFuncs
 
             sdc.open( _filename.c_str( ), fCAttr );
 
-            int32_t *ids = NULL;
+            int32_t * ids = NULL;
             size_t num_ids = 0;
-            sdc.getEntryIDs( NULL, &num_ids );
+            sdc.getEntryIDs( NULL, & num_ids );
 
             if( num_ids == 0 )
             {
@@ -186,10 +186,10 @@ namespace readInFuncs
             else
             {
                 ids = new int32_t[num_ids];
-                sdc.getEntryIDs( ids, &num_ids );
+                sdc.getEntryIDs( ids, & num_ids );
             }
 
-            splash::DataCollector::DCEntry *entries = NULL;
+            splash::DataCollector::DCEntry * entries = NULL;
             size_t num_entries = 0;
             sdc.getEntriesForID( ids[0], NULL, &num_entries );
 
@@ -215,7 +215,7 @@ namespace readInFuncs
             splash::Dimensions dim;
             sdc.read( ids[0], first_entry.name.c_str( ), dim, NULL );
 
-            float* mem = NULL;
+            float * mem = NULL;
             if( dim.getScalarSize( ) == 0 )
             {
                 delete[] entries;
