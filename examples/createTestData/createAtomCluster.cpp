@@ -39,7 +39,7 @@ namespace createTestData
 {
 
 
-    #define SCALE_EXAMPLE_IMAGE 1
+    #define SCALE_EXAMPLE_IMAGE 0
 
 
     float * createAtomCluster
