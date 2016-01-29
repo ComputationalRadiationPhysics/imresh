@@ -43,10 +43,10 @@ namespace readInFuncs
      * They need to store their values as a 2D matrix with spaces as delimiters.
      * _Note:_ This is currently not working!
      */
-    std::pair<float*,std::pair<unsigned int,unsigned int>>
+    std::pair<float *,std::pair<unsigned int,unsigned int>>
     readTxt
     (
-        std::string const& _filename
+        std::string const _filename
     );
 
 #   ifdef USE_PNG
@@ -59,10 +59,10 @@ namespace readInFuncs
          *         second pair element contains 2d dimension values as pair.
          *         They are 0 on error.
          */
-        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        std::pair<float *,std::pair<unsigned int,unsigned int>>
         readPNG
         (
-            std::string const& _filename
+            std::string const _filename
         );
 #   endif
 
@@ -72,10 +72,10 @@ namespace readInFuncs
          *
          * _Note:_ This is currently not working!
          **/
-        std::pair<float*,std::pair<unsigned int,unsigned int>>
+        std::pair<float *,std::pair<unsigned int,unsigned int>>
         readHDF5
         (
-            std::string const& _filename
+            std::string const _filename
         );
 #   endif
 

@@ -44,9 +44,9 @@ namespace writeOutFuncs
      * on the filesystem.
      */
     void justFree(
-        float* _mem,
-        std::pair<unsigned int,unsigned int> const& _size,
-        std::string const& _filname
+        float * _mem,
+        std::pair<unsigned int,unsigned int> const _size,
+        std::string const _filname
     );
 
 #   ifdef USE_PNG
@@ -54,9 +54,9 @@ namespace writeOutFuncs
          * Writes the reconstructed image to a PNG file.
          */
         void writeOutPNG(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> const& _size,
-            std::string const& _filename
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
         );
 #   endif
 
@@ -67,9 +67,9 @@ namespace writeOutFuncs
          * This is done using libSplash.
          */
         void writeOutHDF5(
-            float* _mem,
-            std::pair<unsigned int,unsigned int> const& _size,
-            std::string const& _filename
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
         );
 #   endif
 

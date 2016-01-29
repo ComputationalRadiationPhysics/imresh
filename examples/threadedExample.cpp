@@ -46,8 +46,8 @@ int main( void )
         auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
-        std::pair<unsigned,unsigned> imageSize { 300, 300 };
-        std::pair<float*,std::pair<unsigned,unsigned>> file
+        std::pair<unsigned int,unsigned int> imageSize { 300, 300 };
+        std::pair<float *,std::pair<unsigned int,unsigned int>> file
         {
             createAtomCluster( imageSize.first, imageSize.second ),
             imageSize

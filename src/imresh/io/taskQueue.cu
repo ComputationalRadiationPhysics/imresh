@@ -84,9 +84,9 @@ namespace io
      * @see addTask
      */
     void addTaskAsync(
-        float* _h_mem,
+        float * _h_mem,
         std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+        std::function<void(float *,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename,
         unsigned int _numberOfCycles,
@@ -106,7 +106,7 @@ namespace io
         auto strm = streamList.front( );
         streamList.pop_front( );
         streamList.push_back( strm );
-        mtx.unlock();
+        mtx.unlock( );
         auto device = strm.device;
         auto str = strm.str;
 
@@ -141,9 +141,9 @@ namespace io
     }
 
     void addTask(
-        float* _h_mem,
+        float * _h_mem,
         std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+        std::function<void(float *,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename,
         unsigned int _numberOfCycles = 20,
@@ -164,7 +164,7 @@ namespace io
                 std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
                     << std::endl;
 #           endif
-            if ( threadPool.front().joinable() )
+            if ( threadPool.front( ).joinable( ) )
                 threadPool.front( ).join( );
             else
             {
@@ -210,7 +210,7 @@ namespace io
                 << std::endl;
 #       endif
         int deviceCount = 0;
-        CUDA_ERROR( cudaGetDeviceCount( &deviceCount ) );
+        CUDA_ERROR( cudaGetDeviceCount( & deviceCount ) );
 
         if( deviceCount <= 0 )
         {
@@ -225,7 +225,7 @@ namespace io
         {
             cudaDeviceProp prop;
             CUDA_ERROR( cudaSetDevice( i ) );
-            CUDA_ERROR( cudaGetDeviceProperties( &prop, i ) );
+            CUDA_ERROR( cudaGetDeviceProperties( & prop, i ) );
 
             assert( prop.multiProcessorCount >= 0 );
 #           ifdef IMRESH_DEBUG
@@ -240,7 +240,7 @@ namespace io
             {
                 stream str;
                 str.device = i;
-                CUDA_ERROR( cudaStreamCreate( &str.str ) );
+                CUDA_ERROR( cudaStreamCreate( & str.str ) );
                 streamList.push_back( str );
 #               ifdef IMRESH_DEBUG
                     std::cout << "imresh::io::fillStreamList(): Created stream "

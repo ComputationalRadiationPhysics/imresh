@@ -53,15 +53,14 @@ namespace writeOutFuncs
 
     void justFree
     (
-        float* _mem,
-        std::pair<unsigned int,unsigned int> const& _size,
-        std::string const& _filename
+        float * _mem,
+        std::pair<unsigned int,unsigned int> const _size,
+        std::string const _filename
     )
     {
         if( _mem != NULL )
         {
             delete[] _mem;
-            _mem = NULL;
         }
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data ("
@@ -72,9 +71,9 @@ namespace writeOutFuncs
 #   ifdef USE_PNG
         void writeOutPNG
         (
-            float* _mem,
-            std::pair<unsigned int,unsigned int> const& _size,
-            std::string const& _filename
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
         )
         {
             pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
@@ -104,7 +103,6 @@ namespace writeOutFuncs
             if( _mem != NULL )
             {
                 delete[] _mem;
-                _mem = NULL;
             }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): "
@@ -117,9 +115,9 @@ namespace writeOutFuncs
 #   ifdef USE_SPLASH
         void writeOutHDF5
         (
-            float* _mem,
-            std::pair<unsigned int,unsigned int> const& _size,
-            std::string const& _filename
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
         )
         {
             splash::SerialDataCollector sdc( 0 );
@@ -145,7 +143,6 @@ namespace writeOutFuncs
             if( _mem != NULL )
             {
                 delete[] _mem;
-                _mem = NULL;
             }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): "
