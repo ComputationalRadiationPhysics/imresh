@@ -26,43 +26,50 @@
 #include <iostream>
 #include <iomanip>
 #include <string>           // std::string
+#include <cstdio>
 
 #include "libs/diffractionIntensity.hpp"
-#include "algorithms/shrinkWrap.hpp"
+#include "algorithms/shrinkWrap.hpp"                // fftShift, shrinkWrap
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "createTestData/createAtomCluster.hpp"
+#include "io/writeOutFuncs/writeOutFuncs.hpp"
+#include "io/readInFuncs/readInFuncs.hpp"
 
 
-int main( void )
+int main( int argc, char ** argv )
 {
-    std::vector<unsigned int> imageSize { 300, 300 };
-    std::pair<unsigned int,unsigned int> imageSizePair{ imageSize[0], imageSize[1] };
-    using namespace examples::createTestData;
-    float * pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
+    using namespace imresh::io::writeOutFuncs;
 
-    /* debug output of image */
-    std::ofstream file;
-    file.open( "atomClusterInput.dat" );
-    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
+    std::vector<unsigned> imageSize { 6000, 3000};
+    float * pAtomCluster;
+
+    if ( argc > 1 )
     {
-        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
-            file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
-        file << "\n";
+        #if USE_PNG
+            auto file = imresh::io::readInFuncs::readPNG( argv[1] );
+            imageSize[0] = file.second.first;
+            imageSize[1] = file.second.second;
+            pAtomCluster = file.first;
+            printf( "name: %s, memory: %p, width: %u, height: %u\n", argv[1], pAtomCluster, imageSize[0], imageSize[1] );
+            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+        #endif
     }
-    file.close( );
-    std::cout << "Wrote atomClusterInput to atomClusterInput.dat\n";
-
-    imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
-
-    file.open( "diffractionIntensity.dat" );
-    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
+    else
     {
-        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
-            file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
-        file << "\n";
+        using namespace examples::createTestData;
+        pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
+        #if USE_PNG
+            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+        #endif
+
+        imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
+        #if USE_PNG
+            using imresh::algorithms::fftShift;
+            fftShift( pAtomCluster, imageSize[0], imageSize[1] );
+            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
+            fftShift( pAtomCluster, imageSize[0], imageSize[1] );
+        #endif
     }
-    file.close( );
-    std::cout << "Wrote diffractionIntensity to diffractionIntensity.dat\n";
 
     #if USE_FFTW
         imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
@@ -73,16 +80,9 @@ int main( void )
      * you could compare the current state with the data returned by
      * createAtomCluster now */
 
-    file.open( "atomClusterOutput.dat" );
-    for( unsigned int ix = 0; ix < imageSize[0]; ++ix )
-    {
-        for( unsigned int iy = 0; iy < imageSize[1]; ++iy )
-            file << std::setw(10) << pAtomCluster[ iy*imageSize[0] + ix ] << " ";
-        file << "\n";
-    }
-    file.close( );
-    std::cout << "Wrote atomClusterOutput to atomClusterOutput.dat\n";
-
+    #if USE_PNG
+        writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-reconstructed.png" );
+    #endif
 
     delete[] pAtomCluster;
 
