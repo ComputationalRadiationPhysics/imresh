@@ -56,21 +56,6 @@ endif()
 # sm_30 is needed for __shfl_down
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30")
 
-if(BUILD_EXAMPLES)
-    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
-    add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
-    target_link_libraries( examples )
-
-    add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
-    target_link_libraries( "threadedExample" ${PROJECT_NAME} examples )
-
-    add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
-    target_link_libraries( "miniExample" ${PROJECT_NAME} examples )
-
-    add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
-    target_link_libraries( "outputExampleCreation" ${PROJECT_NAME} examples )
-endif()
-
 if(USE_PNG)
     find_package(PNGwriter REQUIRED)
     add_definitions("-DUSE_PNG ${PNGwriter_DEFINITIONS}")
@@ -90,10 +75,25 @@ endif()
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
 include_directories(${PROJECT_SOURCE_DIR}/src/imresh SYSTEM ${CUDA_INCLUDE_DIRS} ${PNGwriter_INCLUDE_DIRS} ${Splash_INCLUDE_DIRS} ${OpenMP_INCLUDE_DIRS})
 cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
-cuda_add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
+cuda_add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES})
 set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
-install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+#install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+
+if(BUILD_EXAMPLES)
+    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
+    add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
+    target_link_libraries( examples )
+
+    add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
+    target_link_libraries( "threadedExample" examples ${PROJECT_NAME} )
+
+    add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
+    target_link_libraries( "miniExample" examples ${PROJECT_NAME} )
+
+    add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
+    target_link_libraries( "outputExampleCreation" examples ${PROJECT_NAME} )
+endif()
 
 # Tests and Benchmarks
 set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
@@ -106,7 +106,7 @@ if(RUN_TESTS)
     add_executable("testVectorIndex" ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp)
     target_link_libraries("testVectorIndex" ${PROJECT_NAME} "tests")
 
-    add_executable("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp)
+    CUDA_ADD_EXECUTABLE("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cu)
     target_link_libraries("testVectorReduce" ${PROJECT_NAME} "tests")
 
     add_executable("testGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp)
@@ -115,6 +115,7 @@ if(RUN_TESTS)
     enable_testing()
     add_test(NAME testVectorIndex COMMAND testVectorIndex)
     add_test(NAME testVectorReduce COMMAND testVectorReduce)
+    add_test(NAME testVectorGaussian COMMAND testVectorGaussian)
 
     add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
                   DEPENDS testVectorIndex testVectorReduce)
