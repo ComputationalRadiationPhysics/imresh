@@ -46,7 +46,7 @@ namespace readInFuncs
     std::pair<float *,std::pair<unsigned int,unsigned int>>
     readTxt
     (
-        std::string const _filename
+        std::string const& _filename
     );
 
 #   ifdef USE_PNG
@@ -62,7 +62,7 @@ namespace readInFuncs
         std::pair<float *,std::pair<unsigned int,unsigned int>>
         readPNG
         (
-            std::string const _filename
+            std::string const& _filename
         );
 #   endif
 
@@ -75,7 +75,7 @@ namespace readInFuncs
         std::pair<float *,std::pair<unsigned int,unsigned int>>
         readHDF5
         (
-            std::string const _filename
+            std::string const& _filename
         );
 #   endif
 
