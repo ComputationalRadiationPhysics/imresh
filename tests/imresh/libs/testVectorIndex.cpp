@@ -35,7 +35,7 @@
 
 namespace imresh
 {
-namespace tests
+namespace libs
 {
 
     std::ostream & operator<<

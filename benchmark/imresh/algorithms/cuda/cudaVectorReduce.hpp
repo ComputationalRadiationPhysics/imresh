@@ -45,11 +45,11 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduceShared
     (
-        T_PREC const * rdpData,
-        unsigned int rnData,
-        T_PREC * rdpResult,
+        T_PREC const * const rdpData,
+        unsigned int const rnData,
+        T_PREC * const rdpResult,
         T_FUNC f,
-        T_PREC rInitValue
+        T_PREC const rInitValue
     );
 
     /**
@@ -59,11 +59,11 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduceSharedWarps
     (
-        T_PREC const * rdpData,
-        unsigned int rnData,
-        T_PREC * rdpResult,
-        T_FUNC f,
-        T_PREC rInitValue
+        T_PREC const * const rdpData,
+        unsigned int const rnData,
+        T_PREC * const rdpResult,
+        T_FUNC const f,
+        T_PREC const rInitValue
     );
 
     template<class T_PREC, class T_FUNC>
@@ -86,45 +86,31 @@ namespace cuda
         cudaStream_t rStream = 0
     );
 
-    template<class T_COMPLEX, class T_MASK>
-    __global__ void cudaKernelCalculateHioError
-    (
-        T_COMPLEX const * rdpgPrime,
-        T_MASK    const * rdpIsMasked,
-        unsigned int rnData,
-        bool rInvertMask,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-
     template<class T_PREC>
     T_PREC cudaVectorMaxSharedMemory
     (
-        T_PREC const * rdpData,
-        unsigned int rnElements,
+        T_PREC const * const rdpData,
+        unsigned int const rnElements,
         cudaStream_t rStream = 0
     );
 
     template<class T_PREC>
     T_PREC cudaVectorMaxSharedMemoryWarps
     (
-        T_PREC const * rdpData,
-        unsigned int rnElements,
+        T_PREC const * const rdpData,
+        unsigned int const rnElements,
         cudaStream_t rStream = 0
     );
 
     template<class T_COMPLEX>
     __global__ void cudaKernelCalculateHioErrorBitPacked
     (
-        T_COMPLEX const * rdpgPrime,
-        int       const * rdpIsMasked,
-        unsigned int rnData,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
+        T_COMPLEX const * const __restrict__ rdpgPrime,
+        int       const * const __restrict__ rdpIsMasked,
+        unsigned int const rnData,
+        float * const __restrict__ rdpTotalError,
+        float * const __restrict__ rdpnMaskedPixels
     );
-
-
-    float _instantiateAllTemplatesCudaVectorReduceBenchmark(void);
 
 
 } // namespace cuda

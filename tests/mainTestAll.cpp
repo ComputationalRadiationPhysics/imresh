@@ -23,6 +23,7 @@
  */
 
 
+#include <iostream>
 #include "imresh/algorithms/testGaussian.hpp"
 #include "imresh/algorithms/testVectorReduce.hpp"
 #include "imresh/algorithms/testVectorElementwise.hpp"
@@ -31,17 +32,18 @@
 
 int main( void )
 {
-    imresh::algorithms::TestGaussian testGaussian;
-    testGaussian();
-
     using namespace imresh::algorithms;
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
+    using namespace imresh::libs;
 
+    testVectorIndex();
+    testUnpackBitMask();
+    //testCalculateHioError();
+    testVectorReduce();
     testVectorElementwise();
 
-    imresh::tests::testVectorIndex();
+    TestGaussian testGaussian; testGaussian();
+
+    std::cout << "All tests OK.\n";
 
     return 0;
 }

@@ -321,7 +321,6 @@ namespace algorithms
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
             std::cout << "." << std::flush;
-
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
             cudaKernelCalculateHioError<<<1,256>>>
@@ -335,7 +334,8 @@ namespace algorithms
             /* Calculation done, now check if everything is correct */
             assert( nLastMaskedPixels <= nMaskedPixels );
             assert( (unsigned) totalError % 5 == 0 );
-            assert( nMaskedPixels * 5 == totalError );
+            printf( "%u, %f\n", nMaskedPixels, totalError );
+            assert( nMaskedPixels / 5 == totalError );
 
             nLastMaskedPixels = nMaskedPixels;
 

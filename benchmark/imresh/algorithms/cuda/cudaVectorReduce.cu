@@ -416,30 +416,7 @@ namespace cuda
     }
 
 
-    /* implicit template instantiations */
-
-    float _instantiateAllTemplatesCudaVectorReduceBenchmark( void )
-    {
-        return
-        cudaReduceSharedMemory( (float*) NULL, 0, sumFunctorf, 0.0f ) +
-        cudaReduceSharedMemory( (float*) NULL, 0, minFunctorf, 0.0f ) +
-        cudaReduceSharedMemory( (float*) NULL, 0, maxFunctorf, 0.0f ) +
-        cudaReduceSharedMemory( (double*) NULL, 0, sumFunctord, 0.0 ) +
-        cudaReduceSharedMemory( (double*) NULL, 0, minFunctord, 0.0 ) +
-        cudaReduceSharedMemory( (double*) NULL, 0, maxFunctord, 0.0 ) +
-        cudaReduceSharedMemoryWarps( (float*) NULL, 0, sumFunctorf, 0.0f ) +
-        cudaReduceSharedMemoryWarps( (float*) NULL, 0, minFunctorf, 0.0f ) +
-        cudaReduceSharedMemoryWarps( (float*) NULL, 0, maxFunctorf, 0.0f ) +
-        cudaReduceSharedMemoryWarps( (double*) NULL, 0, sumFunctord, 0.0 ) +
-        cudaReduceSharedMemoryWarps( (double*) NULL, 0, minFunctord, 0.0 ) +
-        cudaReduceSharedMemoryWarps( (double*) NULL, 0, maxFunctord, 0.0 ) +
-        cudaVectorMaxSharedMemory( (float*) NULL, 0 ) +
-        cudaVectorMaxSharedMemory( (double*) NULL, 0 ) +
-        cudaVectorMaxSharedMemoryWarps( (float*) NULL, 0 ) +
-        cudaVectorMaxSharedMemoryWarps( (double*) NULL, 0 ) +
-        0;
-    }
-
+    /* explicit template instantiations */
 
     template
     float cudaVectorMaxSharedMemory<float>

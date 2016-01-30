@@ -40,24 +40,24 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __device__ inline void atomicFunc
     (
-        T_PREC * rdpTarget,
-        T_PREC rValue,
+        T_PREC * const rdpTarget,
+        T_PREC const rValue,
         T_FUNC f
     );
 
     template<class T_FUNC>
     __device__ inline void atomicFunc
     (
-        float * rdpTarget,
-        float rValue,
+        float * const rdpTarget,
+        float const rValue,
         T_FUNC f
     );
 
     template<class T_FUNC>
     __device__ inline void atomicFunc
     (
-        double * rdpTarget,
-        double rValue,
+        double * const rdpTarget,
+        double const rValue,
         T_FUNC f
     );
 
@@ -110,11 +110,11 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduce
     (
-        T_PREC const * rdpData,
-        unsigned int rnData,
-        T_PREC * rdpResult,
+        T_PREC const * const rdpData,
+        unsigned int const rnData,
+        T_PREC * const rdpResult,
         T_FUNC f,
-        T_PREC rInitValue
+        T_PREC const rInitValue
     );
 
 
@@ -148,12 +148,12 @@ namespace cuda
     template< class T_COMPLEX, class T_MASK >
     __global__ void cudaKernelCalculateHioError
     (
-        T_COMPLEX const * rdpgPrime,
-        T_MASK const * rdpIsMasked,
-        unsigned int rnData,
+        T_COMPLEX const * const rdpgPrime,
+        T_MASK const * const rdpIsMasked,
+        unsigned int const rnData,
         bool const rInvertMask,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
+        float * const rdpTotalError,
+        float * const rdpnMaskedPixels
     );
 
 
