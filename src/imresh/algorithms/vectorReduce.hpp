@@ -37,45 +37,45 @@ namespace algorithms
      *
      * Useful for comparing two vectors of floating point numbers
      **/
-    template<class T>
-    T vectorMaxAbsDiff
+    template<class T_PREC>
+    T_PREC vectorMaxAbsDiff
     (
-        const T * const & rData1,
-        const T * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        T_PREC const * rData1,
+        T_PREC const * rData2,
+        unsigned int rnData,
+        unsigned int rnStride = 1
     );
 
-    template<class T>
-    T vectorMaxAbs
+    template<class T_PREC>
+    T_PREC vectorMaxAbs
     (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        T_PREC const * rData,
+        unsigned int rnData,
+        unsigned int rnStride = 1
     );
 
-    template<class T>
-    T vectorMax
+    template<class T_PREC>
+    T_PREC vectorMax
     (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        T_PREC const * rData,
+        unsigned int rnData,
+        unsigned int rnStride = 1
     );
 
-    template<class T>
-    T vectorMin
+    template<class T_PREC>
+    T_PREC vectorMin
     (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        T_PREC const * rData,
+        unsigned int rnData,
+        unsigned int rnStride = 1
     );
 
-    template<class T>
-    T vectorSum
+    template<class T_PREC>
+    T_PREC vectorSum
     (
-        const T * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride = 1
+        T_PREC const * rData,
+        unsigned int rnData,
+        unsigned int rnStride = 1
     );
 
 
