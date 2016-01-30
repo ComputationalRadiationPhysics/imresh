@@ -39,6 +39,8 @@
 
 int main( void )
 {
+    using ImageDimensions = std::pair<unsigned int,unsigned int>;
+
     // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
@@ -47,15 +49,15 @@ int main( void )
         auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
-        std::pair<unsigned int,unsigned int> imageSize { 300, 300 };
-        std::pair<float *,std::pair<unsigned int,unsigned int>> file
+        ImageDimensions imageSize { 300, 300 };
+        std::pair<float *,ImageDimensions> file
         {
             createAtomCluster( imageSize.first, imageSize.second ),
             imageSize
         };
 #   endif
     // This step is only needed because we have no real images
-    imresh::libs::diffractionIntensity( file.first, file.second );
+    imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
     // And now we free it again.
     if( file.first != NULL )
     {
@@ -68,15 +70,10 @@ int main( void )
         // Let's see, how the images look after several different time steps.
         for( int i = 1; i < 33; i++)
         {
-            #if false
-                // How about the PNG input? BEWARE! This path is dependent on the folder structure!
-                file = imresh::io::readInFuncs::readPNG( "../examples/testData/lattice-aspect-ratio-2.png" );
-                // Again, this step is only needed because we have no real images
-                imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
-            #else
-                file.first = new float[ file.second.first * file.second.second ];
-                memcpy( file.first, atomExample, file.second.first * file.second.second * sizeof( file.first[0] ) );
-            #endif
+            // How about the PNG input? BEWARE! This path is dependent on the folder structure!
+            file = imresh::io::readInFuncs::readPNG( "../examples/testData/lattice-aspect-ratio-2.png" );
+            // Again, this step is only needed because we have no real images
+            imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
             std::ostringstream filename;
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";

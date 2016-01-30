@@ -39,6 +39,7 @@
 int main( int argc, char ** argv )
 {
     using namespace imresh::io::writeOutFuncs;
+    using ImageDimensions = std::pair<unsigned int, unsigned int>;
 
     std::vector<unsigned> imageSize { 6000, 3000};
     float * pAtomCluster;
@@ -51,7 +52,7 @@ int main( int argc, char ** argv )
             imageSize[1] = file.second.second;
             pAtomCluster = file.first;
             printf( "name: %s, memory: %p, width: %u, height: %u\n", argv[1], pAtomCluster, imageSize[0], imageSize[1] );
-            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
         #endif
     }
     else
@@ -59,14 +60,14 @@ int main( int argc, char ** argv )
         using namespace examples::createTestData;
         pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
         #if USE_PNG
-            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
         #endif
 
         imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
         #if USE_PNG
             using imresh::algorithms::fftShift;
             fftShift( pAtomCluster, imageSize[0], imageSize[1] );
-            writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
+            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
             fftShift( pAtomCluster, imageSize[0], imageSize[1] );
         #endif
     }
@@ -81,7 +82,7 @@ int main( int argc, char ** argv )
      * createAtomCluster now */
 
     #if USE_PNG
-        writeOutPNG( pAtomCluster, std::pair<unsigned,unsigned>{ imageSize[0], imageSize[1] }, "atomCluster-reconstructed.png" );
+        writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-reconstructed.png" );
     #endif
 
     delete[] pAtomCluster;
