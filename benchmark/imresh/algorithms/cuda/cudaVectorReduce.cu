@@ -157,7 +157,58 @@ namespace cuda
 
 
     template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceShared
+    __global__ void kernelVectorReduceGlobalAtomic2
+    (
+        T_PREC const * const rdpData,
+        unsigned int const rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        T_PREC const rInitValue
+    )
+    {
+        assert( blockDim.y == 1 );
+        assert( blockDim.z == 1 );
+        assert( gridDim.y  == 1 );
+        assert( gridDim.z  == 1 );
+
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        assert( i < nTotalThreads );
+
+        for ( ; i < rnData; i += nTotalThreads )
+            atomicFunc( rdpResult, rdpData[i], f );
+    }
+
+
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceGlobalAtomic
+    (
+        T_PREC const * const rdpData,
+        unsigned int const rnData,
+        T_PREC * const rdpResult,
+        T_FUNC f,
+        T_PREC const rInitValue
+    )
+    {
+        assert( blockDim.y == 1 );
+        assert( blockDim.z == 1 );
+        assert( gridDim.y  == 1 );
+        assert( gridDim.z  == 1 );
+
+        const int32_t nTotalThreads = gridDim.x * blockDim.x;
+        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+        assert( i < nTotalThreads );
+
+        T_PREC localReduced = T_PREC(rInitValue);
+        for ( ; i < rnData; i += nTotalThreads )
+            localReduced = f( localReduced, rdpData[i] );
+
+        atomicFunc( rdpResult, localReduced, f );
+    }
+
+
+    template<class T_PREC, class T_FUNC>
+    __global__ void kernelVectorReduceSharedMemory
     (
         T_PREC const * const rdpData,
         unsigned int const rnData,
@@ -251,109 +302,77 @@ namespace cuda
     }
 
 
-    template<class T_PREC, class T_FUNC>
-    T_PREC cudaReduceSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream
-    )
-    {
-        /* the more threads we have the longer the reduction will be
-         * done inside shared memory instead of global memory */
-        const unsigned nThreads = 256;
-        const unsigned nBlocks = 256;
-        assert( nBlocks < 65536 );
-
-        T_PREC reducedValue;
-        T_PREC * dpReducedValue;
-        T_PREC initValue = rInitValue;
-
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );
-        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(T_PREC),
-                                     cudaMemcpyHostToDevice, rStream ) );
-
-        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
-        kernelVectorReduceShared<<< nBlocks, nThreads, 0, rStream >>>
-            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
-
-        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
-                                     cudaMemcpyDeviceToHost, rStream ) );
-        CUDA_ERROR( cudaStreamSynchronize( rStream) );
-        CUDA_ERROR( cudaFree( dpReducedValue ) );
-
-        return reducedValue;
-    }
-
-
-    template<class T_PREC, class T_FUNC>
-    T_PREC cudaReduceSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream
-    )
-    {
-        const unsigned nThreads = 256;
-        const unsigned nBlocks = 256;
-        assert( nBlocks < 65536 );
-
-        T_PREC reducedValue;
-        T_PREC * dpReducedValue;
-        T_PREC initValue = rInitValue;
-
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );
-        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(T_PREC),
-                                     cudaMemcpyHostToDevice, rStream ) );
-
-        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
-        kernelVectorReduceSharedMemoryWarps<<< nBlocks, nThreads, 0, rStream >>>
-            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
-
-        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
-                                     cudaMemcpyDeviceToHost, rStream ) );
-        CUDA_ERROR( cudaStreamSynchronize( rStream) );
-        CUDA_ERROR( cudaFree( dpReducedValue ) );
-
-        return reducedValue;
-    }
+    #define WRAP_REDUCE_WITH_FUNCTOR( NAME)                                    \
+    template<class T_PREC, class T_FUNC>                                       \
+    T_PREC cudaReduce##NAME                                                    \
+    (                                                                          \
+        T_PREC const * const rdpData,                                          \
+        unsigned int const rnElements,                                         \
+        T_FUNC f,                                                              \
+        T_PREC const rInitValue,                                               \
+        cudaStream_t rStream                                                   \
+    )                                                                          \
+    {                                                                          \
+        /* the more threads we have the longer the reduction will be           \
+         * done inside shared memory instead of global memory */               \
+        const unsigned nThreads = 256;                                         \
+        const unsigned nBlocks = 256;                                          \
+        assert( nBlocks < 65536 );                                             \
+                                                                               \
+        T_PREC reducedValue;                                                   \
+        T_PREC * dpReducedValue;                                               \
+        T_PREC initValue = rInitValue;                                         \
+                                                                               \
+        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );  \
+        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue,               \
+                                     sizeof(T_PREC),                           \
+                                     cudaMemcpyHostToDevice,                   \
+                                     rStream ) );                              \
+                                                                               \
+        /* memcpy is on the same stream as kernel will be, so no synchronize   \
+           needed! */                                                          \
+        kernelVectorReduce##NAME<<< nBlocks, nThreads, 0, rStream >>>          \
+            ( rdpData, rnElements, dpReducedValue, f, rInitValue );            \
+                                                                               \
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );                        \
+        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue,            \
+                                     sizeof(T_PREC),                           \
+                                     cudaMemcpyDeviceToHost, rStream ) );      \
+        CUDA_ERROR( cudaStreamSynchronize( rStream) );                         \
+        CUDA_ERROR( cudaFree( dpReducedValue ) );                              \
+                                                                               \
+        return reducedValue;                                                   \
+    }                                                                          \
+                                                                               \
+    template<class T_PREC>                                                     \
+    T_PREC cudaVectorMax##NAME                                                 \
+    (                                                                          \
+        T_PREC const * const rdpData,                                          \
+        unsigned int const rnElements,                                         \
+        cudaStream_t rStream                                                   \
+    )                                                                          \
+    {                                                                          \
+        MaxFunctor<T_PREC> maxFunctor;                                         \
+        return cudaReduce##NAME( rdpData, rnElements, maxFunctor,              \
+                                 std::numeric_limits<T_PREC>::lowest(),        \
+                                 rStream );                                    \
+    }                                                                          \
+                                                                               \
+    /* explicit template instantiations */                                     \
+                                                                               \
+    template                                                                   \
+    float cudaVectorMax##NAME<float>                                           \
+    (                                                                          \
+        float const * const rdpData,                                           \
+        unsigned int const rnElements,                                         \
+        cudaStream_t rStream                                                   \
+    );
 
 
-    template<class T_PREC>
-    T_PREC cudaVectorMaxSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
-    )
-    {
-        MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduceSharedMemory( rdpData, rnElements, maxFunctor,
-                                       std::numeric_limits<T_PREC>::lowest(),
-                                       rStream );
-    }
-
-
-    template<class T_PREC>
-    T_PREC cudaVectorMaxSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
-    )
-    {
-        MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduceSharedMemoryWarps( rdpData, rnElements, maxFunctor,
-                                            std::numeric_limits<T_PREC>::lowest(),
-                                            rStream );
-    }
-
+    WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
+    WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
+    WRAP_REDUCE_WITH_FUNCTOR( SharedMemory )
+    WRAP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
 
     /**
      * @see cudaKernelCalculateHioError
@@ -417,23 +436,6 @@ namespace cuda
 
 
     /* explicit template instantiations */
-
-    template
-    float cudaVectorMaxSharedMemory<float>
-    (
-        float const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
-    );
-
-    template
-    float cudaVectorMaxSharedMemoryWarps<float>
-    (
-        float const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
-    );
-
 
     template
     __global__ void cudaKernelCalculateHioErrorBitPacked

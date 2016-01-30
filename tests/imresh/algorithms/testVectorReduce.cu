@@ -92,7 +92,7 @@ namespace algorithms
 
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "vector length : cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
+        std::cout << "vector length : cudaVectorMax (global atomic) | cudaVectorMax (global atomic) | cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
         using namespace imresh::tests;
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
@@ -109,95 +109,61 @@ namespace algorithms
             pData[iObviousValuePos] = obviousMaximum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-            /* time CUDA shared memory version */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMaxSharedMemory( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
+            #define TIME_GPU( FUNC, OBVIOUS_VALUE )                          \
+            {                                                                \
+                minTime = FLT_MAX;                                           \
+                for ( unsigned iRepetition = 0; iRepetition < nRepetitions;  \
+                      ++iRepetition )                                        \
+                {                                                            \
+                    cudaEventRecord( start );                                \
+                    auto cudaReduced = FUNC( dpData, nElements );            \
+                    cudaEventRecord( stop );                                 \
+                    cudaEventSynchronize( stop );                            \
+                    cudaEventElapsedTime( &milliseconds, start, stop );      \
+                    minTime = fmin( minTime, milliseconds );                 \
+                    assert( cudaReduced == OBVIOUS_VALUE );                  \
+                }                                                            \
+                std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            /* time CUDA shared memory version + warp reduce */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMaxSharedMemoryWarps( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CUDA (warp reduce)*/
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMax( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
+            TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
+            TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
+            TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
+            TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
+            TIME_GPU( cudaVectorMax                 , obviousMaximum )
 
             /* time CPU */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                clock0 = clock::now();
-                auto cpuMax = vectorMax( pData, nElements );
-                clock1 = clock::now();
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-                assert( cpuMax == obviousMaximum );
+            #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
+            {                                                                \
+                minTime = FLT_MAX;                                           \
+                for ( unsigned iRepetition = 0; iRepetition < nRepetitions;  \
+                      ++iRepetition )                                        \
+                {                                                            \
+                    clock0 = clock::now();                                   \
+                    auto cpuMax = FUNC( pData, nElements );                  \
+                    clock1 = clock::now();                                   \
+                    milliseconds = ( clock1-clock0 ).count() / 1000.0;       \
+                    minTime = fmin( minTime, milliseconds );                 \
+                    assert( cpuMax == OBVIOUS_VALUE );                       \
+                }                                                            \
+                std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
 
+            TIME_CPU( vectorMax, obviousMaximum )
 
             /* Minimum */
             pData[iObviousValuePos] = obviousMinimum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-            /* time CUDA */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMin = cudaVectorMin( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMin == obviousMinimum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                clock0 = clock::now();
-                auto cpuMin = vectorMin( pData, nElements );
-                clock1 = clock::now();
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-                assert( cpuMin == obviousMinimum );
-            }
-            std::cout << std::setw(8) << minTime << "\n" << std::flush;
+            TIME_GPU( cudaVectorMin, obviousMinimum )
+            TIME_CPU( vectorMin, obviousMinimum )
 
             /* set obvious value back to random value */
             pData[iObviousValuePos] = (float) rand() / RAND_MAX;
+            std::cout << "\n";
+
+            #undef TIME_GPU
+            #undef TIME_CPU
         }
 
 
@@ -334,7 +300,7 @@ namespace algorithms
             /* Calculation done, now check if everything is correct */
             assert( nLastMaskedPixels <= nMaskedPixels );
             assert( (unsigned) totalError % 5 == 0 );
-            printf( "%u, %f\n", nMaskedPixels, totalError );
+            printf( "%f, %f\n", nMaskedPixels, totalError );
             assert( nMaskedPixels / 5 == totalError );
 
             nLastMaskedPixels = nMaskedPixels;

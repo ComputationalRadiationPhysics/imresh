@@ -38,69 +38,20 @@ namespace cuda
 {
 
 
-    /**
-     * @see kernelVectorReduceWarps but uses only shared memory to reduce
-     * per block
-     **/
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceShared
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
+    #define CUDA_VECTOR_MAX_DECLARATION( NAME )  \
+    template<class T_PREC>                       \
+    T_PREC cudaVectorMax##NAME                   \
+    (                                            \
+        T_PREC const * const rdpData,            \
+        unsigned int const rnElements,           \
+        cudaStream_t rStream = 0                 \
     );
 
-    /**
-     * @see kernelVectorReduceWarps but uses also shared memory to reduce
-     * per block
-     **/
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceSharedWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC const f,
-        T_PREC const rInitValue
-    );
+    CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic2 )
+    CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic )
+    CUDA_VECTOR_MAX_DECLARATION( SharedMemory )
+    CUDA_VECTOR_MAX_DECLARATION( SharedMemoryWarps )
 
-    template<class T_PREC, class T_FUNC>
-    T_PREC cudaReduceSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream = 0
-    );
-
-    template<class T_PREC, class T_FUNC>
-    T_PREC cudaReduceSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream = 0
-    );
-
-    template<class T_PREC>
-    T_PREC cudaVectorMaxSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream = 0
-    );
-
-    template<class T_PREC>
-    T_PREC cudaVectorMaxSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream = 0
-    );
 
     template<class T_COMPLEX>
     __global__ void cudaKernelCalculateHioErrorBitPacked
