@@ -23,6 +23,8 @@
  */
 
 
+#include "testGaussian.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -47,17 +49,8 @@ namespace imresh
 namespace algorithms
 {
 
-
-struct TestGaussian
-{
-
-    float * pData, * dpData, * pResult, * pResultCpu, * pSolution;
-    static constexpr unsigned int nMaxElements = 4*1024*1024;
-    static constexpr int maxKernelWidth = 30; // (sigma=4), needed to calculate upper bound of maximum rounding error
-
-
-    void compareFloatArray
-    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line = 0 )
+    void TestGaussian::compareFloatArray
+    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
     {
         const unsigned nElements = nCols * nRows;
         auto maxError = vectorMaxAbsDiff( pData, pResult, nElements );
@@ -137,12 +130,12 @@ struct TestGaussian
      *            Can be useful to check columns in 2D data, by setting
      *            nStride = nCols. Must not be 0
      **/
-    void checkGaussian
+    void TestGaussian::checkGaussian
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nElements,
-        unsigned const & nStride = 1
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned const nElements,
+        unsigned const nStride
     )
     {
         assert( vectorMin( pOriginal, nElements, nStride )
@@ -156,12 +149,12 @@ struct TestGaussian
     /**
      * Calls checkGaussian for every row
      **/
-    inline void checkGaussianHorizontal
+    void TestGaussian::checkGaussianHorizontal
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nCols,
-        unsigned const & nRows
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned const nCols,
+        unsigned const nRows
     )
     {
         for ( unsigned iRow = 0; iRow < nRows; ++iRow )
@@ -171,23 +164,23 @@ struct TestGaussian
     /**
      * Calls checkGaussian for every column
      **/
-    inline void checkGaussianVertical
+    void TestGaussian::checkGaussianVertical
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nCols,
-        unsigned const & nRows
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned int const nCols,
+        unsigned int const nRows
     )
     {
         for ( unsigned iCol = 0; iCol < nCols; ++iCol )
             checkGaussian( pResult, pOriginal, nRows, nCols );
     }
 
-    void checkIfElementsEqual
+    void TestGaussian::checkIfElementsEqual
     (
-        float const * const & pData,
-        unsigned const & nData,
-        unsigned const & nStride = 1
+        float const * const pData,
+        unsigned int const nData,
+        unsigned int const nStride
     )
     {
         assert( nStride > 0 );
@@ -210,7 +203,7 @@ struct TestGaussian
         assert( sumDiff == 0 );
     }
 
-    void fillWithRandomValues
+    void TestGaussian::fillWithRandomValues
     ( float * dpData, float * pData, unsigned nElements )
     {
         for ( unsigned i = 0; i < nElements; ++i )
@@ -220,7 +213,7 @@ struct TestGaussian
     }
 
 
-    void testGaussianDiracDeltas( void )
+    void TestGaussian::testGaussianDiracDeltas( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -341,7 +334,7 @@ struct TestGaussian
     }
 
 
-    void testGaussianRandomSingleData( void )
+    void TestGaussian::testGaussianRandomSingleData( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -400,7 +393,7 @@ struct TestGaussian
     }
 
 
-    void testGaussianConstantValuesPerRowLine( void )
+    void TestGaussian::testGaussianConstantValuesPerRowLine( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -482,7 +475,7 @@ struct TestGaussian
     }
 
 
-    void testGaussianConstantValues( void )
+    void TestGaussian::testGaussianConstantValues( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -545,7 +538,7 @@ struct TestGaussian
     }
 
 
-    void benchmarkGaussianGeneralRandomValues( void )
+    void TestGaussian::benchmarkGaussianGeneralRandomValues( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -697,7 +690,7 @@ struct TestGaussian
     }
 
 
-    void operator()( void )
+    void TestGaussian::operator()( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -724,15 +717,8 @@ struct TestGaussian
         CUDA_ERROR( cudaFreeHost( pData ) );
         CUDA_ERROR( cudaFreeHost( pResult ) );
     }
-}; // struct TestGaussian
+
 
 
 } // namespace algorithms
 } // namespace imresh
-
-
-int main( void )
-{
-    imresh::algorithms::TestGaussian testGaussian;
-    testGaussian();
-}

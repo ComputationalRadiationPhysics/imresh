@@ -23,6 +23,8 @@
  */
 
 
+#include "testVectorIndex.hpp"
+
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -129,9 +131,3 @@ namespace tests
 
 } // namespace tests
 } // namespace imresh
-
-
-int main( void )
-{
-    imresh::tests::testVectorIndex();
-}

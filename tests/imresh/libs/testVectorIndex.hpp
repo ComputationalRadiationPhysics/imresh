@@ -25,20 +25,22 @@
 
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#include <iostream>
+#include <cassert>
+#include <vector>
+#include <map>
+#include <utility>   // pair
+#include "libs/vectorIndex.hpp"
 
-
-#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
-namespace libs
+namespace tests
 {
 
 
-    void checkCudaError(const cudaError_t rValue, const char * file, int line );
+    void testVectorIndex( void );
 
 
-} // namespace libs
+} // namespace tests
 } // namespace imresh

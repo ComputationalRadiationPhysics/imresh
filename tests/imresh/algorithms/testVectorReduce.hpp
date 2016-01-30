@@ -23,22 +23,32 @@
  */
 
 
-#pragma once
-
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-
-
-#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
-
 namespace imresh
 {
-namespace libs
+namespace algorithms
 {
 
 
-    void checkCudaError(const cudaError_t rValue, const char * file, int line );
+    inline unsigned ceilDiv( const unsigned dividend, const unsigned divisor )
+    {
+        return ( dividend + divisor-1 ) / divisor;
+    }
 
 
-} // namespace libs
+    void testVectorReduce( void );
+
+    template<class T_MASK, class T_PACKED>
+    void unpackBitMask
+    (
+        T_MASK         * rMask,
+        T_PACKED const * rPackedBits,
+        unsigned int nElements
+    );
+
+    void testUnpackBitMask( void );
+
+    void testCalculateHioError( void );
+
+
+} // namespace algorithms
 } // namespace imresh

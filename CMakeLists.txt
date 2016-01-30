@@ -99,27 +99,27 @@ endif()
 set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
-    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp )
-    add_library("tests" ${TEST_SOURCE_FILES})
-    target_link_libraries("tests")
+    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/benchmark/*.cpp  ${PROJECT_SOURCE_DIR}/benchmark/*.hpp HI ${PROJECT_SOURCE_DIR}/benchmark/*.cu ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp ${PROJECT_SOURCE_DIR}/tests/*.cu )
 
-    add_executable("testVectorIndex" ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp)
-    target_link_libraries("testVectorIndex" ${PROJECT_NAME} "tests")
+    # for includes of #include "benchmarks/...". Note that
+    #    clude_directories(${PROJECT_SOURCE_DIR})
+    # would lead to ambiguous includes
+    include_directories(${PROJECT_SOURCE_DIR})
+    cuda_include_directories(${PROJECT_SOURCE_DIR})
 
-    CUDA_ADD_EXECUTABLE("testVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cu)
-    target_link_libraries("testVectorReduce" ${PROJECT_NAME} "tests")
+    cuda_add_library("tests" ${TEST_SOURCE_FILES})
+    target_link_libraries("tests" ${PROJECT_NAME})
 
-    add_executable("testGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp)
-    target_link_libraries("testGaussian" ${PROJECT_NAME} "tests")
+    add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
+    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests")
 
     enable_testing()
-    add_test(NAME testVectorIndex COMMAND testVectorIndex)
-    add_test(NAME testVectorReduce COMMAND testVectorReduce)
-    add_test(NAME testVectorGaussian COMMAND testVectorGaussian)
+    add_test(NAME mainTestAll COMMAND mainTestAll)
 
     add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
-                  DEPENDS testVectorIndex testVectorReduce)
+                  DEPENDS mainTestAll)
 
+    # the following are very small executable units for the use with nvvp as too complex programs are difficult to profile (threadMainExample makes nvvp use 6+GB RAM)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
 
     add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)

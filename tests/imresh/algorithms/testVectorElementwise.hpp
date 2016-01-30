@@ -25,20 +25,15 @@
 
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
-
-
-#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
-namespace libs
+namespace algorithms
 {
 
+    void testVectorElementwise( void );
 
-    void checkCudaError(const cudaError_t rValue, const char * file, int line );
 
-
-} // namespace libs
+} // namespace algorithms
 } // namespace imresh
+

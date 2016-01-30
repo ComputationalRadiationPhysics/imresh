@@ -23,6 +23,8 @@
  */
 
 
+#include "testVectorReduce.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -41,6 +43,7 @@
 #endif
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
+#include "benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp"
 #include "libs/cudacommon.h"
 #include "benchmarkHelper.hpp"
 
@@ -51,14 +54,9 @@ namespace algorithms
 {
 
 
-    inline unsigned ceilDiv( const unsigned dividend, const unsigned divisor )
-    {
-        return ( dividend + divisor-1 ) / divisor;
-    }
-
-
     void testVectorReduce( void )
     {
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::algorithms::cuda;
         using namespace imresh::algorithms;
 
@@ -348,7 +346,7 @@ namespace algorithms
                  * result, as there should be no floating point rounding errors
                  * for relatively short array ( < 1e6 ? ) */
                 float nMaskedPixelsCpu, totalErrorCpu;
-                calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements, &totalErrorCpu, &nMaskedPixelsCpu );
+                calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements, /* is inverted:  */ false, &totalErrorCpu, &nMaskedPixelsCpu );
 
                 assert( totalErrorCpu == totalError );
                 assert( nMaskedPixelsCpu == nMaskedPixels );
@@ -486,14 +484,3 @@ namespace algorithms
 
 } // namespace algorithms
 } // namespace imresh
-
-
-int main( void )
-{
-    using namespace imresh::algorithms;
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
-
-    return 0;
-}

@@ -23,22 +23,26 @@
  */
 
 
-#pragma once
+#include "imresh/algorithms/testGaussian.hpp"
+#include "imresh/algorithms/testVectorReduce.hpp"
+#include "imresh/algorithms/testVectorElementwise.hpp"
+#include "imresh/libs/testVectorIndex.hpp"
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
 
-
-#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
-
-namespace imresh
+int main( void )
 {
-namespace libs
-{
+    imresh::algorithms::TestGaussian testGaussian;
+    testGaussian();
 
+    using namespace imresh::algorithms;
+    testUnpackBitMask();
+    testCalculateHioError();
+    testVectorReduce();
 
-    void checkCudaError(const cudaError_t rValue, const char * file, int line );
+    testVectorElementwise();
 
+    imresh::tests::testVectorIndex();
 
-} // namespace libs
-} // namespace imresh
+    return 0;
+}
+

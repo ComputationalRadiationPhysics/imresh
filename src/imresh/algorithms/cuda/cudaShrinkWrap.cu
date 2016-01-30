@@ -312,7 +312,7 @@ namespace cuda
             } // HIO loop
 
             /* check if we are done */
-            const float currentError = calculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
+            const float currentError = cudaCalculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
 #           ifdef IMRESH_DEBUG
                 std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                           << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
