@@ -67,10 +67,12 @@ namespace libs
     template< class T_COMPLEX, class T_MASK_ELEMENT >
     float calculateHioError
     (
-        const T_COMPLEX * const & gPrime,
-        const T_MASK_ELEMENT * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        T_COMPLEX      const * const __restrict__ gPrime,
+        T_MASK_ELEMENT const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     )
     {
         float totalError    = 0;
@@ -91,23 +93,33 @@ namespace libs
             totalError    += shouldBeZero * ( re*re+im*im );
             nMaskedPixels += shouldBeZero;
         }
+
+        if ( rpTotalError != NULL )
+            *rpTotalError    = totalError;
+        if ( rpnMaskedPixels != NULL )
+            *rpnMaskedPixels = nMaskedPixels;
+
         return sqrtf( totalError ) / (float) nMaskedPixels;
     }
 
 #ifdef USE_FFTW
     template float calculateHioError<fftwf_complex,float>
     (
-        const fftwf_complex * const & gPrime,
-        const float * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        fftwf_complex const * const __restrict__ gPrime,
+        float         const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     );
     template float calculateHioError<fftw_complex,float>
     (
-        const fftw_complex * const & gPrime,
-        const float * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        fftw_complex const * const __restrict__ gPrime,
+        float        const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     );
 
 
@@ -122,10 +134,10 @@ namespace libs
     {
         /* In the initial step introduce a random phase as a first guess.
          * This could be done without the fourier transform and extra space
-         * by applying the needed symmetrie f(-x) = \overline{f(x)}, so that
+         * by applying the needed symmetry f(-x) = \overline{f(x)}, so that
          * the inverse fourier trafo will be real.
-         * Initially this condition should be true, because the input is expected
-         * to stem from a fourier transform of a real function.
+         * Initially this condition should be true, because the input is
+         * expected to stem from a fourier transform of a real function.
          * Note that the input is expected to have x=0 at ix=0, which means
          * we need to check wheter rIoData[ix==1] == rIoData[ix==Nx-1]
          */

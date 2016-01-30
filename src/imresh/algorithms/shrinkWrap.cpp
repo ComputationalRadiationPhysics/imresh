@@ -23,6 +23,8 @@
  */
 
 
+#define DEBUG_SHRINKWRAPP_CPP 1
+
 #include "algorithms/shrinkWrap.hpp"
 
 #include <cstddef>    // NULL
@@ -41,6 +43,11 @@
 #include "libs/hybridInputOutput.hpp" // calculateHioError
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/vectorElementwise.hpp"
+#ifdef USE_PNG
+#   if DEBUG_SHRINKWRAPP_CPP == 1
+#       include "io/writeOutFuncs/writeOutFuncs.hpp"
+#   endif
+#endif
 
 
 namespace imresh
@@ -49,23 +56,6 @@ namespace algorithms
 {
 
 
-    /**
-     * Shifts the Fourier transform result in frequency space to the center
-     *
-     * @verbatim
-     *        +------------+      +------------+          +------------+
-     *        |            |      |78 ++  ++ 56|          |     --     |
-     *        |            |      |o> ''  '' <o|          | .. <oo> .. |
-     *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
-     *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
-     *        |            |      |o> ..  .. <o|          | '' <oo> '' |
-     *        |            |      |34 ++  ++ 12|          |     --     |
-     *        +------------+      +------------+          +------------+
-     *                           k=0         k=N-1              k=0
-     * @endverbatim
-     * This index shift can be done by a simple shift followed by a modulo:
-     *   newArray[i] = array[ (i+N/2)%N ]
-     **/
     template< class T_COMPLEX >
     void fftShift
     (
@@ -115,8 +105,6 @@ namespace algorithms
         assert( avgIm <  1e-5 );
     }
 
-
-    #define DEBUG_SHRINKWRAPP_CPP 1
 
     int shrinkWrap
     (
@@ -184,18 +172,10 @@ namespace algorithms
         //fftShift( isMasked, Nx,Ny );
         libs::gaussianBlur( isMasked, Nx, Ny, sigma );
 
+        #ifdef USE_PNG
         #if DEBUG_SHRINKWRAPP_CPP == 1
-            std::ofstream file;
-            std::string fname = std::string("shrinkWrap-init-mask-blurred");
-            file.open( ( fname + std::string(".dat") ).c_str() );
-            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
-            {
-                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
-                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
-                file << "\n";
-            }
-            file.close();
-            std::cout << "Written out " << fname << ".png\n";
+            imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask-blurred.png" );
+        #endif
         #endif
 
         /* apply threshold to make binary mask */
@@ -207,17 +187,10 @@ namespace algorithms
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
         }
 
+        #ifdef USE_PNG
         #if DEBUG_SHRINKWRAPP_CPP == 1
-            fname = std::string("shrinkWrap-init-mask");
-            file.open( ( fname + std::string(".dat") ).c_str() );
-            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
-            {
-                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
-                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
-                file << "\n";
-            }
-            file.close();
-            std::cout << "Written out " << fname << ".png\n";
+            imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask.png" );
+        #endif
         #endif
 
         /* copy original image into fftw_complex array and add random phase */
@@ -280,7 +253,7 @@ namespace algorithms
                 fftwf_execute( toFreqSpace );
 
                 /* Replace absolute of G' with measured absolute |F| */
-                applyComplexModulus( curData, curData, rIntensity, nElements );
+                applyComplexModulus( curData, rIntensity, nElements );
 
                 fftwf_execute( toRealSpace );
             } // HIO loop
@@ -307,8 +280,31 @@ namespace algorithms
 
         return 0;
     }
+
+
+    /* explicit template instantiations */
+
+    template
+    void fftShift<fftwf_complex>
+    (
+        fftwf_complex * const & data,
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
 #endif
+
+    template
+    void fftShift<float>
+    (
+        float * const & data,
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
 
 
 } // namespace algorithms
 } // namespace imresh
+
+#ifdef DEBUG_SHRINKWRAPP_CPP
+#   undef DEBUG_SHRINKWRAPP_CPP
+#endif

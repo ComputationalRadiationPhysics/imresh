@@ -33,6 +33,32 @@ namespace imresh
 namespace algorithms
 {
 
+
+    /**
+     * Shifts the Fourier transform result in frequency space to the center
+     *
+     * @verbatim
+     *        +------------+      +------------+          +------------+
+     *        |            |      |78 ++  ++ 56|          |     --     |
+     *        |            |      |o> ''  '' <o|          | .. <oo> .. |
+     *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
+     *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
+     *        |            |      |o> ..  .. <o|          | '' <oo> '' |
+     *        |            |      |34 ++  ++ 12|          |     --     |
+     *        +------------+      +------------+          +------------+
+     *                           k=0         k=N-1              k=0
+     * @endverbatim
+     * This index shift can be done by a simple shift followed by a modulo:
+     *   newArray[i] = array[ (i+N/2)%N ]
+     **/
+    template< class T_COMPLEX >
+    void fftShift
+    (
+        T_COMPLEX * const & data,
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
+
     /**
      * The exact same as @see cudaShrinkWrap
      **/
