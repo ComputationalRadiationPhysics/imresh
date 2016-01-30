@@ -36,6 +36,39 @@ namespace cuda
 {
 
 
+    template< class T_COMPLEX, class T_PREC >
+    __global__ void cudaKernelApplyHioDomainConstraints
+    (
+        T_COMPLEX       * rdpgPrevious,
+        T_COMPLEX const * rdpgPrime,
+        T_PREC    const * rdpIsMasked,
+        unsigned int rnElements,
+        T_PREC const rHioBeta
+    );
+
+
+#   ifdef IMRESH_DEBUG
+        /**
+         * checks if the imaginary parts are all 0. For debugging purposes
+         **/
+        template< class T_COMPLEX >
+        void checkIfReal
+        (
+            T_COMPLEX const * rData,
+            unsigned int rnElements
+        );
+#   endif
+
+
+    template< class T_PREC >
+    float compareCpuWithGpuArray
+    (
+        T_PREC const * rpData,
+        T_PREC const * rdpData,
+        unsigned int rnElements
+    );
+
+
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)
      *

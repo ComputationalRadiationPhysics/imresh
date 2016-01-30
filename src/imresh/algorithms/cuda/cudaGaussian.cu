@@ -23,7 +23,7 @@
  */
 
 
-#include "algorithms/cuda/cudaGaussian.h"
+#include "cudaGaussian.h"
 
 #include <iostream>
 #include <cstdio>           // printf
@@ -37,12 +37,6 @@
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.h"
-
-
-/* constant memory declaration doesn't work inside namespaces */
-constexpr unsigned nMaxWeights = 50; // need to assert whether this is enough
-constexpr unsigned nMaxKernels = 20; // ibid
-__constant__ float gdpGaussianWeights[ nMaxWeights*nMaxKernels ];
 
 
 namespace imresh
@@ -201,7 +195,8 @@ namespace cuda
             T_PREC const & rSigma,
             T_PREC* * rdppKernel,
             unsigned * rpKernelSize,
-            cudaStream_t rStream = 0
+            cudaStream_t rStream = 0,
+            bool rAsync = true
         )
         {
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -261,7 +256,8 @@ namespace cuda
                     *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
                     CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
                         kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
-                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                    if ( not rAsync )
+                        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
@@ -292,13 +288,13 @@ namespace cuda
     struct Cache1d
     {
         T_PREC const * const & data;
-        unsigned const & nData;
+        unsigned int const & nData;
 
         T_PREC * const & smBuffer; /**< pointer to allocated buffer, will not be allocated on constructor because this class needs to be trivial to work on GPU */
-        unsigned const & nBuffer;
+        unsigned int const & nBuffer;
 
-        unsigned const & nThreads;
-        unsigned const & nKernelHalf;
+        unsigned int const & nThreads;
+        unsigned int const & nKernelHalf;
 
         __device__ inline T_PREC & operator[]( unsigned i ) const
         {
@@ -520,9 +516,9 @@ namespace cuda
     (
         /* You can't pass by reference to a kernel !!! compiles, but gives weird errors ... */
         T_PREC * const rdpData,
-        const unsigned rImageWidth,
+        unsigned int const rImageWidth,
         T_PREC const * const rdpWeights,
-        const unsigned nKernelHalf
+        unsigned int const nKernelHalf
     )
     {
         assert( blockDim.y == 1 and blockDim.z == 1 );
@@ -531,7 +527,7 @@ namespace cuda
         /* If more than 1 block, then each block works on a separate line.
          * Each line borders will be extended. So mutliple blocks can't be used
          * to blur one very very long line even faster! */
-        const int & nThreads = blockDim.x;
+        int const & nThreads = blockDim.x;
         T_PREC * const data = &rdpData[ blockIdx.x * rImageWidth ];
 
         /* manage dynamically allocated shared memory */
@@ -539,8 +535,8 @@ namespace cuda
         extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
-        const unsigned nWeights = 2*nKernelHalf+1;
-        const unsigned nBufferSize = nThreads + 2*nKernelHalf;
+        unsigned int const nWeights = 2*nKernelHalf+1;
+        unsigned int const nBufferSize = nThreads + 2*nKernelHalf;
         T_PREC * const smWeights = smBlock;
         T_PREC * const smBuffer  = &smBlock[ nWeights ];
         __syncthreads();
@@ -631,152 +627,13 @@ namespace cuda
     }
 
 
-    /* new version using constant memory */
-
-    template<class T_PREC>
-    __global__ void cudaKernelApplyKernelConstantWeights
-    (
-        /* You can't pass by reference to a kernel !!! compiles, but gives weird errors ... */
-        T_PREC * const rdpData,
-        unsigned const rnDataX,
-        unsigned const rnDataY,
-        T_PREC * const rWeights,
-        unsigned const rnWeights
-    )
-    {
-        assert( blockDim.y == 1 and blockDim.z == 1 );
-        assert(  gridDim.y == 1 and  gridDim.z == 1 );
-        assert( rnWeights >= 1 );
-        const unsigned nKernelHalf = (rnWeights-1) / 2;
-
-        const int & nThreads = blockDim.x;
-        T_PREC * const data = &rdpData[ blockIdx.x * rnDataX ];
-
-        /* @see http://stackoverflow.com/questions/27570552/ */
-        extern __shared__ __align__( sizeof(T_PREC) ) unsigned char sm[];
-        T_PREC * const smBuffer = reinterpret_cast<T_PREC*>( sm );
-        const unsigned nBufferSize = nThreads + 2*nKernelHalf;
-        __syncthreads();
-
-        Cache1d<T_PREC> buffer{ data, rnDataX, smBuffer, nBufferSize, blockDim.x, nKernelHalf };
-        buffer.initializeCache(); /* loads first set of data */
-
-        /* The for loop break condition is the same for all threads in a block,
-         * so it is safe to use __syncthreads() inside */
-        for ( T_PREC * curDataRow = data; curDataRow < data + rnDataX; curDataRow += nThreads )
-        {
-            buffer.loadCacheLine( curDataRow );
-
-            /* calculated weighted sum on inner points in buffer, but only if
-             * the value we are at is actually needed: */
-            const unsigned iBuf = nKernelHalf + threadIdx.x;
-            if ( &curDataRow[iBuf-nKernelHalf] < &data[rnDataX] )
-            {
-                T_PREC sum = T_PREC(0);
-                for ( T_PREC * w = rWeights, * x = &buffer[iBuf-nKernelHalf];
-                      w < rWeights + rnWeights; ++w, ++x )
-                {
-                    sum += (*w) * (*x);
-                }
-                /* write result back into memory (in-place). No need to wait for
-                 * all threads to finish, because we write into global memory,
-                 * to values we already buffered into shared memory! */
-                curDataRow[iBuf-nKernelHalf] = sum;
-            }
-        }
-    }
-
-
-
-    template<class T_PREC>
-    void cudaGaussianBlurHorizontalConstantWeights
-    (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    )
-    {
-        static unsigned firstFree = 0;
-        static float kernelSigmas[ nMaxKernels ];
-        static float kernelSizes [ nMaxKernels ];
-
-        /* look if we already have that kernel buffered */
-        unsigned iKernel = 0;
-        for ( ; iKernel < firstFree; ++iKernel )
-            if ( kernelSigmas[ iKernel ] == rSigma )
-                break;
-
-        T_PREC * dpWeights = NULL;
-        unsigned kernelSize = 0;
-        /* if not found, then calculate and save it */
-        if ( iKernel == firstFree )
-        {
-            //printf("sigma = %f not found, uploading to constant memory\n", rSigma );
-
-            /* calc kernel */
-            T_PREC pKernel[nMaxWeights];
-            kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, nMaxWeights );
-            assert( kernelSize <= nMaxWeights );
-
-            /* if buffer full, then delete buffer */
-            if ( firstFree == nMaxKernels )
-            {
-                #ifndef NDEBUG
-                    std::cout << "Warning, couldn't find sigma in kernel buffer and no space to store it. Clearing buffer!\n";
-                #endif
-                firstFree = 0;
-                iKernel = 0;
-            }
-
-            /* remember sigma */
-            kernelSigmas[ iKernel ] = rSigma;
-            kernelSizes [ iKernel ] = kernelSize;
-            ++firstFree;
-
-            /* upload to GPU */
-            CUDA_ERROR( cudaGetSymbolAddress( (void**) &dpWeights, gdpGaussianWeights ) );
-            dpWeights += iKernel * nMaxWeights;
-            CUDA_ERROR( cudaMemcpyAsync( dpWeights, pKernel,
-                kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
-            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-        }
-        else
-        {
-            CUDA_ERROR( cudaGetSymbolAddress( (void**) &dpWeights, gdpGaussianWeights ) );
-            dpWeights += iKernel * nMaxWeights;
-            kernelSize = kernelSizes[ iKernel ];
-        }
-
-        /* the image must be at least nThreads threads wide, else many threads
-         * will only sleep. The number of blocks is equal to the image height.
-         * Every block works on 1 image line. The number of Threads is limited
-         * by the hardware to be e.g. 512 or 1024. The reason for this is the
-         * limited shared memory size! */
-        const unsigned nThreads = 256;
-        const unsigned nBlocks  = rnDataY;
-        const unsigned bufferSize = nThreads + kernelSize-1;
-
-        cudaKernelApplyKernelConstantWeights<<<
-            nBlocks,nThreads,
-            sizeof(T_PREC) * bufferSize,
-            rStream
-        >>>( rdpData, rnDataX, rnDataY, dpWeights, kernelSize );
-
-        if ( not rAsync )
-            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-    }
-
-
     template<class T_PREC>
     void cudaGaussianBlurHorizontalSharedWeights
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * const rdpData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma,
         cudaStream_t rStream,
         bool rAsync
     )
@@ -820,7 +677,7 @@ namespace cuda
 
         unsigned kernelSize;
         T_PREC * dpKernel;
-        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize );
+        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize, rStream, true /* async, goes to same stream */ );
 
         /* the image must be at least nThreads threads wide, else many threads
          * will only sleep. The number of blocks is equal to the image height.
@@ -894,10 +751,10 @@ namespace cuda
     __global__ void cudaKernelApplyKernelVertically
     (
         T_PREC * const rdpData,
-        const unsigned rnDataX,
-        const unsigned rnDataY,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
         T_PREC const * const rdpWeights,
-        const unsigned N
+        unsigned int const N
     )
     {
         assert( blockDim.z == 1 );
@@ -1110,17 +967,17 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlurVertical
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * const rdpData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma,
         cudaStream_t rStream,
         bool rAsync
     )
     {
         unsigned kernelSize;
         T_PREC * dpKernel;
-        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize );
+        GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize, rStream, true /* async, goes to same stream */ );
 
         /**
          *  - The image should be at least nThreadsX threads wide, else many
@@ -1160,10 +1017,10 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlur
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * const rdpData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma,
         cudaStream_t rStream,
         bool rAsync
     )
@@ -1176,10 +1033,10 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlurSharedWeights
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * const rdpData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma,
         cudaStream_t rStream,
         bool rAsync
     )
@@ -1193,88 +1050,81 @@ namespace cuda
 
     template void cudaGaussianBlur<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        float * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
     template void cudaGaussianBlur<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        double * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
 
+    template void cudaGaussianBlurSharedWeights<float>
+    (
+        float * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
+        cudaStream_t rStream,
+        bool rAsync
+    );
+    template void cudaGaussianBlurSharedWeights<double>
+    (
+        double * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
+        cudaStream_t rStream,
+        bool rAsync
+    );
+
+
     template void cudaGaussianBlurVertical<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        float * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
     template void cudaGaussianBlurVertical<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        double * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
 
-
-    template void cudaGaussianBlurHorizontalConstantWeights<float>
-    (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-    template void cudaGaussianBlurHorizontalConstantWeights<double>
-    (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
 
     template void cudaGaussianBlurHorizontalSharedWeights<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        float * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
     template void cudaGaussianBlurHorizontalSharedWeights<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        double * rData,
+        unsigned rnDataX,
+        unsigned rnDataY,
+        double rSigma,
         cudaStream_t rStream,
         bool rAsync
     );
-
-    /**
-     * The following templates will be implicitely instantiated by the above
-     * functions:
-     *   - cudaApplyKernel
-     *   - cudaGaussianBlurHorizontal
-     *   - cudaGaussianBlurVertical
-     **/
 
 
 } // namespace cuda

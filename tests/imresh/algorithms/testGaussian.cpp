@@ -38,6 +38,7 @@
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaGaussian.h"
+#include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
 #include "libs/gaussian.hpp"
 #include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.h"
@@ -216,6 +217,7 @@ namespace algorithms
     void TestGaussian::testGaussianDiracDeltas( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* test gaussian blur for 000100010001000 where the number of 0s
@@ -337,6 +339,7 @@ namespace algorithms
     void TestGaussian::testGaussianRandomSingleData( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Test for array of length 1. In this case the values shouldn't change
@@ -396,6 +399,7 @@ namespace algorithms
     void TestGaussian::testGaussianConstantValuesPerRowLine( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* now do checks with longer arrays which contain constant values,
@@ -478,6 +482,7 @@ namespace algorithms
     void TestGaussian::testGaussianConstantValues( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         std::cout << "Test gaussian blur of vectors of whose rows or columns (depending on whether to use vertical or horizontal blur) are all equal" << std::flush;
@@ -541,6 +546,7 @@ namespace algorithms
     void TestGaussian::benchmarkGaussianGeneralRandomValues( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Now test with random data and assert only some general properties */

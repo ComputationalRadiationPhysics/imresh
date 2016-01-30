@@ -40,11 +40,44 @@ namespace cuda
 
 
     template< class T_COMPLEX, class T_PREC >
+    __global__ void cudaKernelApplyHioDomainConstraints
+    (
+        T_COMPLEX       * const rdpgPrevious,
+        T_COMPLEX const * const rdpgPrime,
+        T_PREC    const * const rdpIsMasked,
+        unsigned int const rnElements,
+        T_PREC const rHioBeta
+    )
+    {
+        assert( blockDim.y == 1 );
+        assert( blockDim.z == 1 );
+        assert( gridDim.y  == 1 );
+        assert( gridDim.z  == 1 );
+
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int nTotalThreads = gridDim.x * blockDim.x;
+        for ( ; i < rnElements; i += nTotalThreads )
+        {
+            if ( rdpIsMasked[i] == 1 or /* g' */ rdpgPrime[i].x < 0 )
+            {
+                rdpgPrevious[i].x -= rHioBeta * rdpgPrime[i].x;
+                rdpgPrevious[i].y -= rHioBeta * rdpgPrime[i].y;
+            }
+            else
+            {
+                rdpgPrevious[i].x = rdpgPrime[i].x;
+                rdpgPrevious[i].y = rdpgPrime[i].y;
+            }
+        }
+    }
+
+
+    template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelCopyToRealPart
     (
         T_COMPLEX * const rTargetComplexArray,
         T_PREC    * const rSourceRealArray,
-        unsigned    const rnElements
+        unsigned int const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -67,7 +100,7 @@ namespace cuda
     (
         T_PREC    * const rTargetComplexArray,
         T_COMPLEX * const rSourceRealArray,
-        unsigned    const rnElements
+        unsigned int const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -88,8 +121,8 @@ namespace cuda
     __global__ void cudaKernelComplexNormElementwise
     (
         T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements
+        T_COMPLEX const * const rdpDataSource,
+        unsigned int const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -111,8 +144,8 @@ namespace cuda
     __global__ void cudaKernelComplexNormElementwise
     (
         T_COMPLEX * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements
+        T_COMPLEX const * const rdpDataSource,
+        unsigned int const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -136,9 +169,9 @@ namespace cuda
     __global__ void cudaKernelApplyComplexModulus
     (
         T_COMPLEX * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const T_PREC * const rdpComplexModulus,
-        const unsigned rnElements
+        T_COMPLEX const * const rdpDataSource,
+        T_PREC const * const rdpComplexModulus,
+        unsigned int const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -166,10 +199,10 @@ namespace cuda
     __global__ void cudaKernelCutOff
     (
         T_PREC * const rData,
-        unsigned const rnElements,
-        const T_PREC rThreshold,
-        const T_PREC rLowerValue,
-        const T_PREC rUpperValue
+        unsigned int const rnElements,
+        T_PREC const rThreshold,
+        T_PREC const rLowerValue,
+        T_PREC const rUpperValue
     )
     {
         assert( blockDim.y == 1 );
@@ -193,10 +226,10 @@ namespace cuda
     void cudaComplexNormElementwise
     (
         T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements,
-        const cudaStream_t rStream,
-        const bool rAsync
+        T_COMPLEX const * const rdpDataSource,
+        unsigned int const rnElements,
+        cudaStream_t const rStream,
+        bool const rAsync
     )
     {
         /* 1 operation per thread is a bit low, that's why we let each
@@ -216,68 +249,78 @@ namespace cuda
     /* explicit instantiations */
 
     template
+    __global__ void cudaKernelApplyHioDomainConstraints<cufftComplex, float>
+    (
+        cufftComplex       * rdpgPrevious,
+        cufftComplex const * rdpgPrime,
+        float const * rdpIsMasked,
+        unsigned int rnElements,
+        float rHioBeta
+    );
+
+    template
     __global__ void cudaKernelCopyToRealPart<cufftComplex,float>
     (
-        cufftComplex * const rTargetComplexArray,
-        float * const rSourceRealArray,
-        unsigned const rnElements
+        cufftComplex * rTargetComplexArray,
+        float * rSourceRealArray,
+        unsigned int rnElements
     );
 
 
     template
     __global__ void cudaKernelCopyFromRealPart<float,cufftComplex>
     (
-        float * const rTargetComplexArray,
-        cufftComplex * const rSourceRealArray,
-        unsigned const rnElements
+        float * rTargetComplexArray,
+        cufftComplex * rSourceRealArray,
+        unsigned int rnElements
     );
 
 
     template
     __global__ void cudaKernelComplexNormElementwise<float,cufftComplex>
     (
-        float * const rdpDataTarget,
-        const cufftComplex * const rdpDataSource,
-        const unsigned rnElements
+        float * rdpDataTarget,
+        cufftComplex const * rdpDataSource,
+        unsigned int rnElements
     );
     template
     void cudaComplexNormElementwise<float, cufftComplex>
     (
-        float * const rdpDataTarget,
-        const cufftComplex * const rdpDataSource,
-        const unsigned rnElements,
-        const cudaStream_t rStream,
-        const bool rAsync
+        float * rdpDataTarget,
+        cufftComplex const * rdpDataSource,
+        unsigned int rnElements,
+        cudaStream_t rStream,
+        bool rAsync
     );
     template
     void cudaComplexNormElementwise<cufftComplex, cufftComplex>
     (
-        cufftComplex * const rdpDataTarget,
-        const cufftComplex * const rdpDataSource,
-        const unsigned rnElements,
-        const cudaStream_t rStream,
-        const bool rAsync
+        cufftComplex * rdpDataTarget,
+        cufftComplex const * rdpDataSource,
+        unsigned int rnElements,
+        cudaStream_t rStream,
+        bool rAsync
     );
 
 
     template
     __global__ void cudaKernelApplyComplexModulus<cufftComplex,float>
     (
-        cufftComplex * const rdpDataTarget,
-        const cufftComplex * const rdpDataSource,
-        const float * const rdpComplexModulus,
-        const unsigned rnElements
+        cufftComplex * rdpDataTarget,
+        cufftComplex const * rdpDataSource,
+        float const * rdpComplexModulus,
+        unsigned int rnElements
     );
 
 
     template
     __global__ void cudaKernelCutOff<float>
     (
-        float * const rData,
-        unsigned const rnElements,
-        const float rThreshold,
-        const float rLowerValue,
-        const float rUpperValue
+        float * rData,
+        unsigned int rnElements,
+        float rThreshold,
+        float rLowerValue,
+        float rUpperValue
     );
 
 

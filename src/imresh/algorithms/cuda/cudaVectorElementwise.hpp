@@ -35,46 +35,56 @@ namespace cuda
 
 
     template< class T_COMPLEX, class T_PREC >
+    __global__ void cudaKernelApplyHioDomainConstraints
+    (
+        T_COMPLEX       * rdpgPrevious,
+        T_COMPLEX const * rdpgPrime,
+        T_PREC    const * rdpIsMasked,
+        unsigned int rnElements,
+        T_PREC rHioBeta
+    );
+
+    template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelCopyToRealPart
     (
-        T_COMPLEX * const rTargetComplexArray,
-        T_PREC    * const rSourceRealArray,
-        unsigned    const rnElements
+        T_COMPLEX * rTargetComplexArray,
+        T_PREC    * rSourceRealArray,
+        unsigned int rnElements
     );
 
     template< class T_PREC, class T_COMPLEX >
     __global__ void cudaKernelCopyFromRealPart
     (
-        T_PREC    * const rTargetComplexArray,
-        T_COMPLEX * const rSourceRealArray,
-        unsigned    const rnElements
+        T_PREC    * rTargetComplexArray,
+        T_COMPLEX * rSourceRealArray,
+        unsigned int rnElements
     );
 
     template< class T_PREC, class T_COMPLEX >
     __global__ void cudaKernelComplexNormElementwise
     (
-        T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements
+        T_PREC          * rdpDataTarget,
+        T_COMPLEX const * rdpDataSource,
+        unsigned int rnElements
     );
 
     template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelApplyComplexModulus
     (
-        T_COMPLEX * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const T_PREC * const rdpComplexModulus,
-        const unsigned rnElements
+        T_COMPLEX       * rdpDataTarget,
+        T_COMPLEX const * rdpDataSource,
+        T_PREC    const * rdpComplexModulus,
+        unsigned rnElements
     );
 
     template< class T_PREC >
     __global__ void cudaKernelCutOff
     (
-        T_PREC * const rData,
-        unsigned const rnElements,
-        const T_PREC rThreshold,
-        const T_PREC rLowerValue,
-        const T_PREC rUpperValue
+        T_PREC * rData,
+        unsigned int rnElements,
+        T_PREC rThreshold,
+        T_PREC rLowerValue,
+        T_PREC rUpperValue
     );
 
     /* kernel call wrappers in order for this to be usable from source files
@@ -83,11 +93,11 @@ namespace cuda
     template< class T_PREC, class T_COMPLEX >
     void cudaComplexNormElementwise
     (
-        T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements,
-        const cudaStream_t rStream,
-        const bool rAsync
+        T_PREC          * rdpDataTarget,
+        T_COMPLEX const * rdpDataSource,
+        unsigned int rnElements,
+        cudaStream_t rStream = cudaStream_t(0),
+        bool rAsync = true
     );
 
 
