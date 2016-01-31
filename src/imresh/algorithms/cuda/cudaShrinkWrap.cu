@@ -62,11 +62,11 @@ namespace cuda
     template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelApplyHioDomainConstraints
     (
-        T_COMPLEX * const rdpgPrevious,
-        const T_COMPLEX * const rdpgPrime,
-        const T_PREC * const rdpIsMasked,
-        unsigned const rnElements,
-        const T_PREC rHioBeta
+        T_COMPLEX       * const __restrict__ rdpgPrevious,
+        T_COMPLEX const * const __restrict__ rdpgPrime,
+        T_PREC    const * const __restrict__ rdpIsMasked,
+        unsigned int const rnElements,
+        T_PREC const rHioBeta
     )
     {
         assert( blockDim.y == 1 );
@@ -88,44 +88,6 @@ namespace cuda
                 rdpgPrevious[i].x = rdpgPrime[i].x;
                 rdpgPrevious[i].y = rdpgPrime[i].y;
             }
-        }
-    }
-
-
-    /**
-     * Shifts the Fourier transform result in frequency space to the center
-     *
-     * @verbatim
-     *        +------------+      +------------+          +------------+
-     *        |            |      |78 ++  ++ 56|          |     --     |
-     *        |            |      |o> ''  '' <o|          | .. <oo> .. |
-     *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
-     *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
-     *        |            |      |o> ..  .. <o|          | '' <oo> '' |
-     *        |            |      |34 ++  ++ 12|          |     --     |
-     *        +------------+      +------------+          +------------+
-     *                           k=0         k=N-1              k=0
-     * @endverbatim
-     * This index shift can be done by a simple shift followed by a modulo:
-     *   newArray[i] = array[ (i+N/2)%N ]
-     **/
-    template< class T_COMPLEX >
-    void fftShift
-    (
-        T_COMPLEX * const & data,
-        const unsigned & Nx,
-        const unsigned & Ny
-    )
-    {
-        /* only up to Ny/2 necessary, because wie use std::swap meaning we correct
-         * two elements with 1 operation */
-        for ( unsigned iy = 0; iy < Ny/2; ++iy )
-        for ( unsigned ix = 0; ix < Nx; ++ix )
-        {
-            const unsigned index =
-                ( ( iy+Ny/2 ) % Ny ) * Nx +
-                ( ( ix+Nx/2 ) % Nx );
-            std::swap( data[iy*Nx + ix], data[index] );
         }
     }
 
@@ -164,9 +126,9 @@ namespace cuda
     template< class T_PREC >
     float compareCpuWithGpuArray
     (
-        const T_PREC * const & rpData,
-        const T_PREC * const & rdpData,
-        const unsigned & rnElements
+        T_PREC const * const __restrict__ rpData,
+        T_PREC const * const __restrict__ rdpData,
+        unsigned int const rnElements
     )
     {
         /* copy data from GPU in order to compare it */
@@ -196,18 +158,18 @@ namespace cuda
 
     int cudaShrinkWrap
     (
-        float * rIntensity,
-        unsigned rImageWidth,
-        unsigned rImageHeight,
-        cudaStream_t rStream,
-        unsigned rnCycles,
+        float * const rIntensity,
+        unsigned const rImageWidth,
+        unsigned const rImageHeight,
+        cudaStream_t const rStream,
+        unsigned int rnCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles
+        unsigned int rnHioCycles
     )
     {
         /* load libraries and functions which we need */
