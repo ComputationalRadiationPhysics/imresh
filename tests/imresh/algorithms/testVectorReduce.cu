@@ -74,6 +74,7 @@ namespace algorithms
 
     void testVectorReduce( void )
     {
+        using namespace std::chrono;
         using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::algorithms::cuda;
         using namespace imresh::algorithms;
@@ -159,8 +160,9 @@ namespace algorithms
                     clock0 = clock::now();                                   \
                     auto cpuMax = FUNC( pData, nElements );                  \
                     clock1 = clock::now();                                   \
-                    milliseconds = ( clock1-clock0 ).count() / 1000.0;       \
-                    minTime = fmin( minTime, milliseconds );                 \
+                    auto seconds = duration_cast<duration<double>>(          \
+                                        clock1 - clock0 );                   \
+                    minTime = fmin( minTime, seconds.count() * 1000 );       \
                     assert( cpuMax == OBVIOUS_VALUE );                       \
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
@@ -244,6 +246,7 @@ namespace algorithms
 
     void testCalculateHioError( void )
     {
+        using namespace std::chrono;
         using namespace benchmark::imresh::algorithms::cuda;   // cudaCalculateHioErrorBitPacked
         using namespace imresh::algorithms::cuda;   // cudaKernelCalculateHioError
         using namespace imresh::libs;               // calculateHioError
@@ -464,8 +467,8 @@ namespace algorithms
                     clock0 = clock::now();
                     auto error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
                     clock1 = clock::now();
-                    milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                    minTime = fmin( minTime, milliseconds );
+                    auto seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                    minTime = fmin( minTime, seconds.count() * 1000 );
                     assert( error <= nElements );
                 }
                 std::cout << std::setw(8) << minTime << "\n" << std::flush;

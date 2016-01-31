@@ -216,6 +216,7 @@ namespace algorithms
 
     void TestGaussian::testGaussianDiracDeltas( void )
     {
+        using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
         using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -545,6 +546,7 @@ namespace algorithms
 
     void TestGaussian::benchmarkGaussianGeneralRandomValues( void )
     {
+        using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
         using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -620,21 +622,26 @@ namespace algorithms
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
             /* time CPU horizontal blur */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurHorizontal( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianHorizontal( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
-            }
+            #define TIME_CPU( FUNC, CHECK )                               \
+            minTime = FLT_MAX;                                            \
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions;   \
+                  ++iRepetition )                                         \
+            {                                                             \
+                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );  \
+                clock0 = clock::now();                                    \
+                FUNC( pResultCpu, nCols, nRows, sigma );                  \
+                clock1 = clock::now();                                    \
+                                                                          \
+                auto seconds = duration_cast<duration<double>>(           \
+                                    clock1 - clock0 );                    \
+                minTime = fmin( minTime, seconds.count() * 1000 );        \
+                                                                          \
+                CHECK( pResultCpu, pData, nCols, nRows );                 \
+                compareFloatArray( pResultCpu, pResult, nCols, nRows,     \
+                                   sigma, __LINE__ );                     \
+            }                                                             \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
+            TIME_CPU( gaussianBlurHorizontal, checkGaussianHorizontal )
 
             /* time CUDA vertical blur */
             minTime = FLT_MAX;
@@ -656,42 +663,16 @@ namespace algorithms
             }
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            /* time CPU vertical blur */
-            minTime = FLT_MAX;
             if ( (unsigned) calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
             {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurVerticalUncached( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
+                TIME_CPU( gaussianBlurVerticalUncached, checkGaussianVertical )
             }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU vertical blur (new version) */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
+            else
             {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurVertical( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
+                std::cout << std::setw(8) << "-" << " |";
             }
-            std::cout << std::setw(8) << minTime << "\n" << std::flush;
-
-
+            TIME_CPU( gaussianBlurVertical, checkGaussianVertical )
+            std::cout << std::endl;
         }
     }
 
