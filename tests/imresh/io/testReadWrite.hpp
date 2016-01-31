@@ -23,32 +23,21 @@
  */
 
 
-#include <iostream>
-#include "imresh/algorithms/testGaussian.hpp"
-#include "imresh/algorithms/testVectorReduce.hpp"
-#include "imresh/algorithms/testVectorElementwise.hpp"
-#include "imresh/libs/testVectorIndex.hpp"
-#include "imresh/io/testReadWrite.hpp"
+#pragma once
 
 
-int main( void )
+namespace imresh
 {
-    using namespace imresh::algorithms;
-    using namespace imresh::libs;
-    using namespace imresh::io;
+namespace io
+{
 
-    testPng();
+    #ifdef USE_PNG
+        void testPng( void );
+    #endif
+    #ifdef USE_SPLASH
+        void testHdf5( void );
+    #endif
 
-    testVectorIndex();
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
-    testVectorElementwise();
 
-    TestGaussian testGaussian; testGaussian();
-
-    std::cout << "All tests OK.\n";
-
-    return 0;
-}
-
+} // namespace algorithms
+} // namespace imresh

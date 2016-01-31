@@ -26,6 +26,7 @@
 #include <algorithm>
 #ifdef IMRESH_DEBUG
 #   include <iostream>              // std::cout, std::endl
+
 #endif
 #ifdef USE_PNG
 #   include <pngwriter.h>
@@ -38,6 +39,7 @@
 #include <cstddef>                  // NULL
 #include <sstream>
 #include <cassert>
+#include <cmath>                    // isnan, isinf
 
 #include "algorithms/vectorReduce.hpp" // vectorMax
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
@@ -80,20 +82,29 @@ namespace writeOutFuncs
 
             float max = algorithms::vectorMax( _mem,
                                         _size.first * _size.second );
+            /* avoid NaN in border case where all values are 0 */
+            if ( max == 0 )
+                max = 1;
             for( unsigned int iy = 0; iy < _size.second; ++iy )
             {
                 for( unsigned int ix = 0; ix < _size.first; ++ix )
                 {
                     auto const index = iy * _size.first + ix;
                     assert( index < _size.first * _size.second );
-                    const auto& value = _mem[index] / max;
-                    if ( not ( value == value ) ) // isNaN
+                    auto const value = _mem[index] / max;
+                    if ( isnan(value) or isinf(value) or value < 0 )
                     {
-                        png.plot( ix, iy, 255, 0, 0 );
+                        /* write out red  pixel to alert user that something is wrong */
+                        png.plot( 1+ix, 1+iy, 65535, 0, 0 );
                     }
                     else
                     {
-                        png.plot( ix, iy, value, value, value );
+                        /* calling the double overloaded version with float
+                         * values is problematic and will fail the unit test
+                         * @see https://github.com/pngwriter/pngwriter/issues/83
+                         *    v correct rounding for positive values */
+                        int intToPlot = int( value*65535 + 0.5f );
+                        png.plot( 1+ix, 1+iy, intToPlot, intToPlot, intToPlot );
                     }
                 }
             }
