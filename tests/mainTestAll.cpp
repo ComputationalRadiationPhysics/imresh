@@ -37,7 +37,7 @@ int main( void )
 
     testVectorIndex();
     testUnpackBitMask();
-    //testCalculateHioError();
+    testCalculateHioError();
     testVectorReduce();
     testVectorElementwise();
 

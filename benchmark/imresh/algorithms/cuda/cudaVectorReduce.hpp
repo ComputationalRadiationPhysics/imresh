@@ -26,6 +26,8 @@
 #pragma once
 
 #include <cuda_runtime_api.h>   // cudaStream_t
+#include <cstdint>              // uint32_t
+#include <cstddef>              // NULL
 
 
 namespace benchmark
@@ -57,10 +59,22 @@ namespace cuda
     __global__ void cudaKernelCalculateHioErrorBitPacked
     (
         T_COMPLEX const * const __restrict__ rdpgPrime,
-        int       const * const __restrict__ rdpIsMasked,
+        uint32_t  const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         float * const __restrict__ rdpTotalError,
         float * const __restrict__ rdpnMaskedPixels
+    );
+
+    template<class T_COMPLEX>
+    float cudaCalculateHioErrorBitPacked
+    (
+        T_COMPLEX const * rdpData,
+        uint32_t  const * rdpIsMasked,
+        unsigned int rnElements,
+        bool rInvertMask = false,
+        cudaStream_t rStream = 0,
+        float * rpTotalError = NULL,
+        float * rpnMaskedPixels = NULL
     );
 
 

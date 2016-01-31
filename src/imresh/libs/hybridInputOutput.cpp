@@ -90,7 +90,7 @@ namespace libs
             if ( rInvertMask )
                 shouldBeZero = 1 - shouldBeZero;
 
-            totalError    += shouldBeZero * ( re*re+im*im );
+            totalError    += shouldBeZero * sqrtf( re*re+im*im );
             nMaskedPixels += shouldBeZero;
         }
 

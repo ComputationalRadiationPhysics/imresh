@@ -25,6 +25,7 @@
 #include "cudaVectorReduce.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <cstdint>    // uint64_t
 #include <limits>     // numeric_limits
 #include <cuda.h>     // atomicCAS, atomicAdd
@@ -374,14 +375,35 @@ namespace cuda
     WRAP_REDUCE_WITH_FUNCTOR( SharedMemory )
     WRAP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
 
+    inline __device__ uint32_t getLaneId( void )
+    {
+        uint32_t id;
+        asm("mov.u32 %0, %%laneid;" : "=r"(id));
+        return id;
+    }
+
+    /* needs __CUDA_ARCH__ >= 200 */
+    inline __device__ uint32_t bfe
+    (
+        uint32_t src,
+        uint32_t offset,
+        uint32_t nBits
+    )
+    {
+        uint32_t result;
+        asm( "bfe.u32 %0, %1, %2, %3;" :
+             "=r"(result) : "r"(src), "r"(offset), "r"(nBits) );
+        return result;
+    }
+
     /**
      * @see cudaKernelCalculateHioError
      **/
     template<class T_COMPLEX>
     __global__ void cudaKernelCalculateHioErrorBitPacked
     (
-        T_COMPLEX  const * const __restrict__ rdpgPrime,
-        int        const * const __restrict__ rdpIsMasked,
+        T_COMPLEX  const * const __restrict__ rdpData,
+        uint32_t   const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         float * const __restrict__ rdpTotalError,
         float * const __restrict__ rdpnMaskedPixels
@@ -402,24 +424,25 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int nTotalThreads = gridDim.x * blockDim.x;
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        uint32_t constexpr nBits = sizeof(rdpIsMasked[0]) * 8;
+        int const nTotalThreads = gridDim.x * blockDim.x;
+        auto i = blockIdx.x * blockDim.x + threadIdx.x;
 
         float localTotalError    = 0;
         float localnMaskedPixels = 0;
+        #pragma unroll
         for ( ; i < rnData; i += nTotalThreads )
         {
-            const auto re = rdpgPrime[i].x;
-            const auto im = rdpgPrime[i].y;
+            bool const shouldBeZero = bfe(
+                rdpIsMasked[ i/nBits ], nBits-1 - threadIdx.x, 1 );
 
-            const bool shouldBeZero = rdpIsMasked[i];
-            assert( rdpIsMasked[i] >= 0.0 and rdpIsMasked[i] <= 1.0 );
+            auto const re = rdpData[i].x;
+            auto const im = rdpData[i].y;
 
-            localTotalError    += shouldBeZero * ( re*re+im*im );
+            localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
             localnMaskedPixels += shouldBeZero;
         }
 
-        const int laneId = threadIdx.x % cWarpSize;
         #pragma unroll
         for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
         {
@@ -427,7 +450,7 @@ namespace cuda
             localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
         }
 
-        if ( laneId == 0 )
+        if ( getLaneId() == 0 )
         {
             atomicAdd( rdpTotalError   , localTotalError    );
             atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
@@ -435,17 +458,75 @@ namespace cuda
     }
 
 
+    template<class T_COMPLEX>
+    float cudaCalculateHioErrorBitPacked
+    (
+        T_COMPLEX const * const rdpData,
+        uint32_t  const * const rdpIsMasked,
+        unsigned int const rnElements,
+        bool const rInvertMask,
+        cudaStream_t rStream,
+        float * const rpTotalError,
+        float * const rpnMaskedPixels
+    )
+    {
+        const unsigned nThreads = 32;   /* must be warpSize! */
+        //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
+        const unsigned nBlocks  = 256;
+        assert( nBlocks < 65536 );
+
+        float     totalError,     nMaskedPixels;
+        float * dpTotalError, * dpnMaskedPixels;
+
+        CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
+        CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
+        CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
+        CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
+
+        /* memset is on the same stream as kernel will be, so no synchronize needed! */
+        cudaKernelCalculateHioErrorBitPacked<<< nBlocks, nThreads, 0, rStream >>>
+            ( rdpData, rdpIsMasked, rnElements, dpTotalError, dpnMaskedPixels );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+        CUDA_ERROR( cudaMemcpyAsync( &totalError   , dpTotalError   , sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( &nMaskedPixels, dpnMaskedPixels, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+        CUDA_ERROR( cudaFree( dpTotalError    ) );
+        CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
+
+        if ( rpTotalError != NULL )
+            *rpTotalError    = totalError;
+        if ( rpnMaskedPixels != NULL )
+            *rpnMaskedPixels = nMaskedPixels;
+
+        return sqrtf(totalError) / nMaskedPixels;
+    }
+
+
+
     /* explicit template instantiations */
 
     template
-    __global__ void cudaKernelCalculateHioErrorBitPacked
-    <cufftComplex>
+    __global__ void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
     (
-        cufftComplex const * rdpgPrime,
-        int          const * rdpIsMasked,
+        cufftComplex const * const __restrict__ rdpgPrime,
+        uint32_t     const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
+        float * const __restrict__ rdpTotalError,
+        float * const __restrict__ rdpnMaskedPixels
+    );
+
+    template
+    float cudaCalculateHioErrorBitPacked<cufftComplex>
+    (
+        cufftComplex const * const rdpData,
+        uint32_t  const * const rdpIsMasked,
+        unsigned int const rnElements,
+        bool const rInvertMask,
+        cudaStream_t rStream,
+        float * const rpTotalError,
+        float * const rpnMaskedPixels
     );
 
 

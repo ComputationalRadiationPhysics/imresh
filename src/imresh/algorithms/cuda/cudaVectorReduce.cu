@@ -25,6 +25,7 @@
 #include "cudaVectorReduce.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <cstdint>    // uint64_t
 #include <limits>     // lowest
 #include <cmath>
@@ -137,9 +138,9 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduce
     (
-        T_PREC const * const rdpData,
+        T_PREC const * const __restrict__ rdpData,
         unsigned int const rnData,
-        T_PREC * const rdpResult,
+        T_PREC * const __restrict__ rdpResult,
         T_FUNC f,
         T_PREC const rInitValue
     )
@@ -149,21 +150,20 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
-
-        T_PREC localReduced = T_PREC(rInitValue);
-        for ( ; i < rnData; i += nTotalThreads )
-            localReduced = f( localReduced, rdpData[i] );
+        auto iElem = rdpData + blockIdx.x * blockDim.x + threadIdx.x;
+        auto localReduced = T_PREC( rInitValue );
+        #pragma unroll
+        for ( ; iElem < rdpData + rnData; iElem += gridDim.x * blockDim.x )
+            localReduced = f( localReduced, *iElem );
 
         /* reduce per warp (warpSize == 32 assumed) */
-        const int32_t laneId = threadIdx.x % 32;
+        int constexpr cWarpSize = 32;
+        assert( cWarpSize == warpSize );
         #pragma unroll
-        for ( int32_t warpDelta = 32 / 2; warpDelta > 0; warpDelta /= 2)
+        for ( int32_t warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2)
             localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
 
-        if ( laneId == 0 )
+        if ( threadIdx.x % cWarpSize == 0 )
             atomicFunc( rdpResult, localReduced, f );
     }
 
@@ -248,6 +248,12 @@ namespace cuda
         return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
     }
 
+    inline __device__ uint32_t getLaneId( void )
+    {
+        uint32_t id;
+        asm("mov.u32 %0, %%laneid;" : "=r"(id));
+        return id;
+    }
 
     /**
      * "For the input-output algorithms the error E_F is
@@ -272,15 +278,15 @@ namespace cuda
      *     value, but if you can fill the GPU with some other task meanwhile
      *     you should go even higher.
      **/
-    template< class T_COMPLEX, class T_MASK_ELEMENT >
+    template< class T_COMPLEX, class T_MASK >
     __global__ void cudaKernelCalculateHioError
     (
-        T_COMPLEX const * const rdpgPrime,
-        T_MASK_ELEMENT const * const rdpIsMasked,
+        T_COMPLEX const * const __restrict__ rdpData,
+        T_MASK    const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         bool const rInvertMask,
-        float * const rdpTotalError,
-        float * const rdpnMaskedPixels
+        float * const __restrict__ rdpTotalError,
+        float * const __restrict__ rdpnMaskedPixels
     )
     {
         assert( blockDim.y == 1 );
@@ -288,16 +294,17 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
+        auto const nTotalThreads = gridDim.x * blockDim.x;
+        auto iElem = rdpData     + blockIdx.x * blockDim.x + threadIdx.x;
+        auto iMask = rdpIsMasked + blockIdx.x * blockDim.x + threadIdx.x;
 
         float localTotalError    = 0;
         float localnMaskedPixels = 0;
-        for ( ; i < rnData; i += nTotalThreads )
+        #pragma unroll
+        for ( ; iElem < rdpData + rnData; iElem += nTotalThreads, iMask += nTotalThreads )
         {
-            const auto & re = rdpgPrime[i].x;
-            const auto & im = rdpgPrime[i].y;
+            auto const re = iElem->x;
+            auto const im = iElem->y;
 
             /* only add up norm where no object should be (rMask == 0) */
             /* note: invert   + masked   -> unmasked  <=> 1 ? 1 -> 0
@@ -306,44 +313,54 @@ namespace cuda
              *       noinvert + unmasked -> unmasked  <=> 0 ? 0 -> 0
              *   => ? is xor    => no thread divergence
              */
-            assert( rdpIsMasked[i] == 0 or rdpIsMasked[i] == 1 );
-            const bool shouldBeZero = rInvertMask xor (bool) rdpIsMasked[i];
-            assert( rdpIsMasked[i] >= 0.0 and rdpIsMasked[i] <= 1.0 );
-            //float shouldBeZero = rInvertMask + ( 1-2*rInvertMask )*rdpIsMasked[i];
+            #ifndef NDEBUG
+                if ( not ( *iMask == 0 or *iMask == 1 ) )
+                {
+                    printf( "rdpIsMasked[%i] = %u\n", iMask-rdpIsMasked, *iMask );
+                    assert( *iMask == 0 or *iMask == 1 );
+                }
+            #endif
+            const bool shouldBeZero = rInvertMask xor (bool) *iMask;
+            assert( *iMask >= 0.0 and *iMask <= 1.0 );
+            //float shouldBeZero = rInvertMask + ( 1-2*rInvertMask )**iMask;
             /*
             float shouldBeZero = rdpIsMasked[i];
             if ( rInvertMask )
                 shouldBeZero = 1 - shouldBeZero;
             */
 
-            localTotalError    += shouldBeZero * ( re*re+im*im );
+            localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
             localnMaskedPixels += shouldBeZero;
         }
 
         /* reduce per warp (warpSize == 32 assumed) */
-        const int32_t laneId = threadIdx.x % 32;
+        int constexpr cWarpSize = 32;
+        assert( cWarpSize == warpSize );
         #pragma unroll
-        for ( int32_t warpDelta = 32 / 2; warpDelta > 0; warpDelta /= 2 )
+        for ( int32_t warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
         {
             localTotalError    += __shfl_down( localTotalError   , warpDelta );
             localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
         }
 
-        if ( laneId == 0 )
+        assert( getLaneId() == threadIdx.x % cWarpSize );
+        if ( getLaneId() == 0 )
         {
             atomicAdd( rdpTotalError   , localTotalError    );
             atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
         }
     }
 
-    template<class T_COMPLEX, class T_MASK_ELEMENT>
+    template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError
     (
         T_COMPLEX const * const rdpData,
-        T_MASK_ELEMENT const * const rdpIsMasked,
+        T_MASK const * const rdpIsMasked,
         unsigned int const rnElements,
         bool const rInvertMask,
-        cudaStream_t rStream
+        cudaStream_t rStream,
+        float * const rpTotalError,
+        float * const rpnMaskedPixels
     )
     {
         const unsigned nThreads = 256;
@@ -370,6 +387,11 @@ namespace cuda
 
         CUDA_ERROR( cudaFree( dpTotalError    ) );
         CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
+
+        if ( rpTotalError != NULL )
+            *rpTotalError    = totalError;
+        if ( rpnMaskedPixels != NULL )
+            *rpnMaskedPixels = nMaskedPixels;
 
         return sqrtf(totalError) / nMaskedPixels;
     }
@@ -445,7 +467,9 @@ namespace cuda
         float const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask,
-        cudaStream_t rStream
+        cudaStream_t rStream,
+        float * rdpTotalError,
+        float * rdpnMaskedPixels
     );
     template
     float cudaCalculateHioError
@@ -455,7 +479,9 @@ namespace cuda
         bool const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask,
-        cudaStream_t rStream
+        cudaStream_t rStream,
+        float * rdpTotalError,
+        float * rdpnMaskedPixels
     );
     template
     float cudaCalculateHioError
@@ -465,7 +491,9 @@ namespace cuda
         unsigned char const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask,
-        cudaStream_t rStream
+        cudaStream_t rStream,
+        float * rdpTotalError,
+        float * rdpnMaskedPixels
     );
 
 

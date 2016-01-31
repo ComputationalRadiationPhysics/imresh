@@ -67,19 +67,19 @@ namespace cuda
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        __device__ __host__ inline T operator() ( T a, T b ) const
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        __device__ __host__ inline T operator() ( T a, T b ) const
         { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        __device__ __host__ inline T operator() ( T a, T b ) const
         { if (a>b) return a; else return b; }
     };
     template<> struct MaxFunctor<float> {
-        __device__ __host__ inline float operator() ( float a, float b )
+        __device__ __host__ inline float operator() ( float a, float b ) const
         { return fmax(a,b); }
     };
 
@@ -110,9 +110,9 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduce
     (
-        T_PREC const * const rdpData,
+        T_PREC const * const __restrict__ rdpData,
         unsigned int const rnData,
-        T_PREC * const rdpResult,
+        T_PREC * const __restrict__ rdpResult,
         T_FUNC f,
         T_PREC const rInitValue
     );
@@ -148,12 +148,12 @@ namespace cuda
     template< class T_COMPLEX, class T_MASK >
     __global__ void cudaKernelCalculateHioError
     (
-        T_COMPLEX const * const rdpgPrime,
-        T_MASK const * const rdpIsMasked,
+        T_COMPLEX const * const __restrict__ rdpgPrime,
+        T_MASK    const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         bool const rInvertMask,
-        float * const rdpTotalError,
-        float * const rdpnMaskedPixels
+        float * const __restrict__ rdpTotalError,
+        float * const __restrict__ rdpnMaskedPixels
     );
 
 
@@ -164,7 +164,9 @@ namespace cuda
         T_MASK const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask = false,
-        cudaStream_t rStream = 0
+        cudaStream_t rStream = 0,
+        float * rpTotalError = NULL,
+        float * rpnMaskedPixels = NULL
     );
 
 

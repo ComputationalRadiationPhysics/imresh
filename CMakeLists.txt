@@ -96,22 +96,26 @@ if(BUILD_EXAMPLES)
 endif()
 
 # Tests and Benchmarks
-set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
-    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/benchmark/*.cpp  ${PROJECT_SOURCE_DIR}/benchmark/*.hpp HI ${PROJECT_SOURCE_DIR}/benchmark/*.cu ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp ${PROJECT_SOURCE_DIR}/tests/*.cu )
+    file( GLOB_RECURSE BENCHMARK_SOURCE_FILES ${PROJECT_SOURCE_DIR}/benchmark/*.cpp  ${PROJECT_SOURCE_DIR}/benchmark/*.hpp ${PROJECT_SOURCE_DIR}/benchmark/*.cu )
+    cuda_add_library("benchmark" ${BENCHMARK_SOURCE_FILES} STATIC)
+    target_link_libraries("benchmark" ${PROJECT_NAME})
 
+    # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
+    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
     # for includes of #include "benchmarks/...". Note that
     #    clude_directories(${PROJECT_SOURCE_DIR})
     # would lead to ambiguous includes
     include_directories(${PROJECT_SOURCE_DIR})
     cuda_include_directories(${PROJECT_SOURCE_DIR})
 
+    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp ${PROJECT_SOURCE_DIR}/tests/*.cu )
     cuda_add_library("tests" ${TEST_SOURCE_FILES} STATIC)
-    target_link_libraries("tests" ${PROJECT_NAME})
+    target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
 
     cuda_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
-    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests")
+    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark")
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)

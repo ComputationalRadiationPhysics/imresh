@@ -31,6 +31,7 @@
 #include <cstdlib>          // srand, rand
 #include <cstdint>          // uint32_t, uint64_t
 #include <chrono>
+#include <limits>
 #include <vector>
 #include <cmath>
 #include <cfloat>           // FLT_MAX
@@ -52,6 +53,23 @@ namespace imresh
 {
 namespace algorithms
 {
+
+
+    unsigned int constexpr nRepetitions = 20;
+
+
+    template<class T_PREC>
+    bool compareFloat( const char * file, int line, T_PREC a, T_PREC b, T_PREC marginFactor = 1.0 )
+    {
+        auto const max = std::max( std::abs(a), std::abs(b) );
+        if ( max == 0 )
+            return true; // both are 0 and therefore equal
+        auto const relErr = fabs( a - b ) / max;
+        auto const maxRelErr = marginFactor * std::numeric_limits<T_PREC>::epsilon();
+        if ( not ( relErr <= maxRelErr ) )
+            printf( "[%s:%i] relErr: %f > %f :maxRelErr!\n", file, line, relErr, maxRelErr );
+        return relErr <= maxRelErr;
+    }
 
 
     void testVectorReduce( void )
@@ -81,7 +99,6 @@ namespace algorithms
         /* do some checks with longer arrays and obvious results */
         float obviousMaximum = 7.37519;
         float obviousMinimum =-7.37519;
-        const unsigned nRepetitions = 20;
         /* in order to filter out page time outs or similarily long random wait
          * times, we repeat the measurement nRepetitions times and choose the
          * shortest duration measured */
@@ -227,6 +244,7 @@ namespace algorithms
 
     void testCalculateHioError( void )
     {
+        using namespace benchmark::imresh::algorithms::cuda;   // cudaCalculateHioErrorBitPacked
         using namespace imresh::algorithms::cuda;   // cudaKernelCalculateHioError
         using namespace imresh::libs;               // calculateHioError
         using namespace imresh::tests;              // getLogSpacedSamplingPoints
@@ -235,15 +253,18 @@ namespace algorithms
 
         /* allocate */
         cufftComplex * dpData, * pData;
-        float    * dpIsMasked , * pIsMasked;
-        unsigned * dpBitMasked, * pBitMasked;
+        unsigned char * dpIsMaskedChar, * pIsMaskedChar;
+        float         * dpIsMasked    , * pIsMasked;
+        unsigned      * dpBitMasked   , * pBitMasked;
         auto const nBitMaskedElements = ceilDiv( nMaxElements, 8 * sizeof( dpBitMasked[0] ) );
-        CUDA_ERROR( cudaMalloc( &dpData     , nMaxElements * sizeof( dpData    [0] ) ) );
-        CUDA_ERROR( cudaMalloc( &dpIsMasked , nMaxElements * sizeof( dpIsMasked[0] ) ) );
-        CUDA_ERROR( cudaMalloc( &dpBitMasked, nBitMaskedElements * sizeof( dpBitMasked[0] ) ) );
-        pData      = new cufftComplex[ nMaxElements ];
-        pIsMasked  = new float[ nMaxElements ];
-        pBitMasked = new unsigned[ nBitMaskedElements ];
+        CUDA_ERROR( cudaMalloc( &dpIsMaskedChar, nMaxElements       * sizeof( dpIsMaskedChar[0] ) ) );
+        CUDA_ERROR( cudaMalloc( &dpData        , nMaxElements       * sizeof( dpData        [0] ) ) );
+        CUDA_ERROR( cudaMalloc( &dpIsMasked    , nMaxElements       * sizeof( dpIsMasked    [0] ) ) );
+        CUDA_ERROR( cudaMalloc( &dpBitMasked   , nBitMaskedElements * sizeof( dpBitMasked   [0] ) ) );
+        pData         = new cufftComplex [ nMaxElements ];
+        pIsMaskedChar = new unsigned char[ nMaxElements ];
+        pIsMasked     = new float        [ nMaxElements ];
+        pBitMasked    = new unsigned[ nBitMaskedElements ];
         /* allocate result buffer for reduced values of calculateHioError
          * kernel call */
         float nMaskedPixels, * dpnMaskedPixels;
@@ -257,6 +278,17 @@ namespace algorithms
         for ( auto i = 0u; i < nBitMaskedElements; ++i )
             pBitMasked[i] = rand() % UINT_MAX;
         unpackBitMask( pIsMasked, pBitMasked, nMaxElements );
+        for ( auto i = 0u; i < nMaxElements; ++i )
+        {
+            pIsMaskedChar[i] = pIsMasked[i];
+            assert( pIsMaskedChar[i] == 0 or pIsMaskedChar[i] == 1 );
+        }
+
+        std::cout << "[unpacked] ";
+        for ( int i = 0; i < 32; ++i )
+            std::cout << pIsMasked[i];
+        std::cout << "\n";
+        std::cout << "[  packed] " << std::bitset<32>( pBitMasked[0] ) << "\n";
 
         /* initialize data with Pythagorean triple 3*3 + 4*4 = 5*5 for masked bits */
         for ( auto i = 0u; i < nMaxElements; ++i )
@@ -279,6 +311,7 @@ namespace algorithms
         CUDA_ERROR( cudaMemcpy( dpData     , pData     , nMaxElements * sizeof( pData    [0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpIsMasked , pIsMasked , nMaxElements * sizeof( pIsMasked[0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpBitMasked, pBitMasked, nBitMaskedElements * sizeof( pBitMasked[0] ), cudaMemcpyHostToDevice ) );
+        CUDA_ERROR( cudaMemcpy( dpIsMaskedChar, pIsMaskedChar, nMaxElements * sizeof( pIsMaskedChar[0] ), cudaMemcpyHostToDevice ) );
 
         std::cout << "test with randomly masked pythagorean triples";
         /* because the number of elements we include only increases the number
@@ -287,23 +320,75 @@ namespace algorithms
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
             std::cout << "." << std::flush;
+
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-            cudaKernelCalculateHioError<<<1,256>>>
+            cudaKernelCalculateHioError<<<3,256>>>
                 ( dpData, dpIsMasked, nElements, false /* don't invert mask */,
                   dpTotalError, dpnMaskedPixels );
             CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
                                     sizeof(float), cudaMemcpyDeviceToHost) );
             CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
                                     sizeof(float), cudaMemcpyDeviceToHost) );
-
             /* Calculation done, now check if everything is correct */
-            assert( nLastMaskedPixels <= nMaskedPixels );
-            assert( (unsigned) totalError % 5 == 0 );
-            printf( "%f, %f\n", nMaskedPixels, totalError );
-            assert( nMaskedPixels / 5 == totalError );
-
+            if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
+            {
+                assert( nLastMaskedPixels <= nMaskedPixels );
+                assert( (unsigned) totalError % 5 == 0 );
+                assert( nMaskedPixels * 5 == totalError );
+            }
             nLastMaskedPixels = nMaskedPixels;
+
+
+            /* check char version */
+            CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
+            CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
+            cudaKernelCalculateHioError<<<3,256>>>
+                ( dpData, dpIsMaskedChar, nElements, false /* don't invert mask */,
+                  dpTotalError, dpnMaskedPixels );
+            CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
+                                    sizeof(float), cudaMemcpyDeviceToHost) );
+            CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
+                                    sizeof(float), cudaMemcpyDeviceToHost) );
+            /* Calculation done, now check if everything is correct */
+            if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
+            {
+                assert( nLastMaskedPixels == nMaskedPixels );
+                assert( (unsigned) totalError % 5 == 0 );
+                assert( nMaskedPixels * 5 == totalError );
+            }
+
+
+
+            /* check packed bit version */
+            CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
+            CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
+            cudaKernelCalculateHioErrorBitPacked<<<1,32>>>
+                ( dpData, dpBitMasked, nElements, dpTotalError, dpnMaskedPixels );
+            CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
+                                    sizeof(float), cudaMemcpyDeviceToHost) );
+            CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
+                                    sizeof(float), cudaMemcpyDeviceToHost) );
+            /* Calculation done, now check if everything is correct */
+            if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
+            {
+                if ( not ( nLastMaskedPixels == nMaskedPixels ) )
+                {
+                    printf( "nLastMaskedPixels: %f, nMaskedPixels: %f, totalError: %f\n", nLastMaskedPixels, nMaskedPixels, totalError );
+                    assert( nLastMaskedPixels == nMaskedPixels );
+                }
+                if ( not ( (unsigned) totalError % 5 == 0 ) )
+                {
+                    printf( "totalError: %f, nMaskedPixels: %f\n", totalError, nMaskedPixels );
+                    assert( (unsigned) totalError % 5 == 0 );
+                }
+                assert( nMaskedPixels * 5 == totalError );
+            }
+            else
+            {
+                /* no use continuing this loop if we can't assert anything */
+                break;
+            }
 
             #ifdef USE_FFTW
                 static_assert( sizeof( cufftComplex ) == sizeof( fftwf_complex ), "" );
@@ -314,127 +399,78 @@ namespace algorithms
                 float nMaskedPixelsCpu, totalErrorCpu;
                 calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements, /* is inverted:  */ false, &totalErrorCpu, &nMaskedPixelsCpu );
 
-                assert( totalErrorCpu == totalError );
-                assert( nMaskedPixelsCpu == nMaskedPixels );
+                /* when rounding errors occur the order becomes important */
+                if ( totalError < 16777216 )
+                {
+                    assert( compareFloat( __FILE__, __LINE__, totalError, totalErrorCpu, sqrtf(nElements) ) );
+                    assert( nMaskedPixelsCpu == nMaskedPixels );
+                }
             #endif
         }
         std::cout << "OK\n";
 
-#if false
+        /* benchmark with random numbers */
+
+        for ( auto i = 0u; i < nBitMaskedElements; ++i )
+        {
+            pData[i].x = (float) rand() / RAND_MAX;
+            pData[i].y = (float) rand() / RAND_MAX;
+        }
+        CUDA_ERROR( cudaMemcpy( dpData, pData, nMaxElements * sizeof( pData[0] ), cudaMemcpyHostToDevice ) );
+
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
 
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "vector length : cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
+        std::cout << "time in milliseconds:\n";
+        std::cout << "vector length : cudaCalcHioError(uint32_t) | cudaCalcHioError(char) | cudaCalcHioError(packed) | calcHioError (CPU) |\n";
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
             std::cout << std::setw(8) << nElements << " : ";
             float milliseconds, minTime;
             decltype( clock::now() ) clock0, clock1;
 
-            int iObviousValuePos = rand() % nElements;
-            // std::cout << "iObviousValuePos = " << iObviousValuePos << "\n";
-            // std::cout << "nElements        = " << nElements << "\n";
-
-
-            /* Maximum */
-            pData[iObviousValuePos] = obviousMaximum;
-            CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
-
-            /* time CUDA shared memory version */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMaxSharedMemory( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
-            }
+            float error;
+            #define TIME_GPU( FUNC, MASK )                                    \
+            minTime = FLT_MAX;                                                \
+            for ( auto iRepetition = 0u; iRepetition < nRepetitions;          \
+                  ++iRepetition )                                             \
+            {                                                                 \
+                cudaEventRecord( start );                                     \
+                error = FUNC( dpData, MASK, nElements );                      \
+                cudaEventRecord( stop );                                      \
+                cudaEventSynchronize( stop );                                 \
+                cudaEventElapsedTime( &milliseconds, start, stop );           \
+                minTime = fmin( minTime, milliseconds );                      \
+                assert( error <= nElements );                                 \
+            }                                                                 \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            /* time CUDA shared memory version + warp reduce */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMaxSharedMemoryWarps( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
+            TIME_GPU( cudaCalculateHioError, dpIsMasked )
+            auto unpackedError = error;
+            TIME_GPU( cudaCalculateHioError, dpIsMaskedChar ) // sets error
+            compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
+            TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
+            compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
 
-            /* time CUDA (warp reduce)*/
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMax = cudaVectorMax( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMax == obviousMaximum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                clock0 = clock::now();
-                auto cpuMax = vectorMax( pData, nElements );
-                clock1 = clock::now();
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-                assert( cpuMax == obviousMaximum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-
-            /* Minimum */
-            pData[iObviousValuePos] = obviousMinimum;
-            CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
-
-            /* time CUDA */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                cudaEventRecord( start );
-                auto cudaMin = cudaVectorMin( dpData, nElements );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-                assert( cudaMin == obviousMinimum );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                clock0 = clock::now();
-                auto cpuMin = vectorMin( pData, nElements );
-                clock1 = clock::now();
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-                assert( cpuMin == obviousMinimum );
-            }
-            std::cout << std::setw(8) << minTime << "\n" << std::flush;
-
-            /* set obvious value back to random value */
-            pData[iObviousValuePos] = (float) rand() / RAND_MAX;
+            #ifdef USE_FFTW
+                /* time CPU */
+                minTime = FLT_MAX;
+                for ( auto iRepetition = 0u; iRepetition < nRepetitions;
+                      ++iRepetition )
+                {
+                    clock0 = clock::now();
+                    auto error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
+                    clock1 = clock::now();
+                    milliseconds = ( clock1-clock0 ).count() / 1000.0;
+                    minTime = fmin( minTime, milliseconds );
+                    assert( error <= nElements );
+                }
+                std::cout << std::setw(8) << minTime << "\n" << std::flush;
+            #endif
         }
-
-#endif
 
         /* free */
         CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
