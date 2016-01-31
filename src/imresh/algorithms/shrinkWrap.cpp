@@ -25,7 +25,7 @@
 
 #define DEBUG_SHRINKWRAPP_CPP 1
 
-#include "algorithms/shrinkWrap.hpp"
+#include "shrinkWrap.hpp"
 
 #include <cstddef>    // NULL
 #include <cstring>    // memcpy

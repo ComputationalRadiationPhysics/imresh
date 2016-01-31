@@ -263,7 +263,7 @@ namespace cuda
                  * upload it unbuffered */
                 else
                 {
-                    std::cout << "[ERROR] The kernel size " << kernelSize << " is larger than the default Gaussian kernel buffer kernel size of " << mMaxKernelSize << ". Because of thread-safety this currently is a fatal error and program limtation! " << __FILE__ << std::endl;
+                    std::cout << "[ERROR] The kernel size " << kernelSize << " is larger than the default Gaussian kernel buffer kernel size of " << mMaxKernelSize << " (rSigma=" << rSigma << "). Because of thread-safety this currently is a fatal error and program limtation! " << __FILE__ << ":" << __LINE__ << std::endl;
                     mBuffersMutex.unlock(); /* not sure if other threads just continue :S and would hang */
                     abort();
                 }

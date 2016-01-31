@@ -162,6 +162,8 @@ namespace cuda
         unsigned const rImageWidth,
         unsigned const rImageHeight,
         cudaStream_t const rStream,
+        unsigned int nBlocks,
+        unsigned int nThreads,
         unsigned int rnCycles,
         float rTargetError,
         float rHioBeta,
@@ -213,8 +215,6 @@ namespace cuda
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see
          * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
-        const unsigned nThreads = 512;
-        const unsigned nBlocks  = ceil( (float) nElements / nThreads );
         cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
 
         CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );

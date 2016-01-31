@@ -97,7 +97,7 @@ namespace libs
             CUDA_ERROR( cudaMalloc( (void**)&dpTmp, tmpSize ) );
             /* what we want to do is copy the float input array to the real
              * part of the cufftComplex array and set the imaginary part to 0 */
-            CUDA_ERROR( cudaMemset( dpTmp, 0, tmpSize ) );
+            CUDA_ERROR( cudaMemsetAsync( dpTmp, 0, tmpSize, rStream ) );
             CUDA_ERROR( cudaMemcpy2DAsync( dpTmp  , sizeof( dpTmp  [0] ),
                                            rIoData, sizeof( rIoData[0] ),
                                            sizeof( rIoData[0] ), nElements,

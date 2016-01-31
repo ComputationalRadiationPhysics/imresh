@@ -29,7 +29,8 @@
 #include <cstdio>
 
 #include "libs/diffractionIntensity.hpp"
-#include "algorithms/shrinkWrap.hpp"                // fftShift, shrinkWrap
+#include "algorithms/shrinkWrap.hpp"                // shrinkWrap
+#include "libs/fftShift.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.h"
 #include "createTestData/createAtomCluster.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
@@ -65,7 +66,7 @@ int main( int argc, char ** argv )
 
         imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
         #if USE_PNG
-            using imresh::algorithms::fftShift;
+            using imresh::libs::fftShift;
             fftShift( pAtomCluster, imageSize[0], imageSize[1] );
             writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
             fftShift( pAtomCluster, imageSize[0], imageSize[1] );

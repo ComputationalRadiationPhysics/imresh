@@ -111,6 +111,8 @@ namespace cuda
         unsigned int const rImageWidth,
         unsigned int const rImageHeight,
         cudaStream_t const rStream = 0,
+        unsigned int rnBlocks = 256,
+        unsigned int rnThreads = 256,
         unsigned int rnCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,

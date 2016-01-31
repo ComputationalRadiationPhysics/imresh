@@ -112,6 +112,13 @@ namespace io
 
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
+        cudaDeviceProp prop;
+        CUDA_ERROR( cudaGetDeviceProperties( &prop, device ) );
+        unsigned int const nThreadsPerBlock = 256;
+        /* oversubscribe the GPU by a factor of 2 to account for cudaMalloc
+         * and cudaMemcpy stalls */
+        unsigned int const nBlocks = 2*prop.maxThreadsPerMultiProcessor / nThreadsPerBlock;
+
 
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::addTaskAsync(): Mutex locked, device and stream selected. Calling shrink-wrap."
@@ -123,6 +130,8 @@ namespace io
                                               _size.first,
                                               _size.second,
                                               str,
+                                              nBlocks,
+                                              nThreadsPerBlock,
                                               _numberOfCycles,
                                               _targetError,
                                               _HIOBeta,
