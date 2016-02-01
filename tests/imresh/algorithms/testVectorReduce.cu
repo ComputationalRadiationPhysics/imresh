@@ -471,8 +471,8 @@ namespace algorithms
                     minTime = fmin( minTime, seconds.count() * 1000 );
                     assert( error <= nElements );
                 }
-                std::cout << std::setw(8) << minTime << "\n" << std::flush;
             #endif
+            std::cout << std::setw(8) << minTime << "\n" << std::flush;
         }
 
         /* free */

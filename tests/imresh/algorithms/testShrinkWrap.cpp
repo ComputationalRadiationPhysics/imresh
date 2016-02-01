@@ -121,7 +121,9 @@ namespace algorithms
 
                 /* shrinkWrap */
                 clock0 = clock::now();
+                #ifdef USE_FFTW
                     shrinkWrap( pData, Nx, Ny, nShrinkWrapCycles, FLT_MIN ); /* use FLT_MIN to specifiy it should never end or onfly after 32 iterations */
+                #endif
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeShrinkWrap.push_back( seconds.count() * 1000 );
