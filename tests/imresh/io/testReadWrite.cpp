@@ -60,7 +60,7 @@ namespace io
         using namespace std::chrono;
         using namespace imresh::io::readInFuncs;
         using namespace imresh::io::writeOutFuncs;
-        using imresh::tests::getLogSpacedSamplingPoints;
+        using namespace imresh::tests;
         using ImageDim = std::pair<unsigned int, unsigned int>;
 
         /**
@@ -82,7 +82,7 @@ namespace io
 
         std::cout << "\n";
         std::cout << "Timings in milliseconds:\n";
-        std::cout << "image size (nCols,nRows) : memcpy | writeOutPNG | readInPNG |\n";
+        std::cout << "image size (nCols,nRows) : memcpy | | readInPNG writeOutPNG |\n";
 
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 20 ) )
         {
@@ -115,8 +115,8 @@ namespace io
             std::cout << "(" << std::setw(5) << Nx << ","
                              << std::setw(5) << Ny << ") : ";
 
+            std::vector<float> timeRead, timeWrite, timeMemcpy;
             /* memcpy */
-            float minTime = FLT_MAX;
             for ( auto iRepetition = 0u; iRepetition < nRepetitions;
                   ++iRepetition )
             {
@@ -125,12 +125,9 @@ namespace io
                         Nx * Ny * sizeof( file.first[0] ) );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
-                minTime = fmin( minTime, seconds.count() * 1000 );
+                timeMemcpy.push_back( seconds.count() * 1000 );
             }
-            std::cout << std::setw(8) << minTime << " | " << std::flush;
 
-            float minTimeRead  = FLT_MAX;
-            float minTimeWrite = FLT_MAX;
             for ( auto iRepetition = 0u; iRepetition < nRepetitions;
                   ++iRepetition )
             {
@@ -139,14 +136,14 @@ namespace io
                     writeOutPNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
-                minTimeRead = fmin( minTimeRead, seconds.count() * 1000 );
+                timeRead.push_back( seconds.count() * 1000 );
 
                 /* read */
                 clock0 = clock::now();
                     file = readPNG( tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
-                minTimeWrite = fmin( minTimeWrite, seconds.count() * 1000 );
+                timeWrite.push_back( seconds.count() * 1000 );
 
                 for ( auto i = 0u; i < Nx*Ny; ++i )
                 {
@@ -157,8 +154,10 @@ namespace io
                     }
                 }
             }
-            std::cout << std::setw(8) << minTimeRead << " | " << std::flush;
-            std::cout << std::setw(8) << minTimeWrite << " | \n" << std::flush;
+            std::cout << std::setprecision(4);
+            std::cout << std::setw(8) << mean( timeMemcpy ) << " +- " << std::setw(8) << stddev( timeMemcpy ) << " | " << std::flush;
+            std::cout << std::setw(8) << mean( timeRead   ) << " +- " << std::setw(8) << stddev( timeRead   ) << " | " << std::flush;
+            std::cout << std::setw(8) << mean( timeWrite  ) << " +- " << std::setw(8) << stddev( timeWrite  ) << " | \n" << std::flush;
         }
 
         delete[] file.first;

@@ -194,7 +194,7 @@ namespace algorithms
         using namespace imresh::algorithms::cuda;
         using examples::createTestData::createAtomCluster;
         using imresh::libs::diffractionIntensity;
-        using imresh::tests::getLogSpacedSamplingPoints;
+        using namespace imresh::tests;
 
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
@@ -240,8 +240,7 @@ namespace algorithms
             std::cout << "(" << std::setw(5) << Nx << ","
                              << std::setw(5) << Ny << ") : ";
 
-            float minTimeCpuFft = FLT_MAX;
-            float minTimeGpuFft = FLT_MAX;
+            std::vector<float> timeCpuFft, timeGpuFft;
             for ( auto iRepetition = 0u; iRepetition < nRepetitions;
                   ++iRepetition )
             {
@@ -251,7 +250,7 @@ namespace algorithms
                         fftwf_execute( cpuFtPlan );
                     clock1 = clock::now();
                     seconds = duration_cast<duration<double>>( clock1 - clock0 );
-                    minTimeCpuFft = fmin( minTimeCpuFft, seconds.count() * 1000 );
+                    timeCpuFft.push_back( seconds.count() * 1000 );
                 #endif
 
                 /* cuFFT */
@@ -261,10 +260,11 @@ namespace algorithms
                 cudaEventSynchronize( stop );
                 float milliseconds;
                 cudaEventElapsedTime( &milliseconds, start, stop );
-                minTimeGpuFft = fmin( minTimeGpuFft, milliseconds );
+                timeGpuFft.push_back( milliseconds );
             }
-            std::cout << std::setw(8) << minTimeCpuFft << " | ";
-            std::cout << std::setw(8) << minTimeGpuFft << " | ";
+            std::cout << std::setprecision(4);
+            std::cout << std::setw(10) << mean( timeCpuFft ) << " +- " << std::setw(10) << stddev( timeCpuFft ) << " | ";
+            std::cout << std::setw(10) << mean( timeGpuFft ) << " +- " << std::setw(10) << stddev( timeGpuFft ) << " | ";
             std::cout << std::endl;
 
             CUFFT_ERROR( cufftDestroy( gpuFtPlan ) );
