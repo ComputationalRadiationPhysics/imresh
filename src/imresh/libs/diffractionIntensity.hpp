@@ -26,6 +26,9 @@
 #pragma once
 
 #include <utility>
+#ifndef USE_FFTW
+#   include <cuda_runtime_api.h>
+#endif
 
 
 namespace imresh
@@ -33,6 +36,8 @@ namespace imresh
 namespace libs
 {
 
+
+#if USE_FFTW
 
     /**
      * Calculates the diffraction intensity of an object function
@@ -68,9 +73,29 @@ namespace libs
      **/
     void diffractionIntensity
     (
-        float * const & rIoData,
-        const std::pair<unsigned int,unsigned int>& rDim
+        float * rIoData,
+        unsigned int rImageWidth,
+        unsigned int rImageHeight
     );
+
+#else
+
+    /**
+     * @see diffractionIntensity
+     *
+     * If USE_FFTW is not specified, then this version is used, which uses
+     * cufft instead
+     **/
+    void diffractionIntensity
+    (
+        float * rIoData,
+        unsigned int rImageWidth,
+        unsigned int rImageHeight,
+        cudaStream_t rStream = 0,
+        bool rAsync = false
+    );
+
+#endif
 
 
 } // namespace libs

@@ -23,7 +23,9 @@
  */
 
 
-#include "algorithms/shrinkWrap.hpp"
+#define DEBUG_SHRINKWRAPP_CPP 1
+
+#include "shrinkWrap.hpp"
 
 #include <cstddef>    // NULL
 #include <cstring>    // memcpy
@@ -34,11 +36,18 @@
 #include <string>
 #include <fstream>
 #include <vector>
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 #include "libs/gaussian.hpp"
 #include "libs/hybridInputOutput.hpp" // calculateHioError
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/vectorElementwise.hpp"
+#ifdef USE_PNG
+#   if DEBUG_SHRINKWRAPP_CPP == 1
+#       include "io/writeOutFuncs/writeOutFuncs.hpp"
+#   endif
+#endif
 
 
 namespace imresh
@@ -47,23 +56,6 @@ namespace algorithms
 {
 
 
-    /**
-     * Shifts the Fourier transform result in frequency space to the center
-     *
-     * @verbatim
-     *        +------------+      +------------+          +------------+
-     *        |            |      |78 ++  ++ 56|          |     --     |
-     *        |            |      |o> ''  '' <o|          | .. <oo> .. |
-     *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
-     *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
-     *        |            |      |o> ..  .. <o|          | '' <oo> '' |
-     *        |            |      |34 ++  ++ 12|          |     --     |
-     *        +------------+      +------------+          +------------+
-     *                           k=0         k=N-1              k=0
-     * @endverbatim
-     * This index shift can be done by a simple shift followed by a modulo:
-     *   newArray[i] = array[ (i+N/2)%N ]
-     **/
     template< class T_COMPLEX >
     void fftShift
     (
@@ -84,6 +76,7 @@ namespace algorithms
         }
     }
 
+#ifdef USE_FFTW
     /**
      * checks if the imaginary parts are all 0 for debugging purposes
      **/
@@ -113,25 +106,28 @@ namespace algorithms
     }
 
 
-    #define DEBUG_SHRINKWRAPP_CPP 1
-
     int shrinkWrap
     (
-        float * const & rIntensity,
-        const std::vector<unsigned> & rSize,
-        unsigned rnCycles,
+        float * const rIoData,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        unsigned int rnCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles
+        unsigned int rnHioCycles
     )
     {
+        /* define values as used in old interface */
+        auto const rIntensity = rIoData;
+        std::vector<unsigned> rSize{ rImageHeight, rImageWidth };
+
         if ( rSize.size() != 2 ) return 1;
-        const unsigned & Ny = rSize[1];
-        const unsigned & Nx = rSize[0];
+        unsigned int const Nx = rImageWidth;
+        unsigned int const Ny = rImageHeight;
 
         /* Evaluate input parameters and fill with default values if necessary */
         if ( rIntensity == NULL ) return 1;
@@ -181,18 +177,9 @@ namespace algorithms
         //fftShift( isMasked, Nx,Ny );
         libs::gaussianBlur( isMasked, Nx, Ny, sigma );
 
-        #if DEBUG_SHRINKWRAPP_CPP == 1
-            std::ofstream file;
-            std::string fname = std::string("shrinkWrap-init-mask-blurred");
-            file.open( ( fname + std::string(".dat") ).c_str() );
-            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
-            {
-                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
-                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
-                file << "\n";
-            }
-            file.close();
-            std::cout << "Written out " << fname << ".png\n";
+        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
+            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask-blurred.png" );
+            // comment me in after the delete[] is finally not inside writeOutFunc anymore
         #endif
 
         /* apply threshold to make binary mask */
@@ -204,17 +191,9 @@ namespace algorithms
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
         }
 
-        #if DEBUG_SHRINKWRAPP_CPP == 1
-            fname = std::string("shrinkWrap-init-mask");
-            file.open( ( fname + std::string(".dat") ).c_str() );
-            for ( unsigned ix = 0; ix < rSize[0]; ++ix )
-            {
-                for ( unsigned iy = 0; iy < rSize[1]; ++iy )
-                    file << std::setw(10) << isMasked[ iy*rSize[0] + ix ] << " ";
-                file << "\n";
-            }
-            file.close();
-            std::cout << "Written out " << fname << ".png\n";
+        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
+            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask.png" );
+            // comment me in after the delete[] is finally not inside writeOutFunc anymore
         #endif
 
         /* copy original image into fftw_complex array and add random phase */
@@ -240,7 +219,6 @@ namespace algorithms
         for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
-            std::cout << "Update Mask with sigma=" << sigma << "\n";
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             complexNormElementwise( isMasked, curData, nElements );
@@ -277,16 +255,18 @@ namespace algorithms
                 fftwf_execute( toFreqSpace );
 
                 /* Replace absolute of G' with measured absolute |F| */
-                applyComplexModulus( curData, curData, rIntensity, nElements );
+                applyComplexModulus( curData, rIntensity, nElements );
 
                 fftwf_execute( toRealSpace );
             } // HIO loop
 
             /* check if we are done */
             const float currentError = imresh::libs::calculateHioError( curData /*g'*/, isMasked, nElements );
-            std::cout << "[Error " << currentError << "/" << rTargetError << "] "
-                      << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
-                      << "\n";
+            #ifdef IMRESH_DEBUG
+                std::cerr << "[Error " << currentError << "/" << rTargetError << "] "
+                          << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
+                          << "\n";
+            #endif
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;
             if ( iCycleShrinkWrap >= rnCycles )
@@ -306,5 +286,29 @@ namespace algorithms
     }
 
 
+    /* explicit template instantiations */
+
+    template
+    void fftShift<fftwf_complex>
+    (
+        fftwf_complex * const & data,
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
+#endif
+
+    template
+    void fftShift<float>
+    (
+        float * const & data,
+        const unsigned & Nx,
+        const unsigned & Ny
+    );
+
+
 } // namespace algorithms
 } // namespace imresh
+
+#ifdef DEBUG_SHRINKWRAPP_CPP
+#   undef DEBUG_SHRINKWRAPP_CPP
+#endif

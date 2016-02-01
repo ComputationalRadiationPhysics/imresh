@@ -51,9 +51,9 @@ namespace io
      * @param _targetError The target error to stop the program when reached.
      */
     void addTask(
-        float* _h_mem,
+        float * _h_mem,
         std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+        std::function<void(float *,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename,
         unsigned int _numberOfCycles = 20,

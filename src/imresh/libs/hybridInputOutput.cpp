@@ -36,7 +36,9 @@
 #include <iostream>
 #include <vector>
 #include <omp.h>      // omp_get_num_procs, omp_set_num_procs
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 #include "libs/vectorIndex.hpp"
 
 
@@ -65,10 +67,12 @@ namespace libs
     template< class T_COMPLEX, class T_MASK_ELEMENT >
     float calculateHioError
     (
-        const T_COMPLEX * const & gPrime,
-        const T_MASK_ELEMENT * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        T_COMPLEX      const * const __restrict__ gPrime,
+        T_MASK_ELEMENT const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     )
     {
         float totalError    = 0;
@@ -86,43 +90,54 @@ namespace libs
             if ( rInvertMask )
                 shouldBeZero = 1 - shouldBeZero;
 
-            totalError    += shouldBeZero * ( re*re+im*im );
+            totalError    += shouldBeZero * sqrtf( re*re+im*im );
             nMaskedPixels += shouldBeZero;
         }
+
+        if ( rpTotalError != NULL )
+            *rpTotalError    = totalError;
+        if ( rpnMaskedPixels != NULL )
+            *rpnMaskedPixels = nMaskedPixels;
+
         return sqrtf( totalError ) / (float) nMaskedPixels;
     }
 
+#ifdef USE_FFTW
     template float calculateHioError<fftwf_complex,float>
     (
-        const fftwf_complex * const & gPrime,
-        const float * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        fftwf_complex const * const __restrict__ gPrime,
+        float         const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     );
     template float calculateHioError<fftw_complex,float>
     (
-        const fftw_complex * const & gPrime,
-        const float * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask
+        fftw_complex const * const __restrict__ gPrime,
+        float        const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask,
+        float * const __restrict__ rpTotalError,
+        float * const __restrict__ rpnMaskedPixels
     );
 
 
-    template< class T_COMPLEX, class T_PREC >
+    template< class T_PREC >
     void addRandomPhase
     (
         const T_PREC * const & rNorm,
-        T_COMPLEX * const & rOutput,
+        fftwf_complex * const & rOutput,
         const std::vector<unsigned> & rSize,
         const unsigned & rnElements
     )
     {
         /* In the initial step introduce a random phase as a first guess.
          * This could be done without the fourier transform and extra space
-         * by applying the needed symmetrie f(-x) = \overline{f(x)}, so that
+         * by applying the needed symmetry f(-x) = \overline{f(x)}, so that
          * the inverse fourier trafo will be real.
-         * Initially this condition should be true, because the input is expected
-         * to stem from a fourier transform of a real function.
+         * Initially this condition should be true, because the input is
+         * expected to stem from a fourier transform of a real function.
          * Note that the input is expected to have x=0 at ix=0, which means
          * we need to check wheter rIoData[ix==1] == rIoData[ix==Nx-1]
          */
@@ -289,5 +304,8 @@ namespace libs
 
         return 0; // success
     }
+#endif
+
+
 } // namespace libs
 } // namespace imresh

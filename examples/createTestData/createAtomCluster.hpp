@@ -40,8 +40,8 @@ namespace createTestData
      **/
     float* createAtomCluster
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        unsigned int const Nx,
+        unsigned int const Ny
     );
 
 

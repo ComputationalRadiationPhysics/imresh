@@ -703,12 +703,12 @@ namespace libs
                         T_PREC sum = 0;
                         for ( int iW = -nKernelHalf; iW <= (int)nKernelHalf; ++iW )
                         {
-                            assert( iRowBuf+iW >= 0 );
+                            assert( (int)iRowBuf + iW >= 0 );
                             const unsigned iBuf = unsigned( iRowBuf+iW ) * nColsBuffer + iColBuf;
                             assert( iBuf < nBufferSize );
                             sum += buffer[iBuf] * w[iW];
                         }
-                        assert( iRowBuf-nKernelHalf >= 0 );
+                        assert( iRowBuf >= nKernelHalf );
                         const unsigned iData = ( iRow + (iRowBuf-nKernelHalf) ) * rnDataX + iCol+iColBuf;
                         assert( iData < rnDataX*rnDataY );
                         rData[ iData ] = sum;

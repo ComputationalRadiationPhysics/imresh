@@ -26,7 +26,15 @@
 #include "diffractionIntensity.hpp"
 
 #include <cmath>     // sqrtf
-#include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
+#ifdef USE_FFTW
+#   include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
+#else
+#   include <cuda_runtime_api.h>
+#   include <cufft.h>
+#   include "libs/cudacommon.h"
+#   include "libs/checkCufftError.hpp"
+#   include "algorithms/cuda/cudaVectorElementwise.hpp"
+#endif
 #include "libs/vectorIndex.hpp"
 
 
@@ -36,36 +44,82 @@ namespace libs
 {
 
 
-    void diffractionIntensity
-    (
-        float * const & rIoData,
-        const std::pair<unsigned int,unsigned int>& rSize
-    )
-    {
-        unsigned int nElements = rSize.first * rSize.second;
-        /* @ see http://www.fftw.org/doc/Precision.html */
-        auto tmp = new fftwf_complex[nElements];
+#   ifdef USE_FFTW
 
-        for ( unsigned i = 0; i < nElements; ++i )
+        void diffractionIntensity
+        (
+            float * const rIoData,
+            unsigned int const rImageWidth,
+            unsigned int const rImageHeight
+        )
         {
-            tmp[i][0] = rIoData[i];
-            tmp[i][1] = 0;
-        }
-        fftwf_plan ft = fftwf_plan_dft_2d( rSize.second, rSize.first, tmp, tmp,
-            FFTW_FORWARD, FFTW_ESTIMATE );
-        fftwf_execute( ft );
-        fftwf_destroy_plan( ft );
+            unsigned int nElements = rImageWidth * rImageHeight;
+            /* @ see http://www.fftw.org/doc/Precision.html */
+            auto tmp = new fftwf_complex[nElements];
 
-        for ( unsigned i = 0; i < nElements; ++i )
+            for ( unsigned i = 0; i < nElements; ++i )
+            {
+                tmp[i][0] = rIoData[i];
+                tmp[i][1] = 0;
+            }
+            fftwf_plan ft = fftwf_plan_dft_2d(
+                rImageHeight /* nRows */, rImageWidth /* nColumns */,
+                tmp, tmp, FFTW_FORWARD, FFTW_ESTIMATE );
+            fftwf_execute( ft );
+            fftwf_destroy_plan( ft );
+
+            for ( unsigned i = 0; i < nElements; ++i )
+            {
+                const float & re = tmp[i][0]; /* Re */
+                const float & im = tmp[i][1]; /* Im */
+                const float norm = sqrtf( re*re + im*im );
+                rIoData[ i /*fftShiftIndex(i,rSize)*/ ] = norm;
+            }
+
+            delete[] tmp;
+        }
+
+#   else
+
+        void diffractionIntensity
+        (
+            float * const rIoData,
+            unsigned int const rImageWidth,
+            unsigned int const rImageHeight,
+            cudaStream_t const rStream,
+            bool rAsync
+        )
         {
-            const float & re = tmp[i][0]; /* Re */
-            const float & im = tmp[i][1]; /* Im */
-            const float norm = sqrtf( re*re + im*im );
-            rIoData[ i /*fftShiftIndex(i,rSize)*/ ] = norm;
+            const unsigned int nElements = rImageWidth * rImageHeight;
+
+            cufftComplex * dpTmp;
+            const unsigned int tmpSize = nElements * sizeof( dpTmp[0] );
+            CUDA_ERROR( cudaMalloc( (void**)&dpTmp, tmpSize ) );
+            /* what we want to do is copy the float input array to the real
+             * part of the cufftComplex array and set the imaginary part to 0 */
+            CUDA_ERROR( cudaMemsetAsync( dpTmp, 0, tmpSize, rStream ) );
+            CUDA_ERROR( cudaMemcpy2DAsync( dpTmp  , sizeof( dpTmp  [0] ),
+                                           rIoData, sizeof( rIoData[0] ),
+                                           sizeof( rIoData[0] ), nElements,
+                                           cudaMemcpyHostToDevice, rStream ) );
+
+            cufftHandle ftPlan;
+            CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
+            CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
+            CUFFT_ERROR( cufftExecC2C( ftPlan, dpTmp, dpTmp, CUFFT_FORWARD ) );
+            CUFFT_ERROR( cufftDestroy( ftPlan ) );
+
+            imresh::algorithms::cuda::cudaComplexNormElementwise( dpTmp, dpTmp, nElements, rStream, true );
+
+            CUDA_ERROR( cudaMemcpy2DAsync( rIoData, sizeof( rIoData[0] ),
+                                           dpTmp  , sizeof( dpTmp  [0] ),
+                                           sizeof( rIoData[0] ), nElements,
+                                           cudaMemcpyDeviceToHost, rStream ) );
+            if ( not rAsync )
+                CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         }
 
-        delete[] tmp;
-    }
+#   endif
 
 
 } // diffractionIntensity

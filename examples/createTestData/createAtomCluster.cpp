@@ -39,19 +39,19 @@ namespace createTestData
 {
 
 
-    #define SCALE_EXAMPLE_IMAGE 1
+    #define SCALE_EXAMPLE_IMAGE 0
 
 
     float * createAtomCluster
     (
-        const unsigned & Nx,
-        const unsigned & Ny
+        unsigned int const Nx,
+        unsigned int const Ny
     )
     {
         assert( Nx > 0 and Ny );
 
-        const unsigned nElements = Nx * Ny;
-        float * data = new float[nElements];
+        auto nElements = Nx * Ny;
+        auto data = new float[nElements];
 
         /* Add random background noise and blur it, so that it isn't pixelwise */
         srand(4628941);
@@ -70,7 +70,7 @@ namespace createTestData
         #else
             const float atomRadius = 1.6;
         #endif
-        #ifndef NDEBUG
+        #if not defined(NDEBUG) and defined(IMRESH_DEBUG)
             std::cout << "atomRadius = "<<atomRadius<<" px\n";
         #endif
         /* The centers are given as offsets in multiplies of 2*atomradius

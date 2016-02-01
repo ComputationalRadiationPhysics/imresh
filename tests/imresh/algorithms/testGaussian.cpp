@@ -23,6 +23,8 @@
  */
 
 
+#include "testGaussian.hpp"
+
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -36,7 +38,9 @@
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaGaussian.h"
+#include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
 #include "libs/gaussian.hpp"
+#include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.h"
 #include "benchmarkHelper.hpp"
 
@@ -46,17 +50,8 @@ namespace imresh
 namespace algorithms
 {
 
-
-struct TestGaussian
-{
-
-    float * pData, * dpData, * pResult, * pResultCpu, * pSolution;
-    const unsigned nMaxElements = 4*1024*1024;
-    static constexpr int maxKernelWidth = 30; // (sigma=4), needed to calculate upper bound of maximum rounding error
-
-
-    void compareFloatArray
-    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line = 0 )
+    void TestGaussian::compareFloatArray
+    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
     {
         const unsigned nElements = nCols * nRows;
         auto maxError = vectorMaxAbsDiff( pData, pResult, nElements );
@@ -136,12 +131,12 @@ struct TestGaussian
      *            Can be useful to check columns in 2D data, by setting
      *            nStride = nCols. Must not be 0
      **/
-    void checkGaussian
+    void TestGaussian::checkGaussian
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nElements,
-        unsigned const & nStride = 1
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned const nElements,
+        unsigned const nStride
     )
     {
         assert( vectorMin( pOriginal, nElements, nStride )
@@ -155,12 +150,12 @@ struct TestGaussian
     /**
      * Calls checkGaussian for every row
      **/
-    inline void checkGaussianHorizontal
+    void TestGaussian::checkGaussianHorizontal
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nCols,
-        unsigned const & nRows
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned const nCols,
+        unsigned const nRows
     )
     {
         for ( unsigned iRow = 0; iRow < nRows; ++iRow )
@@ -170,23 +165,23 @@ struct TestGaussian
     /**
      * Calls checkGaussian for every column
      **/
-    inline void checkGaussianVertical
+    void TestGaussian::checkGaussianVertical
     (
-        float const * const & pResult,
-        float const * const & pOriginal,
-        unsigned const & nCols,
-        unsigned const & nRows
+        float const * const pResult,
+        float const * const pOriginal,
+        unsigned int const nCols,
+        unsigned int const nRows
     )
     {
         for ( unsigned iCol = 0; iCol < nCols; ++iCol )
             checkGaussian( pResult, pOriginal, nRows, nCols );
     }
 
-    void checkIfElementsEqual
+    void TestGaussian::checkIfElementsEqual
     (
-        float const * const & pData,
-        unsigned const & nData,
-        unsigned const & nStride = 1
+        float const * const pData,
+        unsigned int const nData,
+        unsigned int const nStride
     )
     {
         assert( nStride > 0 );
@@ -209,7 +204,7 @@ struct TestGaussian
         assert( sumDiff == 0 );
     }
 
-    void fillWithRandomValues
+    void TestGaussian::fillWithRandomValues
     ( float * dpData, float * pData, unsigned nElements )
     {
         for ( unsigned i = 0; i < nElements; ++i )
@@ -219,9 +214,11 @@ struct TestGaussian
     }
 
 
-    void testGaussianDiracDeltas( void )
+    void TestGaussian::testGaussianDiracDeltas( void )
     {
+        using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* test gaussian blur for 000100010001000 where the number of 0s
@@ -340,9 +337,10 @@ struct TestGaussian
     }
 
 
-    void testGaussianRandomSingleData( void )
+    void TestGaussian::testGaussianRandomSingleData( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Test for array of length 1. In this case the values shouldn't change
@@ -399,9 +397,10 @@ struct TestGaussian
     }
 
 
-    void testGaussianConstantValuesPerRowLine( void )
+    void TestGaussian::testGaussianConstantValuesPerRowLine( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* now do checks with longer arrays which contain constant values,
@@ -481,9 +480,10 @@ struct TestGaussian
     }
 
 
-    void testGaussianConstantValues( void )
+    void TestGaussian::testGaussianConstantValues( void )
     {
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         std::cout << "Test gaussian blur of vectors of whose rows or columns (depending on whether to use vertical or horizontal blur) are all equal" << std::flush;
@@ -544,9 +544,11 @@ struct TestGaussian
     }
 
 
-    void benchmarkGaussianGeneralRandomValues( void )
+    void TestGaussian::benchmarkGaussianGeneralRandomValues( void )
     {
+        using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Now test with random data and assert only some general properties */
@@ -620,21 +622,26 @@ struct TestGaussian
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
             /* time CPU horizontal blur */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurHorizontal( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianHorizontal( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
-            }
+            #define TIME_CPU( FUNC, CHECK )                               \
+            minTime = FLT_MAX;                                            \
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions;   \
+                  ++iRepetition )                                         \
+            {                                                             \
+                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );  \
+                clock0 = clock::now();                                    \
+                FUNC( pResultCpu, nCols, nRows, sigma );                  \
+                clock1 = clock::now();                                    \
+                                                                          \
+                auto seconds = duration_cast<duration<double>>(           \
+                                    clock1 - clock0 );                    \
+                minTime = fmin( minTime, seconds.count() * 1000 );        \
+                                                                          \
+                CHECK( pResultCpu, pData, nCols, nRows );                 \
+                compareFloatArray( pResultCpu, pResult, nCols, nRows,     \
+                                   sigma, __LINE__ );                     \
+            }                                                             \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
+            TIME_CPU( gaussianBlurHorizontal, checkGaussianHorizontal )
 
             /* time CUDA vertical blur */
             minTime = FLT_MAX;
@@ -656,47 +663,21 @@ struct TestGaussian
             }
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            /* time CPU vertical blur */
-            minTime = FLT_MAX;
             if ( (unsigned) calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
             {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurVerticalUncached( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
+                TIME_CPU( gaussianBlurVerticalUncached, checkGaussianVertical )
             }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU vertical blur (new version) */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
+            else
             {
-                memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
-                clock0 = clock::now();
-                gaussianBlurVertical( pResultCpu, nCols, nRows, sigma );
-                clock1 = clock::now();
-
-                milliseconds = ( clock1-clock0 ).count() / 1000.0;
-                minTime = fmin( minTime, milliseconds );
-
-                checkGaussianVertical( pResultCpu, pData, nCols, nRows );
-                compareFloatArray( pResultCpu, pResult, nCols, nRows, sigma, __LINE__ );
+                std::cout << std::setw(8) << "-" << " |";
             }
-            std::cout << std::setw(8) << minTime << "\n" << std::flush;
-
-
+            TIME_CPU( gaussianBlurVertical, checkGaussianVertical )
+            std::cout << std::endl;
         }
     }
 
 
-    void operator()( void )
+    void TestGaussian::operator()( void )
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -723,15 +704,8 @@ struct TestGaussian
         CUDA_ERROR( cudaFreeHost( pData ) );
         CUDA_ERROR( cudaFreeHost( pResult ) );
     }
-}; // struct TestGaussian
+
 
 
 } // namespace algorithms
 } // namespace imresh
-
-
-int main( void )
-{
-    imresh::algorithms::TestGaussian testGaussian;
-    testGaussian();
-}

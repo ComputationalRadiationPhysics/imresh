@@ -27,7 +27,9 @@
 
 #include <algorithm>  // max
 #include <cmath>
-#include <fftw3.h>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 
 
 namespace imresh
@@ -39,17 +41,17 @@ namespace algorithms
     template< class T_PREC, class T_COMPLEX >
     void complexNormElementwise
     (
-        T_PREC * const & rDataTarget,
-        const T_COMPLEX * const & rDataSource,
-        const unsigned & rnData
+        T_PREC          * const __restrict__ rDataTarget,
+        T_COMPLEX const * const __restrict__ rDataSource,
+        unsigned int const rnData
     )
     {
         #pragma omp parallel for
-        for ( unsigned i = 0; i < rnData; ++i )
+        for ( auto i = 0u; i < rnData; ++i )
         {
-            const float & re = rDataSource[i][0];
-            const float & im = rDataSource[i][1];
-            rDataTarget[i] = sqrtf( re*re + im*im );
+            auto const re = rDataSource[i][0];
+            auto const im = rDataSource[i][1];
+            rDataTarget[i] = std::sqrt( re*re + im*im );
         }
     }
 
@@ -57,55 +59,56 @@ namespace algorithms
     template< class T_COMPLEX, class T_PREC >
     void applyComplexModulus
     (
-        T_COMPLEX * const & rDataTarget,
-        const T_COMPLEX * const & rDataSource,
-        const T_PREC * const & rComplexModulus,
-        const unsigned & rnData
+        T_COMPLEX       * const __restrict__ rData,
+        T_PREC    const * const __restrict__ rComplexModulus,
+        unsigned int const rnData
     )
     {
         #pragma omp parallel for
-        for ( unsigned i = 0; i < rnData; ++i )
+        for ( auto i = 0u; i < rnData; ++i )
         {
-            const auto & re = rDataSource[i][0];
-            const auto & im = rDataSource[i][1];
-            auto norm = sqrtf(re*re+im*im);
+            auto const re = rData[i][0];
+            auto const im = rData[i][1];
+
+            auto norm = std::sqrt( re*re + im*im );
             if ( norm == 0 )
                 norm = 1;
-            const float factor = rComplexModulus[i] / norm;
-            rDataTarget[i][0] = re * factor;
-            rDataTarget[i][1] = im * factor;
+
+            auto const factor = rComplexModulus[i] / norm;
+            rData[i][0] = re * factor;
+            rData[i][1] = im * factor;
         }
     }
 
     /* explicitely instantiate needed data types */
+    #ifdef USE_FFTW
+        template void complexNormElementwise<float,fftwf_complex>
+        (
+            float               * const __restrict__ rDataTarget,
+            fftwf_complex const * const __restrict__ rDataSource,
+            unsigned int const rnData
+        );
+        template void complexNormElementwise<double,fftw_complex>
+        (
+            double             * const __restrict__ rDataTarget,
+            fftw_complex const * const __restrict__ rDataSource,
+            unsigned int const rnData
+        );
 
-    template void complexNormElementwise<float,fftwf_complex>
-    (
-        float * const & rDataTarget,
-        const fftwf_complex * const & rDataSource,
-        const unsigned & rnData
-    );
-    template void complexNormElementwise<double,fftw_complex>
-    (
-        double * const & rDataTarget,
-        const fftw_complex * const & rDataSource,
-        const unsigned & rnData
-    );
+        template void applyComplexModulus<fftwf_complex,float>
+        (
+            fftwf_complex      * const __restrict__ rData,
+            float        const * const __restrict__ rComplexModulus,
+            unsigned int const rnData
+        );
+        template void applyComplexModulus<fftw_complex,double>
+        (
+            fftw_complex       * const __restrict__ rData,
+            double       const * const __restrict__ rComplexModulus,
+            unsigned int const rnData
+        );
+    #endif
 
-    template void applyComplexModulus<fftwf_complex,float>
-    (
-        fftwf_complex * const & rDataTarget,
-        const fftwf_complex * const & rDataSource,
-        const float * const & rComplexModulus,
-        const unsigned & rnData
-    );
-    template void applyComplexModulus<fftw_complex,double>
-    (
-        fftw_complex * const & rDataTarget,
-        const fftw_complex * const & rDataSource,
-        const double * const & rComplexModulus,
-        const unsigned & rnData
-    );
 
 } // namespace algorithms
 } // namespace imresh

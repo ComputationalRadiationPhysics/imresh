@@ -84,9 +84,9 @@ namespace io
      * @see addTask
      */
     void addTaskAsync(
-        float* _h_mem,
+        float * _h_mem,
         std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+        std::function<void(float *,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename,
         unsigned int _numberOfCycles,
@@ -106,12 +106,19 @@ namespace io
         auto strm = streamList.front( );
         streamList.pop_front( );
         streamList.push_back( strm );
-        mtx.unlock();
+        mtx.unlock( );
         auto device = strm.device;
         auto str = strm.str;
 
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
+        cudaDeviceProp prop;
+        CUDA_ERROR( cudaGetDeviceProperties( &prop, device ) );
+        unsigned int const nThreadsPerBlock = 256;
+        /* oversubscribe the GPU by a factor of 2 to account for cudaMalloc
+         * and cudaMemcpy stalls */
+        unsigned int const nBlocks = 2*prop.maxThreadsPerMultiProcessor / nThreadsPerBlock;
+
 
 #       ifdef IMRESH_DEBUG
             std::cout << "imresh::io::addTaskAsync(): Mutex locked, device and stream selected. Calling shrink-wrap."
@@ -123,6 +130,8 @@ namespace io
                                               _size.first,
                                               _size.second,
                                               str,
+                                              nBlocks,
+                                              nThreadsPerBlock,
                                               _numberOfCycles,
                                               _targetError,
                                               _HIOBeta,
@@ -141,9 +150,9 @@ namespace io
     }
 
     void addTask(
-        float* _h_mem,
+        float * _h_mem,
         std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float*,std::pair<unsigned int,unsigned int>,
+        std::function<void(float *,std::pair<unsigned int,unsigned int>,
             std::string)> _writeOutFunc,
         std::string _filename,
         unsigned int _numberOfCycles = 20,
@@ -164,7 +173,7 @@ namespace io
                 std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
                     << std::endl;
 #           endif
-            if ( threadPool.front().joinable() )
+            if ( threadPool.front( ).joinable( ) )
                 threadPool.front( ).join( );
             else
             {
@@ -210,7 +219,7 @@ namespace io
                 << std::endl;
 #       endif
         int deviceCount = 0;
-        CUDA_ERROR( cudaGetDeviceCount( &deviceCount ) );
+        CUDA_ERROR( cudaGetDeviceCount( & deviceCount ) );
 
         if( deviceCount <= 0 )
         {
@@ -224,7 +233,8 @@ namespace io
         for( int i = 0; i < deviceCount; i++ )
         {
             cudaDeviceProp prop;
-            CUDA_ERROR( cudaGetDeviceProperties( &prop, i ) );
+            CUDA_ERROR( cudaSetDevice( i ) );
+            CUDA_ERROR( cudaGetDeviceProperties( & prop, i ) );
 
             assert( prop.multiProcessorCount >= 0 );
 #           ifdef IMRESH_DEBUG
@@ -239,7 +249,7 @@ namespace io
             {
                 stream str;
                 str.device = i;
-                CUDA_ERROR( cudaStreamCreate( &str.str ) );
+                CUDA_ERROR( cudaStreamCreate( & str.str ) );
                 streamList.push_back( str );
 #               ifdef IMRESH_DEBUG
                     std::cout << "imresh::io::fillStreamList(): Created stream "

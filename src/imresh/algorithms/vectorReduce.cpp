@@ -40,10 +40,10 @@ namespace algorithms
     template<class T_PREC>
     T_PREC vectorMaxAbsDiff
     (
-        const T_PREC * const & rData1,
-        const T_PREC * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        T_PREC const * const rData1,
+        T_PREC const * const rData2,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
         assert( rnStride > 0 );
@@ -57,9 +57,9 @@ namespace algorithms
     template<class T_PREC>
     T_PREC vectorMaxAbs
     (
-        const T_PREC * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        T_PREC const * const rData,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
         assert( rnStride > 0 );
@@ -73,9 +73,9 @@ namespace algorithms
     template<class T_PREC>
     T_PREC vectorMax
     (
-        const T_PREC * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        T_PREC const * const rData,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
         assert( rnStride > 0 );
@@ -89,9 +89,9 @@ namespace algorithms
     template<class T_PREC>
     T_PREC vectorMin
     (
-        const T_PREC * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        T_PREC const * const rData,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
         assert( rnStride > 0 );
@@ -105,9 +105,9 @@ namespace algorithms
     template<class T_PREC>
     T_PREC vectorSum
     (
-        const T_PREC * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        T_PREC const * const rData,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
         assert( rnStride > 0 );
@@ -123,69 +123,69 @@ namespace algorithms
 
     template float vectorMaxAbsDiff<float>
     (
-        const float * const & rData1,
-        const float * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        float const * const rData1,
+        float const * const rData2,
+        unsigned int const rnData,
+        unsigned int const rnStride
     );
     template double vectorMaxAbsDiff<double>
     (
-        const double * const & rData1,
-        const double * const & rData2,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        double const * const rData1,
+        double const * const rData2,
+        unsigned int const rnData,
+        unsigned int const rnStride
     );
 
     template float vectorMaxAbs<float>
     (
-        const float * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        float const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
     template double vectorMaxAbs<double>
     (
-        const double * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        double const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
 
     template float vectorMax<float>
     (
-        const float * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        float const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
     template double vectorMax<double>
     (
-        const double * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        double const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
 
     template float vectorMin<float>
     (
-        const float * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        float const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
     template double vectorMin<double>
     (
-        const double * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        double const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
 
     template float vectorSum<float>
     (
-        const float * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        float const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
     template double vectorSum<double>
     (
-        const double * const & rData,
-        const unsigned & rnData,
-        const unsigned & rnStride
+        double const * rData,
+        unsigned int rnData,
+        unsigned int rnStride
     );
 
 

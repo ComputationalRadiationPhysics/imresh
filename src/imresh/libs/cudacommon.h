@@ -29,7 +29,7 @@
 #include <cuda_runtime_api.h>
 
 
-#define CUDA_ERROR(X) imresh::libs::checkCudaError(X,__FILE__,__LINE__);
+#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
