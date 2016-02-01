@@ -23,27 +23,14 @@
  */
 
 
-#pragma once
-
-
-namespace examples
+namespace imresh
 {
-namespace createTestData
+namespace algorithms
 {
 
 
-    /**
-     * Create a sample data of two atom clusters
-     *
-     * @param[in] rSize image dimensions
-     * @return pointer to allocated data. Must be deallocated with delete[]
-     **/
-    float* createAtomCluster
-    (
-        unsigned int const Nx,
-        unsigned int const Ny
-    );
+    void testShrinkWrap( void );
 
 
-} // namespace createTestData
-} // namespace examples
+} // namespace algorithms
+} // namespace imresh

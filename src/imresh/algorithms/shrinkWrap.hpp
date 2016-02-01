@@ -39,16 +39,17 @@ namespace algorithms
      **/
     int shrinkWrap
     (
-        float * const & rIoData,
-        const std::vector<unsigned> & rSize,
-        unsigned rnCycles = 20,
+        float * const rIoData,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        unsigned int rnCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,
         float rIntensityCutOffAutoCorel = 0.04,
         float rIntensityCutOff = 0.20,
         float sigma0 = 3.0,
         float rSigmaChange = 0.01,
-        unsigned rnHioCycles = 20
+        unsigned int rnHioCycles = 20
     );
 
 

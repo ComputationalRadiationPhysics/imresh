@@ -74,7 +74,7 @@ int main( int argc, char ** argv )
     }
 
     #if USE_FFTW
-        imresh::algorithms::shrinkWrap( pAtomCluster, imageSize, 64 /*cycles*/, 1e-6 /* targetError */ );
+        imresh::algorithms::shrinkWrap( pAtomCluster, imageSize[0], imageSize[1], 64 /*cycles*/, 1e-6 /* targetError */ );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize[0], imageSize[1], cudaStream_t(0) /* stream */, 64 /*cycles*/, 1e-6 /* targetError */ );
     #endif

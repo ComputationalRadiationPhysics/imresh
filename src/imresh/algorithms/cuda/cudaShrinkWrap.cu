@@ -241,9 +241,6 @@ namespace cuda
         for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
-#           ifdef IMRESH_DEBUG
-                std::cout << "imresh::algorithms::cuda::shrinkWrap(): Update Mask with sigma=" << sigma << std::endl;
-#           endif
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );

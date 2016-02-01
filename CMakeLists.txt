@@ -80,11 +80,12 @@ set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${PNGwriter_LIBRARIES} ${Splash_LIBRAR
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
-if(BUILD_EXAMPLES)
+if(BUILD_EXAMPLES OR RUN_TESTS)
     file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
     add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
     target_link_libraries( examples )
-
+endif()
+if(BUILD_EXAMPLES)
     add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
     target_link_libraries( "threadedExample" examples ${PROJECT_NAME} )
 
@@ -115,7 +116,7 @@ if(RUN_TESTS)
     target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
 
     cuda_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
-    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark")
+    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark" "examples")
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)

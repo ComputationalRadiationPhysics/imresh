@@ -29,6 +29,7 @@
 #include "imresh/algorithms/testVectorElementwise.hpp"
 #include "imresh/libs/testVectorIndex.hpp"
 #include "imresh/io/testReadWrite.hpp"
+#include "imresh/algorithms/testShrinkWrap.hpp"
 
 
 int main( void )
@@ -37,6 +38,7 @@ int main( void )
     using namespace imresh::libs;
     using namespace imresh::io;
 
+    testShrinkWrap();
     testPng();
 
     testVectorIndex();

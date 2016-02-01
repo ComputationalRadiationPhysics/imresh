@@ -108,21 +108,26 @@ namespace algorithms
 
     int shrinkWrap
     (
-        float * const & rIntensity,
-        const std::vector<unsigned> & rSize,
-        unsigned rnCycles,
+        float * const rIoData,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        unsigned int rnCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles
+        unsigned int rnHioCycles
     )
     {
+        /* define values as used in old interface */
+        auto const rIntensity = rIoData;
+        std::vector<unsigned> rSize{ rImageWidth, rImageHeight };
+
         if ( rSize.size() != 2 ) return 1;
-        const unsigned & Ny = rSize[1];
-        const unsigned & Nx = rSize[0];
+        unsigned int const Nx = rImageWidth;
+        unsigned int const Ny = rImageHeight;
 
         /* Evaluate input parameters and fill with default values if necessary */
         if ( rIntensity == NULL ) return 1;
@@ -172,10 +177,9 @@ namespace algorithms
         //fftShift( isMasked, Nx,Ny );
         libs::gaussianBlur( isMasked, Nx, Ny, sigma );
 
-        #ifdef USE_PNG
-        #if DEBUG_SHRINKWRAPP_CPP == 1
-            imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask-blurred.png" );
-        #endif
+        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
+            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask-blurred.png" );
+            // comment me in after the delete[] is finally not inside writeOutFunc anymore
         #endif
 
         /* apply threshold to make binary mask */
@@ -187,10 +191,9 @@ namespace algorithms
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
         }
 
-        #ifdef USE_PNG
-        #if DEBUG_SHRINKWRAPP_CPP == 1
-            imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask.png" );
-        #endif
+        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
+            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask.png" );
+            // comment me in after the delete[] is finally not inside writeOutFunc anymore
         #endif
 
         /* copy original image into fftw_complex array and add random phase */
@@ -216,7 +219,6 @@ namespace algorithms
         for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
-            std::cout << "Update Mask with sigma=" << sigma << "\n";
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             complexNormElementwise( isMasked, curData, nElements );
@@ -260,9 +262,11 @@ namespace algorithms
 
             /* check if we are done */
             const float currentError = imresh::libs::calculateHioError( curData /*g'*/, isMasked, nElements );
-            std::cout << "[Error " << currentError << "/" << rTargetError << "] "
-                      << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
-                      << "\n";
+            #ifdef IMRESH_DEBUG
+                std::cerr << "[Error " << currentError << "/" << rTargetError << "] "
+                          << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
+                          << "\n";
+            #endif
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;
             if ( iCycleShrinkWrap >= rnCycles )
