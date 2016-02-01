@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "cudaShrinkWrap.h"
 
 #ifndef NDEBUG
 #   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging

@@ -123,7 +123,7 @@ namespace algorithms
     {
         /* define values as used in old interface */
         auto const rIntensity = rIoData;
-        std::vector<unsigned> rSize{ rImageWidth, rImageHeight };
+        std::vector<unsigned> rSize{ rImageHeight, rImageWidth };
 
         if ( rSize.size() != 2 ) return 1;
         unsigned int const Nx = rImageWidth;
