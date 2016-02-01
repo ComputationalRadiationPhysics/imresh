@@ -25,9 +25,10 @@
 
 #pragma once
 
-#include <cstdint>    // uint8_t
+#include <cstdint>      // uint8_t
 #include <vector>
-#include <climits>    // UINT_MAX
+#include <climits>      // UINT_MAX
+#include <cstddef>      // NULL
 
 
 namespace imresh
@@ -39,10 +40,12 @@ namespace libs
     template< class T_COMPLEX, class T_MASK_ELEMENT >
     float calculateHioError
     (
-        const T_COMPLEX * const & gPrime,
-        const T_MASK_ELEMENT * const & rIsMasked,
-        const unsigned & nElements,
-        const bool & rInvertMask = false
+        T_COMPLEX      const * const __restrict__ gPrime,
+        T_MASK_ELEMENT const * const __restrict__ rIsMasked,
+        unsigned const nElements,
+        bool     const rInvertMask = false,
+        float * const __restrict__ rpTotalError    = NULL,
+        float * const __restrict__ rpnMaskedPixels = NULL
     );
 
     /**

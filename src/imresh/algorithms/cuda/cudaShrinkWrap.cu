@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "cudaShrinkWrap.h"
 
 #ifndef NDEBUG
 #   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
@@ -34,7 +34,6 @@
 #include <cstddef>      // NULL
 #include <cstring>      // memcpy
 #include <cassert>
-#include <cstdint>      // uint64_t
 #include <cmath>
 #include <vector>
 #include <cuda.h>       // atomicCAS
@@ -49,6 +48,7 @@
 #endif
 #include "libs/cudacommon.h"
 #include "libs/checkCufftError.hpp"
+#include "cudaVectorElementwise.hpp"
 
 
 namespace imresh
@@ -60,136 +60,13 @@ namespace cuda
 
 
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelCopyToRealPart
-    (
-        T_COMPLEX * const rTargetComplexArray,
-        T_PREC    * const rSourceRealArray,
-        unsigned    const rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rTargetComplexArray[i].x = rSourceRealArray[i]; /* Re */
-            rTargetComplexArray[i].y = 0;
-        }
-    }
-
-
-    template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelCopyFromRealPart
-    (
-        T_PREC    * const rTargetComplexArray,
-        T_COMPLEX * const rSourceRealArray,
-        unsigned    const rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rTargetComplexArray[i] = rSourceRealArray[i].x; /* Re */
-        }
-    }
-
-
-    template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelComplexNormElementwise
-    (
-        T_PREC * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const unsigned rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            const float & re = rdpDataSource[i].x;
-            const float & im = rdpDataSource[i].y;
-            rdpDataTarget[i] = sqrtf( re*re + im*im );
-        }
-    }
-
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyComplexModulus
-    (
-        T_COMPLEX * const rdpDataTarget,
-        const T_COMPLEX * const rdpDataSource,
-        const T_PREC * const rdpComplexModulus,
-        const unsigned rnElements
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            const auto & re = rdpDataSource[i].x;
-            const auto & im = rdpDataSource[i].y;
-            auto norm = sqrtf(re*re+im*im);
-            if ( norm == 0 ) // in order to avoid NaN
-                norm = 1;
-            const float factor = rdpComplexModulus[i] / norm;
-            rdpDataTarget[i].x = re * factor;
-            rdpDataTarget[i].y = im * factor;
-        }
-    }
-
-
-    template< class T_PREC >
-    __global__ void cudaKernelCutOff
-    (
-        T_PREC * const rData,
-        unsigned const rnElements,
-        const T_PREC rThreshold,
-        const T_PREC rLowerValue,
-        const T_PREC rUpperValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            rData[i] = rData[i] < rThreshold ? rLowerValue : rUpperValue;
-        }
-    }
-
-
-    template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelApplyHioDomainConstraints
     (
-        T_COMPLEX * const rdpgPrevious,
-        const T_COMPLEX * const rdpgPrime,
-        const T_PREC * const rdpIsMasked,
-        unsigned const rnElements,
-        const T_PREC rHioBeta
+        T_COMPLEX       * const __restrict__ rdpgPrevious,
+        T_COMPLEX const * const __restrict__ rdpgPrime,
+        T_PREC    const * const __restrict__ rdpIsMasked,
+        unsigned int const rnElements,
+        T_PREC const rHioBeta
     )
     {
         assert( blockDim.y == 1 );
@@ -197,8 +74,8 @@ namespace cuda
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        uint64_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        const uint64_t nTotalThreads = gridDim.x * blockDim.x;
+        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
             if ( rdpIsMasked[i] == 1 or /* g' */ rdpgPrime[i].x < 0 )
@@ -211,44 +88,6 @@ namespace cuda
                 rdpgPrevious[i].x = rdpgPrime[i].x;
                 rdpgPrevious[i].y = rdpgPrime[i].y;
             }
-        }
-    }
-
-
-    /**
-     * Shifts the Fourier transform result in frequency space to the center
-     *
-     * @verbatim
-     *        +------------+      +------------+          +------------+
-     *        |            |      |78 ++  ++ 56|          |     --     |
-     *        |            |      |o> ''  '' <o|          | .. <oo> .. |
-     *        |     #      |  FT  |-          -| fftshift | ++ 1234 ++ |
-     *        |     #      |  ->  |-          -|  ----->  | ++ 5678 ++ |
-     *        |            |      |o> ..  .. <o|          | '' <oo> '' |
-     *        |            |      |34 ++  ++ 12|          |     --     |
-     *        +------------+      +------------+          +------------+
-     *                           k=0         k=N-1              k=0
-     * @endverbatim
-     * This index shift can be done by a simple shift followed by a modulo:
-     *   newArray[i] = array[ (i+N/2)%N ]
-     **/
-    template< class T_COMPLEX >
-    void fftShift
-    (
-        T_COMPLEX * const & data,
-        const unsigned & Nx,
-        const unsigned & Ny
-    )
-    {
-        /* only up to Ny/2 necessary, because wie use std::swap meaning we correct
-         * two elements with 1 operation */
-        for ( unsigned iy = 0; iy < Ny/2; ++iy )
-        for ( unsigned ix = 0; ix < Nx; ++ix )
-        {
-            const unsigned index =
-                ( ( iy+Ny/2 ) % Ny ) * Nx +
-                ( ( ix+Nx/2 ) % Nx );
-            std::swap( data[iy*Nx + ix], data[index] );
         }
     }
 
@@ -287,9 +126,9 @@ namespace cuda
     template< class T_PREC >
     float compareCpuWithGpuArray
     (
-        const T_PREC * const & rpData,
-        const T_PREC * const & rdpData,
-        const unsigned & rnElements
+        T_PREC const * const __restrict__ rpData,
+        T_PREC const * const __restrict__ rdpData,
+        unsigned int const rnElements
     )
     {
         /* copy data from GPU in order to compare it */
@@ -319,18 +158,20 @@ namespace cuda
 
     int cudaShrinkWrap
     (
-        float * rIntensity,
-        unsigned rImageWidth,
-        unsigned rImageHeight,
-        cudaStream_t rStream,
-        unsigned rnCycles,
+        float * const rIntensity,
+        unsigned const rImageWidth,
+        unsigned const rImageHeight,
+        cudaStream_t const rStream,
+        unsigned int nBlocks,
+        unsigned int nThreads,
+        unsigned int rnCycles,
         float rTargetError,
         float rHioBeta,
         float rIntensityCutOffAutoCorel,
         float rIntensityCutOff,
         float rSigma0,
         float rSigmaChange,
-        unsigned rnHioCycles
+        unsigned int rnHioCycles
     )
     {
         /* load libraries and functions which we need */
@@ -368,14 +209,12 @@ namespace cuda
 
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
-        CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageWidth, rImageHeight, CUFFT_C2C ) );
+        CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
         CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
 
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see
          * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
-        const unsigned nThreads = 512;
-        const unsigned nBlocks  = ceil( (float) nElements / nThreads );
         cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
 
         CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
@@ -402,9 +241,6 @@ namespace cuda
         for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
-#           ifdef IMRESH_DEBUG
-                std::cout << "imresh::algorithms::cuda::shrinkWrap(): Update Mask with sigma=" << sigma << std::endl;
-#           endif
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );
@@ -435,7 +271,7 @@ namespace cuda
             } // HIO loop
 
             /* check if we are done */
-            const float currentError = calculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
+            const float currentError = cudaCalculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
 #           ifdef IMRESH_DEBUG
                 std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                           << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"

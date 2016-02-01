@@ -35,19 +35,18 @@ namespace algorithms
     template< class T_PREC, class T_COMPLEX >
     void complexNormElementwise
     (
-        T_PREC * const & rDataTarget,
-        const T_COMPLEX * const & rDataSource,
-        const unsigned & rnData
+        T_PREC          * const __restrict__ rDataTarget,
+        T_COMPLEX const * const __restrict__ rDataSource,
+        unsigned int const rnData
     );
 
 
     template< class T_COMPLEX, class T_PREC >
     void applyComplexModulus
     (
-        T_COMPLEX * const & rDataTarget,
-        const T_COMPLEX * const & rDataSource,
-        const T_PREC * const & rComplexModulus,
-        const unsigned & rnData
+        T_COMPLEX       * const __restrict__ rData,
+        T_PREC    const * const __restrict__ rComplexModulus,
+        unsigned int const rnData
     );
 
 

@@ -36,6 +36,39 @@ namespace cuda
 {
 
 
+    template< class T_COMPLEX, class T_PREC >
+    __global__ void cudaKernelApplyHioDomainConstraints
+    (
+        T_COMPLEX       * const __restrict__ rdpgPrevious,
+        T_COMPLEX const * const __restrict__ rdpgPrime,
+        T_PREC    const * const __restrict__ rdpIsMasked,
+        unsigned int const rnElements,
+        T_PREC const rHioBeta
+    );
+
+
+#   ifdef IMRESH_DEBUG
+        /**
+         * checks if the imaginary parts are all 0. For debugging purposes
+         **/
+        template< class T_COMPLEX >
+        void checkIfReal
+        (
+            T_COMPLEX const * const rData,
+            unsigned int const rnElements
+        );
+#   endif
+
+
+    template< class T_PREC >
+    float compareCpuWithGpuArray
+    (
+        T_PREC const * const __restrict__ rpData,
+        T_PREC const * const __restrict__ rdpData,
+        unsigned int const rnElements
+    );
+
+
     /**
      * Finds f(x) so that FourierTransform[f(x)] == Input(x)
      *
@@ -74,18 +107,20 @@ namespace cuda
      **/
     int cudaShrinkWrap
     (
-        float * rIoData,
-        unsigned rImageWidth,
-        unsigned rImageHeight,
-        cudaStream_t rStream = 0,
-        unsigned rnCycles = 20,
+        float * const rIoData,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        cudaStream_t const rStream = 0,
+        unsigned int rnBlocks = 256,
+        unsigned int rnThreads = 256,
+        unsigned int rnCycles = 20,
         float rTargetError = 1e-5,
         float rHioBeta = 0.9,
         float rIntensityCutOffAutoCorel = 0.04,
         float rIntensityCutOff = 0.20,
         float sigma0 = 3.0,
         float rSigmaChange = 0.01,
-        unsigned rnHioCycles = 20
+        unsigned int rnHioCycles = 20
     );
 
 

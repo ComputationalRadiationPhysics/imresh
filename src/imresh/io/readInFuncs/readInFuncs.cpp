@@ -121,7 +121,7 @@ namespace readInFuncs
              * this disables use of real PNGs of size 1x1 but the algorithm
              * wouldn't work on those anyway. The problem is, that pngwriter
              * doesn't return an error, it just prints to stderr :S */
-            if ( x == 1 or y == 1 )
+            if ( x == 1 and y == 1 )
             {
                 assert("Couldn't open PNG file! Path and permissions correct?");
                 return { NULL, { 0, 0 } };
@@ -132,7 +132,7 @@ namespace readInFuncs
             {
                 for( auto j = 0; j < x; j++ )
                 {
-                    mem[(i * x) + j] = (float) png.read( i, j, 1 ) / 65535;
+                    mem[(i * x) + j] = (float) png.read( 1+j, 1+i, 1 ) / 65535;
                 }
             }
 

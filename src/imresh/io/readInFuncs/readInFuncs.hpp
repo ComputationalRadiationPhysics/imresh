@@ -57,9 +57,10 @@ namespace readInFuncs
          * @return pair where first contains pointer to data. NULL on error
          *         e.g. allocation problem or couldn't open file.
          *         second pair element contains 2d dimension values as pair.
-         *         They are 0 on error.
+         *         They are 0 on error. The first dimension is the width
+         *         and the second the height.
          */
-        std::pair<float *,std::pair<unsigned int,unsigned int>>
+        std::pair<float *, std::pair<unsigned int,unsigned int>>
         readPNG
         (
             std::string const _filename

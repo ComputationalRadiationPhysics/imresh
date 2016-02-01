@@ -34,14 +34,23 @@ namespace tests
 {
 
 
+    template<class T_PREC>
+    T_PREC mean( std::vector<T_PREC> const vec );
+
+    /**
+     * < (x - <x>)^2 > = < x^2 + <x>^2 - 2x<x> > = <x^2> - <x>^2
+     **/
+    template<class T_PREC>
+    T_PREC stddev( std::vector<T_PREC> const vec );
+
     /**
      * Returns a list of rnPoints logspaced points
      **/
     std::vector<int> getLogSpacedSamplingPoints
     (
-        const unsigned & riStartPoint,
-        const unsigned & riEndPoint,
-        const unsigned & rnPoints
+        unsigned riStartPoint,
+        unsigned riEndPoint,
+        unsigned rnPoints
     );
 
 

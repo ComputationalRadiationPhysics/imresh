@@ -61,31 +61,13 @@ namespace cuda
     template<class T_PREC>
     void cudaApplyKernel
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnData,
-        const T_PREC * const & rdpWeights,
-        const unsigned & rnWeights,
-        const unsigned & rnThreads = 128
+        T_PREC * rdpData,
+        unsigned int rnData,
+        T_PREC const * rdpWeights,
+        unsigned int rnWeights,
+        unsigned int rnThreads = 128
     );
 
-    /**
-     * Blurs a 1D vector of elements using a gaussian kernel
-     *
-     * @param[in]  rData vector to blur
-     * @param[in]  rnData length of rData
-     * @param[in]  rSigma standard deviation of gaussian to use. Higher means
-     *             a blurrier result.
-     * @param[out] rData blurred vector (in-place)
-     **/
-    template<class T_PREC>
-    void cudaGaussianBlur
-    (
-        T_PREC * const & rdpData,
-        const unsigned & rnData,
-        const double & rSigma,
-        cudaStream_t rStream = 0,
-        bool rAsync = false
-    );
 
     /**
      * Blurs a 2D vector of elements using a gaussian kernel
@@ -110,10 +92,10 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlur
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * rdpData,
+        unsigned int rnDataX,
+        unsigned int rnDataY,
+        double rSigma,
         cudaStream_t rStream = 0,
         bool rAsync = false
     );
@@ -122,30 +104,14 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlurVertical
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * rdpData,
+        unsigned int rnDataX,
+        unsigned int rnDataY,
+        double rSigma,
         cudaStream_t rStream = 0,
         bool rAsync = false
     );
 
-    /**
-     * Should only be used for benchmarking purposes.
-     *
-     * Makes use of constant memory to store the kernel.
-     * @see cudaGaussianBlurHorizontal
-     **/
-    template<class T_PREC>
-    void cudaGaussianBlurHorizontalConstantWeights
-    (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
-        cudaStream_t rStream = 0,
-        bool rAsync = false
-    );
 
     /**
      * Should only be used for benchmarking purposes.
@@ -156,10 +122,10 @@ namespace cuda
     template<class T_PREC>
     void cudaGaussianBlurHorizontalSharedWeights
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * rdpData,
+        unsigned int rnDataX,
+        unsigned int rnDataY,
+        double rSigma,
         cudaStream_t rStream = 0,
         bool rAsync = false
     );
@@ -179,10 +145,10 @@ namespace cuda
     template<class T_PREC>
     inline void cudaGaussianBlurHorizontal
     (
-        T_PREC * const & rdpData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma,
+        T_PREC * rdpData,
+        unsigned int rnDataX,
+        unsigned int rnDataY,
+        double rSigma,
         cudaStream_t rStream = 0,
         bool rAsync = false
     )
@@ -190,6 +156,7 @@ namespace cuda
         cudaGaussianBlurHorizontalSharedWeights
         ( rdpData, rnDataX, rnDataY, rSigma, rStream, rAsync );
     }
+
 
 } // namespace cuda
 } // namespace algorithms

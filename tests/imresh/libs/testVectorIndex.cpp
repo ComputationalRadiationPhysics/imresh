@@ -23,6 +23,8 @@
  */
 
 
+#include "testVectorIndex.hpp"
+
 #include <iostream>
 #include <cassert>
 #include <vector>
@@ -33,7 +35,7 @@
 
 namespace imresh
 {
-namespace tests
+namespace libs
 {
 
     std::ostream & operator<<
@@ -129,9 +131,3 @@ namespace tests
 
 } // namespace tests
 } // namespace imresh
-
-
-int main( void )
-{
-    imresh::tests::testVectorIndex();
-}

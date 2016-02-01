@@ -8,7 +8,7 @@ Shrink-Wrap Imaginar Coefficient Reconstruction Algorithm
 
 To compile this library you need
 
-* C++ Compiler (with `c++11` support)
+* C++ Compiler (with `c++11` support, e.g. GCC 4.7+)
 
 * CUDA (`7.0+`)
 
@@ -16,9 +16,9 @@ To compile this library you need
 
 * OpenMP
 
-* FFTW3 (single precision build)
-
 ### Optional Dependencies
+
+* [FFTW3](http://www.fftw.org/) (single precision build)
 
 * [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
     (for reading and writing HDF5)
@@ -167,6 +167,21 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
 
 3. If you need more example data for your tests, please run
     `outputExampleCreation`
+
+## Folder structure
+
+    .
+    +-- benchmark: Contains older deprecated less optimized versions for comparison. Files in here should only be used by files in the tests folder
+    +-- cmake: CMake find package scripts
+    +-- examples: Executable examples showing how to use the library
+    |   +-- createTestData: Functions for generating example objects and diffraction intensity to test the algorithm on
+    |   +-- testData: Static examples with a fixed size to test e.g. `readInFuncs`
+    +-- src: The sources for the actual library. Only this folder is needed with the standard CMake options
+    |   +-- imresh
+    |       +-- algorithms
+    |       +-- io: File input/output and batch processing
+    |       +-- libs
+    +-- tests: Unit tests and benchmarks.
 
 ## Authors
 

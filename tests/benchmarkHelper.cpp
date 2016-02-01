@@ -35,11 +35,37 @@ namespace tests
 {
 
 
+    template<class T_PREC>
+    T_PREC mean( std::vector<T_PREC> const vec )
+    {
+        auto sum = T_PREC(0);
+        for ( auto const & elem : vec )
+            sum += elem;
+        return sum / vec.size();
+    }
+    template float mean<float>( std::vector<float> const vec );
+
+    /**
+     * < (x - <x>)^2 > = < x^2 + <x>^2 - 2x<x> > = <x^2> - <x>^2
+     **/
+    template<class T_PREC>
+    T_PREC stddev( std::vector<T_PREC> const vec )
+    {
+        auto sum2 = T_PREC(0);
+        for ( auto const elem : vec )
+            sum2 += elem*elem;
+        auto avg = mean( vec );
+        auto const N = T_PREC( vec.size() );
+        return sqrt( ( sum2/N - avg*avg )*N/(N-1) );
+    }
+    template float stddev( std::vector<float> const vec );
+
+
     std::vector<int> getLogSpacedSamplingPoints
     (
-        const unsigned & riStartPoint,
-        const unsigned & riEndPoint,
-        const unsigned & rnPoints
+        const unsigned riStartPoint,
+        const unsigned riEndPoint,
+        const unsigned rnPoints
     )
     {
         assert( riStartPoint > 0 );

@@ -26,11 +26,13 @@
 #include <iomanip>          // setw, setfill
 #include <string>           // std::string
 #include <sstream>
+#include <cstring>          // memcpy
 
 #include "io/taskQueue.cu"
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
+#include "libs/fftShift.hpp"
 #ifndef USE_SPLASH
 #   include "createTestData/createAtomCluster.hpp"
 #endif
@@ -38,6 +40,8 @@
 
 int main( void )
 {
+    using ImageDimensions = std::pair<unsigned int,unsigned int>;
+
     // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
@@ -46,15 +50,15 @@ int main( void )
         auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
-        std::pair<unsigned int,unsigned int> imageSize { 300, 300 };
-        std::pair<float *,std::pair<unsigned int,unsigned int>> file
+        ImageDimensions imageSize { 300, 300 };
+        std::pair<float *,ImageDimensions> file
         {
             createAtomCluster( imageSize.first, imageSize.second ),
             imageSize
         };
 #   endif
     // This step is only needed because we have no real images
-    imresh::libs::diffractionIntensity( file.first, file.second );
+    imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
     // And now we free it again.
     if( file.first != NULL )
     {
@@ -62,25 +66,32 @@ int main( void )
         file.first = NULL;
     }
 
-
     // Now let's test the PNG in- and output
 #   ifdef USE_PNG
         // Let's see, how the images look after several different time steps.
-        for( int i = 1; i < 33; i++)
+        file = imresh::io::readInFuncs::readPNG( "../examples/testData/atomCluster-extent-diffractionIntensity.png" );
+            imresh::libs::fftShift( file.first, file.second.first, file.second.second );
+        auto imageWidth = file.second.first;
+        auto imageHeight = file.second.second;
+        for( auto i = 1u; i <= 18; i++ )
         {
-            // How about the PNG input? BEWARE! This path is dependent on the folder structure!
-            file = imresh::io::readInFuncs::readPNG( "../examples/testData/imresh.png" );
             // Again, this step is only needed because we have no real images
-            imresh::libs::diffractionIntensity( file.first, file.second );
+            //imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
+            // beware diffraction intensity will be sent to the default stream thereby serializing the addTask calls!!
+            auto tmpTestImage = new float[ imageWidth * imageHeight ];
+            memcpy( tmpTestImage, file.first, imageWidth * imageHeight * sizeof( tmpTestImage[0] ) );
 
             std::ostringstream filename;
             filename << "imresh_" << std::setw( 2 ) << std::setfill( '0' )
                      << i << "_cycles.png";
-            imresh::io::addTask( file.first,
-                                  file.second,
-                                  imresh::io::writeOutFuncs::writeOutPNG,
-                                  filename.str(),
-                                  i /* sets the number of iterations */ );
+
+            std::cout << "[threadedExample] Starting Task " << i << std::endl;
+            imresh::io::addTask( tmpTestImage,
+                                 file.second,
+                                 // writeOutPNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
+                                 imresh::io::writeOutFuncs::justFree,
+                                 filename.str(),
+                                 32 /* sets the number of iterations */ );
         }
 #   endif
 
@@ -90,7 +101,7 @@ int main( void )
         // overwritten) BEWARE! This path is dependent on the folder structure!
         file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
         // Again, this step is only needed because we have no real images
-        imresh::libs::diffractionIntensity( file.first, file.second );
+        imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
         imresh::io::addTask( file.first,
                              file.second,
                              imresh::io::writeOutFuncs::writeOutHDF5,
