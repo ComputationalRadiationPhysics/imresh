@@ -256,15 +256,15 @@ namespace cuda
     }
 
     /**
-     * "For the input-output algorithms the error E_F is
-     *  usually meaningless since the input g_k(X) is no longer
+     * "For the input-output algorithms the error @f[ E_F @f] is
+     *  usually meaningless since the input @f[ g_k(X) @f] is no longer
      *  an estimate of the object. Then the meaningful error
-     *  is the object-domain error E_0 given by Eq. (15)."
+     *  is the object-domain error @f[ E_0 @f] given by Eq. (15)."
      *                                      (Fienup82)
      * Eq.15:
      * @f[ E_{0k}^2 = \sum\limits_{x\in\gamma} |g_k'(x)^2|^2 @f]
-     * where \gamma is the domain at which the constraints are
-     * not met. SO this is the sum over the domain which should
+     * where @f[ \gamma @f] is the domain at which the constraints are
+     * not met. So this is the sum over the domain which should
      * be 0.
      *
      * Eq.16:

@@ -49,6 +49,9 @@ namespace libs
      * @param[in]  rnData number of elements in rData
      * @param[in]  rWeights the kernel, convulation matrix, mask to use
      * @param[in]  rnWeights length of kernel. Must be an odd number!
+     * @param[in]  rnThreads the maximum amount of parallelism supported by
+     *             this function. Note that if only 8 cores are available, then
+     *             values higher 8 won't result in more OpenMP threads.
      * @param[out] rData will hold the result, meaning this routine works
      *             in-place
      *
@@ -59,11 +62,11 @@ namespace libs
     template<class T_PREC>
     void applyKernel
     (
-        T_PREC * const & rData,
-        const unsigned & rnData,
-        const T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const unsigned & rnThreads = 128
+        T_PREC * const rData,
+        unsigned int const rnData,
+        const T_PREC * const rWeights,
+        unsigned int const rnWeights,
+        unsigned int const rnThreads = 128
     );
 
     /**
@@ -78,9 +81,9 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const & rData,
-        const unsigned & rnData,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnData,
+        double const rSigma
     );
 
     /**
@@ -106,39 +109,39 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
 
     template<class T_PREC>
     void gaussianBlurHorizontal
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
 
     template<class T_PREC>
     void gaussianBlurVertical
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
     template<class T_PREC>
     void gaussianBlurVerticalUncached
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
 

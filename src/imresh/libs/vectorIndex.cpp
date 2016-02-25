@@ -36,14 +36,14 @@ namespace libs
 
     unsigned convertVectorToLinearIndex
     (
-        const std::vector<unsigned> & rIndex,
-        const std::vector<unsigned> & rnSize
+        std::vector<unsigned int> const rIndex,
+        std::vector<unsigned int> const rnSize
     )
     {
         /* check sanity of input arguments */
 #       ifndef NDEBUG
             assert( rIndex.size() == rnSize.size() );
-            for ( unsigned i = 0; i < rIndex.size(); ++i )
+            for ( unsigned int i = 0; i < rIndex.size(); ++i )
             {
                 assert( rIndex[i] < rnSize[i] );
             }
@@ -51,8 +51,8 @@ namespace libs
 
         /* convert vector index, e.g. for 10 dimensions:
          *   lini = i9 + i8*n9 + i7*n9*n8 + i6*n9*n8*n7 + ... + i0*n9*...*n1 */
-        unsigned linIndex  = 0;
-        unsigned prevRange = 1;
+        unsigned int linIndex  = 0;
+        unsigned int prevRange = 1;
         for ( int i = (int) rnSize.size() - 1; i >= 0; --i )
         {
             linIndex  += rIndex[i] * prevRange;
@@ -61,16 +61,16 @@ namespace libs
         return linIndex;
     }
 
-    std::vector<unsigned> convertLinearToVectorIndex
+    std::vector<unsigned int> convertLinearToVectorIndex
     (
-        unsigned rLinIndex,
-        const std::vector<unsigned> & rnSize
+        unsigned int const rLinIndex,
+        std::vector<unsigned int> const rnSize
     )
     {
         /* sanity checks for input parameters */
 #       ifndef NDEBUG
-            unsigned maxRange = 1;
-            for ( const auto & nDimI : rnSize )
+            unsigned int maxRange = 1;
+            for ( auto const & nDimI : rnSize )
             {
                 assert( nDimI > 0 );
                 maxRange *= nDimI;
@@ -78,7 +78,7 @@ namespace libs
             assert( rLinIndex < maxRange );
 #       endif
 
-        std::vector<unsigned> vecIndex( rnSize.size() );
+        std::vector<unsigned int> vecIndex( rnSize.size() );
         for ( int i = (int) rnSize.size() - 1; i >= 0; --i )
         {
             vecIndex[i]  = rLinIndex % rnSize[i];
@@ -93,13 +93,13 @@ namespace libs
 
     unsigned fftShiftIndex
     (
-        const unsigned & rLinearIndex,
-        const std::vector<unsigned> & rSize
+        unsigned int const rLinearIndex,
+        std::vector<unsigned int> const rSize
     )
     {
-        std::vector<unsigned> vectorIndex =
+        std::vector<unsigned int> vectorIndex =
             convertLinearToVectorIndex( rLinearIndex, rSize );
-        for ( unsigned i = 0; i < rSize.size(); ++i )
+        for ( unsigned int i = 0; i < rSize.size(); ++i )
         {
             vectorIndex[i] += rSize[i] / 2;
             vectorIndex[i] %= rSize[i];

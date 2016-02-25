@@ -51,10 +51,10 @@ namespace libs
      *            elements lie contiguous in memory
      * @return linear index
      **/
-    unsigned convertVectorToLinearIndex
+    unsigned int convertVectorToLinearIndex
     (
-        const std::vector<unsigned> & rIndex,
-        const std::vector<unsigned> & rnSize
+        std::vector<unsigned int> const rIndex,
+        std::vector<unsigned int> const rnSize
     );
 
     /**
@@ -71,10 +71,10 @@ namespace libs
      *   i   = 1  mod (n7=2) = 1
      *      ...
      **/
-    std::vector<unsigned> convertLinearToVectorIndex
+    std::vector<unsigned int> convertLinearToVectorIndex
     (
-        unsigned rLinIndex,
-        const std::vector<unsigned> & rnSize
+        unsigned int const rLinIndex,
+        std::vector<unsigned int> const rnSize
     );
 
 
@@ -86,12 +86,12 @@ namespace libs
      *
      * @param[in] rLinearIndex simple linear index which should be in
      *            [0,product(rDim))
-     * @param[in] rDim the size of each dimension
+     * @param[in] rSize the size of each dimension
      **/
     unsigned fftShiftIndex
     (
-        const unsigned & rLinearIndex,
-        const std::vector<unsigned> & rSize
+        unsigned int const rLinearIndex,
+        std::vector<unsigned int> const rSize
     );
 
 
