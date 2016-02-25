@@ -41,13 +41,13 @@
 #   include <fftw3.h>
 #endif
 #include "algorithms/shrinkWrap.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "io/taskQueue.hpp"
 #include "benchmarkHelper.hpp"  // getLogSpacedSamplingPoints
 #include "examples/createTestData/createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "libs/checkCufftError.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh

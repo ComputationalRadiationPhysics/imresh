@@ -23,7 +23,7 @@
  */
 
 
-#include "cudaGaussian.h"
+#include "cudaGaussian.hpp"
 
 #include <iostream>
 #include <cstdio>           // printf
@@ -36,7 +36,7 @@
 #include <utility>          // pair
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh

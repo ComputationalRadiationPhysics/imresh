@@ -35,7 +35,7 @@
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 

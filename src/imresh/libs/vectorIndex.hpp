@@ -53,7 +53,7 @@ namespace libs
      **/
     unsigned int convertVectorToLinearIndex
     (
-        std::vector<unsigned int> const rIndex,
+        std::vector<unsigned int> rIndex,
         std::vector<unsigned int> const rnSize
     );
 

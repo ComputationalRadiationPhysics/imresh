@@ -31,7 +31,7 @@
 #else
 #   include <cuda_runtime_api.h>
 #   include <cufft.h>
-#   include "libs/cudacommon.h"
+#   include "libs/cudacommon.hpp"
 #   include "libs/checkCufftError.hpp"
 #   include "algorithms/cuda/cudaVectorElementwise.hpp"
 #endif

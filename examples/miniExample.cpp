@@ -31,7 +31,7 @@
 #include "libs/diffractionIntensity.hpp"
 #include "algorithms/shrinkWrap.hpp"                // shrinkWrap
 #include "libs/fftShift.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "createTestData/createAtomCluster.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "io/readInFuncs/readInFuncs.hpp"

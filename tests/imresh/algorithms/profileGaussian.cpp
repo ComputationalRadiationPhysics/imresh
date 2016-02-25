@@ -1,8 +1,8 @@
 
 #include <cstdlib>   // srand, rand
 #include <cuda_runtime.h>
-#include "algorithms/cuda/cudaGaussian.h"
-#include "libs/cudacommon.h"
+#include "algorithms/cuda/cudaGaussian.hpp"
+#include "libs/cudacommon.hpp"
 
 
 int main()

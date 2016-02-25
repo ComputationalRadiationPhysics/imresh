@@ -31,7 +31,7 @@
 #include <cmath>
 #include <cuda.h>     // atomicCAS
 #include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh

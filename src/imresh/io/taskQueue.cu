@@ -32,8 +32,8 @@
 #include <utility>                  // std::pair
 #include <cassert>
 
-#include "algorithms/cuda/cudaShrinkWrap.h"
-#include "libs/cudacommon.h"        // CUDA_ERROR
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
+#include "libs/cudacommon.hpp"        // CUDA_ERROR
 
 namespace imresh
 {

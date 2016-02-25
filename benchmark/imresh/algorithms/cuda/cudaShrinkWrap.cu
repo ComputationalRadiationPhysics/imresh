@@ -39,14 +39,14 @@
 #include <cuda.h>       // atomicCAS
 #include <cufft.h>
 #include <utility>      // std::pair
-#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaGaussian.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
 #if DEBUG_CUDASHRINKWRAP == 1
 #    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
 #    include "algorithms/vectorReduce.hpp"
 #    include "algorithms/vectorElementwise.hpp"
 #endif
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "libs/checkCufftError.hpp"
 #include "algorithms/cuda/cudaVectorElementwise.hpp"  // cudaKernelApplyHioDomainConstraints
 

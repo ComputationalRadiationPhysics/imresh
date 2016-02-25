@@ -37,11 +37,11 @@
 #include <cfloat>    // FLT_MAX, FLT_EPSILON
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
-#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaGaussian.hpp"
 #include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
 #include "libs/gaussian.hpp"
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 
