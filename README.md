@@ -199,3 +199,11 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
 * `stddef.h(432): error: identifier "nullptr" is undefined`
 
     Your CMake version is too old.
+
+* `/usr/include/host_config.h:105:2: error: #error -- unsupported GNU version! gcc 4.10 and up are not supported! #error -- unsupported GNU version! gcc 4.10 and up are not supported!`
+
+  This is a common problem with debian and maybe its derivatives, because debian sid and stretch have by default GCC 5.x, but `nvidia-cuda-toolkit` 7.0.x. The latter wants GCC 4.10 or lower versions, though.
+
+  **On Debian:**
+  - `apt-get install gcc-4.9`
+  - `cmake .. -DIMRESH_DEBUG=ON -DCMAKE_C_COMPILER=$(which gcc-4.9) -DCMAKE_CXX_COMPILER=$(which g++-4.9)`
