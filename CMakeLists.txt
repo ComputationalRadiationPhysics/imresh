@@ -14,12 +14,21 @@ option(USE_FFTW       "If true a CPU reference version is compiled also. It is u
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Finding packages, calling FindX.cmake and so on
-find_package(CUDA 7.0 REQUIRED)
-find_package(OpenMP REQUIRED)
-find_package(Threads REQUIRED)
-if(USE_FFTW)
-    find_package(FFTW REQUIRED)
+#find_package(CUDA 7.0 REQUIRED)
+#find_package(OpenMP REQUIRED)
+#find_package(Threads REQUIRED)
+#if(USE_FFTW)
+#    find_package(FFTW REQUIRED)
+#endif()
+
+# Find cupla
+SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING  "The location of the cupla library" FORCE )
+if( NOT EXISTS "${cupla_ROOT}" )
+    message(FATAL_ERROR "CUPLA_ROOT points to non-existing path!")
 endif()
+list( APPEND CMAKE_MODULE_PATH "${cupla_ROOT}" )  # add findCupla.cmake
+find_package( "cupla" REQUIRED )
+add_definitions( ${cupla_DEFINITIONS} )
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
@@ -72,12 +81,38 @@ if(USE_FFTW)
     add_definitions("-DUSE_FFTW" ${FFTW_DEFINITIONS})
 endif()
 
-file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
-include_directories(${PROJECT_SOURCE_DIR}/src/imresh SYSTEM ${CUDA_INCLUDE_DIRS} ${PNGwriter_INCLUDE_DIRS} ${Splash_INCLUDE_DIRS} ${OpenMP_INCLUDE_DIRS})
-cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
-cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)
-set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
-target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
+# add files and compile
+file( GLOB_RECURSE SOURCE_FILES
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.hpp
+)
+include_directories(
+    ${PROJECT_SOURCE_DIR}/src/imresh
+    SYSTEM
+    ${CUDA_INCLUDE_DIRS}
+    ${PNGwriter_INCLUDE_DIRS}
+    ${Splash_INCLUDE_DIRS}
+    ${OpenMP_INCLUDE_DIRS}
+    ${cupla_INCLUDE_DIRS}
+)
+
+#cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
+#cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)
+# Always add all files to the target executable build call to add them to the build project.
+alpaka_add_library(
+    ${PROJECT_NAME}
+    ${SOURCE_FILES}
+    ${cupla_SOURCE_FILES}
+)
+set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
+    ${PNGwriter_LIBRARIES}
+    ${Splash_LIBRARIES}
+    ${CUDA_LIBRARIES}
+    ${CUDA_CUFFT_LIBRARIES}
+    ${OpenMP_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} PUBLIC ${_cupla_LINK_LIBRARIES_PUBLIC} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 if(BUILD_EXAMPLES OR RUN_TESTS)

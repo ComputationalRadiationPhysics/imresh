@@ -1,0 +1,35 @@
+cupla example:
+    cd imres/build/
+    cmake .. -DIMRESH_DEBUG=ON -DCMAKE_CXX_COMPILER=$(which g++-4.9) -DCMAKE_C_COMPILER=$(which gcc-4.9) -DBUILD_DOC=OFF -DALPAKA_ACC_CPU_B_SEQ_T_OMP2_ENABLE=ON
+
+How to explicitely instantiate templates:
+
+    from cupla/types.h
+        #ifdef ALPAKA_ACC_CPU_B_SEQ_T_OMP2_ENABLED
+            using Acc = ::alpaka::acc::AccCpuOmp2Threads<
+                KernelDim,
+                IdxType
+            >;
+        #endif
+
+        #ifdef ALPAKA_ACC_CPU_B_OMP2_T_SEQ_ENABLED
+            using Acc = ::alpaka::acc::AccCpuOmp2Blocks<
+                KernelDim,
+                IdxType
+            >;
+        #endif
+
+        #ifdef ALPAKA_ACC_CPU_B_SEQ_T_THREADS_ENABLED
+            using Acc = ::alpaka::acc::AccCpuThreads<
+                KernelDim,
+                IdxType
+            >;
+        #endif
+
+        #ifdef ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED
+            using Acc = ::alpaka::acc::AccCpuSerial<
+                KernelDim,
+                IdxType
+            >;
+        #endif
+      -> that Acc can be used for T_ACC
