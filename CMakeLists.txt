@@ -85,7 +85,9 @@ endif()
 file( GLOB_RECURSE SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
 )
+message( "SOURCE_FILES = ${SOURCE_FILES}" )
 include_directories(
     ${PROJECT_SOURCE_DIR}/src/imresh
     SYSTEM

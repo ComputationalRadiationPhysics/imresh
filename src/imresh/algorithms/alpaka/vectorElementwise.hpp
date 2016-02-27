@@ -33,7 +33,6 @@ namespace imresh
 namespace algorithms
 {
 
-    int dummy(void);
 
     template< class T_COMPLEX, class T_PREC >
     struct cudaKernelApplyHioDomainConstraints
@@ -51,73 +50,98 @@ namespace algorithms
         ) const;
     };
 
-#if false
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyHioDomainConstraints
-    (
-        T_COMPLEX       * const rdpgPrevious,
-        T_COMPLEX const * const rdpgPrime,
-        T_PREC    const * const rdpIsMasked,
-        unsigned int const rnElements,
-        T_PREC rHioBeta
-    );
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelCopyToRealPart
-    (
-        T_COMPLEX * const rTargetComplexArray,
-        T_PREC    * const rSourceRealArray,
-        unsigned int const rnElements
-    );
+    struct cudaKernelCopyToRealPart
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX * const rTargetComplexArray,
+            T_PREC    * const rSourceRealArray,
+            unsigned int const rnElements
+        ) const;
+    };
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelCopyFromRealPart
-    (
-        T_PREC    * const rTargetComplexArray,
-        T_COMPLEX * const rSourceRealArray,
-        unsigned int const rnElements
-    );
+    struct cudaKernelCopyFromRealPart
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC    * const rTargetComplexArray,
+            T_COMPLEX * const rSourceRealArray,
+            unsigned int const rnElements
+        ) const;
+    };
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelComplexNormElementwise
-    (
-        T_PREC          * const rdpDataTarget,
-        T_COMPLEX const * const rdpDataSource,
-        unsigned int const rnElements
-    );
+    struct cudaKernelComplexNormElementwise
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC          * const rdpDataTarget,
+            T_COMPLEX const * const rdpDataSource,
+            unsigned int const rnElements
+        ) const;
+    };
 
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyComplexModulus
-    (
-        T_COMPLEX       * const rdpDataTarget,
-        T_COMPLEX const * const rdpDataSource,
-        T_PREC    const * const rdpComplexModulus,
-        unsigned int const rnElements
-    );
+    struct cudaKernelApplyComplexModulus
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX       * const rdpDataTarget,
+            T_COMPLEX const * const rdpDataSource,
+            T_PREC    const * const rdpComplexModulus,
+            unsigned int const rnElements
+        ) const;
+    };
 
     template< class T_PREC >
-    __global__ void cudaKernelCutOff
-    (
-        T_PREC * const rData,
-        unsigned int const rnElements,
-        T_PREC const rThreshold,
-        T_PREC const rLowerValue,
-        T_PREC const rUpperValue
-    );
+    struct cudaKernelCutOff
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC * const rData,
+            unsigned int const rnElements,
+            T_PREC const rThreshold,
+            T_PREC const rLowerValue,
+            T_PREC const rUpperValue
+        ) const;
+    };
 
     /* kernel call wrappers in order for this to be usable from source files
      * not compiled with nvcc */
 
     template< class T_PREC, class T_COMPLEX >
-    void cudaComplexNormElementwise
-    (
-        T_PREC          * const rdpDataTarget,
-        T_COMPLEX const * const rdpDataSource,
-        unsigned int const rnElements,
-        cudaStream_t const rStream = cudaStream_t(0),
-        bool const rAsync = true
-    );
-#endif
+    struct cudaComplexNormElementwise
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC          * const rdpDataTarget,
+            T_COMPLEX const * const rdpDataSource,
+            unsigned int const rnElements,
+            cudaStream_t const rStream = cudaStream_t(0),
+            bool const rAsync = true
+        ) const;
+    };
+
 
 } // namespace algorithms
 } // namespace imresh

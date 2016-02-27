@@ -10,11 +10,9 @@ To compile this library you need
 
 * C++ Compiler (with `c++11` support, e.g. GCC 4.7+)
 
-* CUDA (`7.0+`)
-
 * CMake (`3.3.1+`)
 
-* OpenMP
+* Boost (`1.56`) for `alpaka` (package `libboost-all-dev`)
 
 ### Optional Dependencies
 
@@ -25,6 +23,10 @@ To compile this library you need
 
 * [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
     reconstructed images as PNGs)
+
+* CUDA (`7.0+`)
+
+* OpenMP capable compiler
 
 ### Build options
 
@@ -60,8 +62,8 @@ To compile this library you need
 
 1. Create a build directory
 
-        mkdir build
-        cd build
+       mkdir build
+       cd build
 
 2. Invoking CMake
 

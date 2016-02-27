@@ -28,8 +28,9 @@
 #include <cmath>        // sqrtf
 //#include <cuda.h>       // atomicCAS
 #include <cuda_to_cupla.hpp>
-//#include <cufft.h>      // cufftComplex, cufftDoubleComplex
+//#include <cuComplex.h>      // cufftComplex, cufftDoubleComplex
 //#include "libs/cudacommon.h"
+#include <cstdint>      // uint32_t
 
 
 namespace imresh
@@ -37,12 +38,13 @@ namespace imresh
 namespace algorithms
 {
 
-    int dummy(void) { return 0; };
 
     template< class T_COMPLEX, class T_PREC >
     template< class T_ACC >
     ALPAKA_FN_ACC void
-    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>::template operator()(
+    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>
+    ::template operator()
+    (
         T_ACC const & acc,
         T_COMPLEX       * const rdpgPrevious,
         T_COMPLEX const * const rdpgPrime,
@@ -73,28 +75,17 @@ namespace algorithms
         }
     }
 
-/* TODO
 
-    #define INSTANTIATE_cudaKernelComplexNormElementwise( T_PREC, T_COMPLEX ) \
-    template                                                                  \
-    __global__ void cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>        \
-    (                                                                         \
-        T_PREC * const rdpDataTarget,                                         \
-        T_COMPLEX const * const rdpDataSource,                                \
-        unsigned int const rnElements                                         \
-    );
-    INSTANTIATE_cudaKernelComplexNormElementwise( float, cufftComplex )
-    #undef INSTANTIATE_cudaKernelComplexNormElementwise
-*/
-
-#if false
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelCopyToRealPart
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCopyToRealPart<T_COMPLEX, T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rTargetComplexArray,
         T_PREC    * const rSourceRealArray,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -112,12 +103,15 @@ namespace algorithms
 
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelCopyFromRealPart
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC    * const rTargetComplexArray,
         T_COMPLEX * const rSourceRealArray,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -134,12 +128,15 @@ namespace algorithms
 
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelComplexNormElementwise
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_PREC, T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -156,13 +153,33 @@ namespace algorithms
         }
     }
 
-    template<class T_COMPLEX>
-    __global__ void cudaKernelComplexNormElementwise
+    /* first partial specialisation of class definition is needed, only
+     * after that can the operator() of the specialized class be defined! */
+    template< class T_COMPLEX >
+    struct cudaKernelComplexNormElementwise< T_COMPLEX, T_COMPLEX >
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX * const rdpDataTarget,
+            T_COMPLEX const * const rdpDataSource,
+            unsigned int const rnElements
+        ) const;
+    };
+
+
+    template< class T_COMPLEX >
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_COMPLEX,T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -180,15 +197,17 @@ namespace algorithms
         }
     }
 
-
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyComplexModulus
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelApplyComplexModulus<T_COMPLEX, T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         T_PREC const * const rdpComplexModulus,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -212,14 +231,17 @@ namespace algorithms
 
 
     template< class T_PREC >
-    __global__ void cudaKernelCutOff
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCutOff<T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC * const rData,
         unsigned int const rnElements,
         T_PREC const rThreshold,
         T_PREC const rLowerValue,
         T_PREC const rUpperValue
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -237,109 +259,153 @@ namespace algorithms
 
     /* kernel call wrappers */
 
-
     template< class T_PREC, class T_COMPLEX >
-    void cudaComplexNormElementwise
+    template< class T_ACC >
+    void cudaComplexNormElementwise<T_PREC, T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         unsigned int const rnElements,
         cudaStream_t const rStream,
         bool const rAsync
-    )
+    ) const
     {
         /* 1 operation per thread is a bit low, that's why we let each
-         * thread work on 32 elements. Of course for smaller iamges this
+         * thread work on 32 elements. Of course for smaller images this
          * could mean that the GPU is not fully utilized. But in that
          * case 1 vs. 32 times doesn't make much of a difference anyways */
-        const int nThreads = rnElements / 32;
-        const int nBlocks = ( nThreads + 256-1 ) / 256;
-        cudaKernelComplexNormElementwise<<< nBlocks, 256, 0, rStream >>>
-            ( rdpDataTarget, rdpDataSource, rnElements );
+        int const nThreads = rnElements / 32;
+        int const nBlocks = ( nThreads + 256-1 ) / 256;
+        CUPLA_KERNEL( cudaKernelComplexNormElementwise< T_PREC, T_COMPLEX > )
+            ( nBlocks, 256, 0, rStream ) // kernel config
+            ( rdpDataTarget, rdpDataSource, rnElements ); // kernel arguments
 
         if ( not rAsync )
-            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+            cudaStreamSynchronize( rStream );
     }
-
 
     /* explicit instantiations */
 
-    template
-    __global__ void cudaKernelApplyHioDomainConstraints<cufftComplex, float>
-    (
-        cufftComplex       * const rdpgPrevious,
-        cufftComplex const * const rdpgPrime,
-        float const * const rdpIsMasked,
-        unsigned int const rnElements,
-        float const rHioBeta
-    );
+    struct /*__device_builtin__*/ __attribute__((aligned(8))) cufftComplex
+    {
+        float x; float y; float __cuda_gnu_arm_ice_workaround[0];
+    };
+
+    /* instantiations */
+
+    #include "libs/alpaka_T_ACC.hpp"
+
+    #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )            \
+    template                                                \
+    ALPAKA_FN_ACC void                                      \
+    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>  \
+    ::template operator()<T_ACC>                            \
+    (                                                       \
+        T_ACC const & acc,                                  \
+        T_COMPLEX       * const rdpgPrevious,               \
+        T_COMPLEX const * const rdpgPrime,                  \
+        T_PREC    const * const rdpIsMasked,                \
+        unsigned int const rnElements,                      \
+        T_PREC const rHioBeta                               \
+    ) const;
+    INSTANTIATE_TMP( cufftComplex, float )
+    #undef INSTANTIATE_TMP
+
 
     template
-    __global__ void cudaKernelCopyToRealPart<cufftComplex,float>
+    ALPAKA_FN_ACC void
+    cudaKernelCopyToRealPart<cufftComplex,float>
+    ::template operator()<T_ACC>
     (
+        T_ACC const & acc,
         cufftComplex * const rTargetComplexArray,
         float * const rSourceRealArray,
         unsigned int const rnElements
-    );
+    ) const;
 
 
     template
-    __global__ void cudaKernelCopyFromRealPart<float,cufftComplex>
+    ALPAKA_FN_ACC void
+    cudaKernelCopyFromRealPart<float,cufftComplex>
+    ::template operator()<T_ACC>
     (
+        T_ACC const & acc,
         float * const rTargetComplexArray,
         cufftComplex * const rSourceRealArray,
         unsigned int const rnElements
-    );
+    ) const;
 
 
-    #define INSTANTIATE_cudaKernelComplexNormElementwise( T_PREC, T_COMPLEX ) \
-    template                                                                  \
-    __global__ void cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>        \
-    (                                                                         \
-        T_PREC * const rdpDataTarget,                                         \
-        T_COMPLEX const * const rdpDataSource,                                \
-        unsigned int const rnElements                                         \
-    );
-    INSTANTIATE_cudaKernelComplexNormElementwise( float, cufftComplex )
+    #define INSTANTIATE_TMP( T_PREC, T_COMPLEX )        \
+    template                                            \
+    ALPAKA_FN_ACC void                                  \
+    cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>  \
+    ::template operator()<T_ACC>                        \
+    (                                                   \
+        T_ACC const & acc,                              \
+        T_PREC * const rdpDataTarget,                   \
+        T_COMPLEX const * const rdpDataSource,          \
+        unsigned int const rnElements                   \
+    ) const;
+    INSTANTIATE_TMP( float, cufftComplex )
+    INSTANTIATE_TMP( cufftComplex, cufftComplex )
+    #undef INSTANTIATE_TMP
 
-    #define INSTANTIATE_cudaComplexNormElementwise( T_PREC, T_COMPLEX ) \
-    template                                                            \
-    void cudaComplexNormElementwise<T_PREC, T_COMPLEX>                  \
-    (                                                                   \
-        T_PREC * const rdpDataTarget,                                   \
-        T_COMPLEX const * const rdpDataSource,                          \
-        unsigned int const rnElements,                                  \
-        cudaStream_t const rStream,                                     \
-        bool const rAsync                                               \
-    );
-    INSTANTIATE_cudaComplexNormElementwise( float, cufftComplex )
-    INSTANTIATE_cudaComplexNormElementwise( cufftComplex, cufftComplex )
-
-    #define INSTANTIATE_cudaKernelApplyComplexModulus( T_COMPLEX, T_PREC )  \
-    template                                                                \
-    __global__ void cudaKernelApplyComplexModulus<T_COMPLEX,T_PREC>         \
-    (                                                                       \
-        T_COMPLEX * const rdpDataTarget,                                    \
-        T_COMPLEX const * const rdpDataSource,                              \
-        T_PREC const * const rdpComplexModulus,                             \
-        unsigned int const rnElements                                       \
-    );
-    INSTANTIATE_cudaKernelApplyComplexModulus( cufftComplex, float )
-
-    #define INSTANTIATE_cudaKernelCutOff( T_PREC )  \
+    #define INSTANTIATE_TMP( T_PREC, T_COMPLEX )    \
     template                                        \
-    __global__ void cudaKernelCutOff<T_PREC>        \
+    ALPAKA_FN_ACC void                              \
+    cudaComplexNormElementwise<T_PREC, T_COMPLEX>   \
+    ::template operator()<T_ACC>                    \
     (                                               \
+        T_ACC const & acc,                          \
+        T_PREC * const rdpDataTarget,               \
+        T_COMPLEX const * const rdpDataSource,      \
+        unsigned int const rnElements,              \
+        cudaStream_t const rStream,                 \
+        bool const rAsync                           \
+    ) const;
+    INSTANTIATE_TMP( float, cufftComplex )
+    INSTANTIATE_TMP( cufftComplex, cufftComplex )
+    #undef INSTANTIATE_TMP
+
+    #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )    \
+    template                                        \
+    ALPAKA_FN_ACC void                              \
+    cudaKernelApplyComplexModulus<T_COMPLEX,T_PREC> \
+    ::template operator()<T_ACC>                    \
+    (                                               \
+        T_ACC const & acc,                          \
+        T_COMPLEX * const rdpDataTarget,            \
+        T_COMPLEX const * const rdpDataSource,      \
+        T_PREC const * const rdpComplexModulus,     \
+        unsigned int const rnElements               \
+    ) const;
+    INSTANTIATE_TMP( cufftComplex, float )
+    #undef INSTANTIATE_TMP
+
+    #define INSTANTIATE_TMP( T_PREC )               \
+    template                                        \
+    ALPAKA_FN_ACC void cudaKernelCutOff<T_PREC>     \
+    ::template operator()<T_ACC>                    \
+    (                                               \
+        T_ACC const & acc,                          \
         T_PREC * const rData,                       \
         unsigned int const rnElements,              \
         T_PREC const rThreshold,                    \
         T_PREC const rLowerValue,                   \
         T_PREC const rUpperValue                    \
-    );
-    INSTANTIATE_cudaKernelCutOff( float )
-    INSTANTIATE_cudaKernelCutOff( double )
+    ) const;
+    INSTANTIATE_TMP( float )
+    INSTANTIATE_TMP( double )
+    #undef INSTANTIATE_TMP
 
-#endif
+    /* this is necessray after including "libs/alapaka_T_ACC.hpp" or else
+     * you will run into many errors when trying to use T_ACC as a simple
+     * template parameter after this point */
+    #undef T_ACC
+
 
 } // namespace algorithms
 } // namespace imresh
