@@ -127,20 +127,14 @@ namespace algorithms
      * not compiled with nvcc */
 
     template< class T_PREC, class T_COMPLEX >
-    struct cudaComplexNormElementwise
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC          * const rdpDataTarget,
-            T_COMPLEX const * const rdpDataSource,
-            unsigned int const rnElements,
-            cudaStream_t const rStream = cudaStream_t(0),
-            bool const rAsync = true
-        ) const;
-    };
+    void cudaComplexNormElementwise
+    (
+        T_PREC          * const rdpDataTarget,
+        T_COMPLEX const * const rdpDataSource,
+        unsigned int const rnElements,
+        cudaStream_t const rStream = cudaStream_t(0),
+        bool const rAsync = true
+    );
 
 
 } // namespace algorithms

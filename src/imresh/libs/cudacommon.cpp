@@ -23,13 +23,12 @@
  */
 
 
-#pragma once
+#include "cudacommon.hpp"
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#include <cstdio>
+#include <cassert>
+#include <cstdlib>    // EXIT_FAILURE, exit
 
-
-#define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
 
 namespace imresh
 {
@@ -37,7 +36,16 @@ namespace libs
 {
 
 
-    void checkCudaError(const cudaError_t rValue, const char * file, int line );
+    void checkCudaError
+    ( const cudaError_t rValue, const char * file, int line )
+    {
+        if ( (rValue) != cudaSuccess )
+        {
+            printf( "CUDA error in %s line:%i : %s\n",
+                    file, line, cudaGetErrorString(rValue) );
+            exit( EXIT_FAILURE );
+        }
+    }
 
 
 } // namespace libs

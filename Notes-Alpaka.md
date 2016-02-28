@@ -73,3 +73,10 @@ alpakaAddLibrary
          ^
 
   => in alpaka/core/Common.hpp delete all `__force_inline__` and `inline` in lines 39 to 54
+
+> add the qualifier const to each parameter which is not changed inside the kernel
+ -> Is this optional?
+
+@TODO:
+  - comment atomicCAS in again
+  - test __float_as_int implementation

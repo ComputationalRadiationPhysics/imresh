@@ -67,23 +67,23 @@ To compile this library you need
 
 2. Invoking CMake
 
-        cmake ..
+       cmake ..
 
     For a clean build with debugging information, try
 
-        cmake .. -DIMRESH_DEBUG=on -DBUILD_DOC=off
+       cmake .. -DIMRESH_DEBUG=on -DBUILD_DOC=off
 
     To build and run everything, try
 
-        cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on -DUSE_PNG=on -DUSE_SPLASH=on
+       cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on -DUSE_PNG=on -DUSE_SPLASH=on
 
 3. Invoking make
 
-        make
+       make
 
 4. Installing
 
-        make install
+       make install
 
 ## Usage
 

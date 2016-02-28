@@ -83,9 +83,15 @@ endif()
 
 # add files and compile
 file( GLOB_RECURSE SOURCE_FILES
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/*.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
 )
 message( "SOURCE_FILES = ${SOURCE_FILES}" )
 include_directories(
@@ -114,7 +120,7 @@ set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
     ${OpenMP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
 )
-target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} PUBLIC ${_cupla_LINK_LIBRARIES_PUBLIC} )
+target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} ${_cupla_LINK_LIBRARIES_PUBLIC} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 if(BUILD_EXAMPLES OR RUN_TESTS)

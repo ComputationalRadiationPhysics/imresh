@@ -1,26 +1,31 @@
 The style mentioned here don't have to be followed, but it would be nice and it would be nice not to change something using these style back to something different.
 
-1. Type qualifiers inside declarations
+# Type qualifiers inside declarations
 
-    Declarations inside headers should be indentical to their definitions. Type qualifiers leaving the function signature unchanged is more or less a C-only feature.
+Declarations inside headers should be indentical to their definitions. Type qualifiers leaving the function signature unchanged is more or less a C-only feature.
 
-        void func( float * const __restricted__ );
+    void func( float * const __restricted__ );
 
-    instead of
+instead of
 
-        void func( float * );
+    void func( float * );
 
-    In the case of CUDA kernels i.e. declarations with `__global__` or `__device__` specifiers and if they are templated, then the CUDA kernel launch will abort the whole program even though the program will compile. See [this](http://stackoverflow.com/questions/35106360/why-does-this-cuda-program-crash-when-omitting-the-const-qualifier) Stackoverflow question.
+In the case of CUDA kernels i.e. declarations with `__global__` or `__device__` specifiers and if they are templated, then the CUDA kernel launch will abort the whole program even though the program will compile. See [this](http://stackoverflow.com/questions/35106360/why-does-this-cuda-program-crash-when-omitting-the-const-qualifier) Stackoverflow question.
 
-2. Type specifiers
+# Type specifiers
 
-    The complete forms should be preferred to short versions.
+The complete forms should be preferred to short versions.
 
-        unsigned int
+    unsigned int
 
-    instead of
+instead of
 
-        unsigned
+    unsigned
 
-    This is not necessary for `signed int`, `int` suffices in this case.
+This is not necessary for `signed int`, `int` suffices in this case.
 
+# File structure
+
+ - `*.hpp` contains declarations, normal and templated
+ - `*.tpp` contains templated definitions. Includes the respective `.hpp` file. Compiling a `.tpp` file will result in empty object files!
+ - `*.cpp` contains non-templated definitions and explicit template instantiations. Includes both `.hpp` and `.tpp` files.
