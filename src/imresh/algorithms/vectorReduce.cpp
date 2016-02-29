@@ -44,6 +44,7 @@ namespace algorithms
     /* explicit instantiations */
 
     #include "libs/alpaka_T_ACC.hpp"
+    #define inline
 
     #define INSTANTIATE_TMP( cudaReduceFunc, T_PREC )   \
     template                                            \
@@ -62,7 +63,8 @@ namespace algorithms
     #undef INSTANTIATE_TMP
 
     template
-    ALPAKA_FN_ACC void cudaKernelCalculateHioError
+    ALPAKA_FN_NO_INLINE_ACC
+    void cudaKernelCalculateHioError
     <cufftComplex, float>
     ::template operator()
     (
@@ -92,6 +94,9 @@ namespace algorithms
     INSTANTIATE_TMP( cufftComplex, bool );
     INSTANTIATE_TMP( cufftComplex, unsigned char );
     #undef INSTANTIATE_TMP
+
+    #undef inline
+    #undef T_ACC
 
 
 } // namespace algorithms

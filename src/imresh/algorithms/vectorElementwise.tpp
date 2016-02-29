@@ -44,8 +44,8 @@ namespace algorithms
 
     template< class T_COMPLEX, class T_PREC >
     template< class T_ACC >
-    ALPAKA_FN_ACC void
-    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>
     ::template operator()
     (
         T_ACC const & acc,
@@ -81,7 +81,8 @@ namespace algorithms
 
     template< class T_COMPLEX, class T_PREC >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelCopyToRealPart<T_COMPLEX, T_PREC>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelCopyToRealPart<T_COMPLEX, T_PREC>
     ::template operator()
     (
         T_ACC const & acc,
@@ -107,7 +108,8 @@ namespace algorithms
 
     template< class T_PREC, class T_COMPLEX >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
     ::template operator()
     (
         T_ACC const & acc,
@@ -132,7 +134,8 @@ namespace algorithms
 
     template< class T_PREC, class T_COMPLEX >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_PREC, T_COMPLEX>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelComplexNormElementwise<T_PREC, T_COMPLEX>
     ::template operator()
     (
         T_ACC const & acc,
@@ -162,7 +165,7 @@ namespace algorithms
     struct cudaKernelComplexNormElementwise< T_COMPLEX, T_COMPLEX >
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -175,7 +178,8 @@ namespace algorithms
 
     template< class T_COMPLEX >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_COMPLEX,T_COMPLEX>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelComplexNormElementwise<T_COMPLEX,T_COMPLEX>
     ::template operator()
     (
         T_ACC const & acc,
@@ -202,7 +206,8 @@ namespace algorithms
 
     template< class T_COMPLEX, class T_PREC >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelApplyComplexModulus<T_COMPLEX, T_PREC>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelApplyComplexModulus<T_COMPLEX, T_PREC>
     ::template operator()
     (
         T_ACC const & acc,
@@ -235,7 +240,8 @@ namespace algorithms
 
     template< class T_PREC >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelCutOff<T_PREC>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void cudaKernelCutOff<T_PREC>
     ::template operator()
     (
         T_ACC const & acc,

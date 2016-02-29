@@ -38,7 +38,7 @@ namespace algorithms
     struct cudaKernelApplyHioDomainConstraints
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -54,7 +54,7 @@ namespace algorithms
     struct cudaKernelCopyToRealPart
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -68,7 +68,7 @@ namespace algorithms
     struct cudaKernelCopyFromRealPart
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -82,7 +82,7 @@ namespace algorithms
     struct cudaKernelComplexNormElementwise
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -96,7 +96,7 @@ namespace algorithms
     struct cudaKernelApplyComplexModulus
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -111,7 +111,7 @@ namespace algorithms
     struct cudaKernelCutOff
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,

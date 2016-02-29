@@ -41,7 +41,7 @@ namespace algorithms
 
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         float * const rdpTarget,
@@ -86,7 +86,7 @@ namespace algorithms
 
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         double * const rdpTarget,
@@ -108,7 +108,7 @@ namespace algorithms
 
 
     template<typename T_ACC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         int * const rdpTarget,
@@ -123,7 +123,7 @@ namespace algorithms
     /*
     // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
     template<>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc<float,MaxFunctor<float>>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc<float,MaxFunctor<float>>
     (
         float * const rdpTarget,
         const float rValue,
@@ -135,7 +135,7 @@ namespace algorithms
 
     template<class T_PREC, class T_FUNC>
     template< class T_ACC >
-    ALPAKA_FN_ACC void kernelVectorReduce<T_PREC, T_FUNC>
+    ALPAKA_FN_NO_INLINE_ACC void kernelVectorReduce<T_PREC, T_FUNC>
     ::template operator()
     (
         T_ACC const     & acc,
@@ -241,7 +241,7 @@ namespace algorithms
         return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
     }
 
-    inline ALPAKA_FN_ACC_CUDA_ONLY uint32_t getLaneId( void )
+    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t getLaneId( void )
     {
         uint32_t id;
         asm("mov.u32 %0, %%laneid;" : "=r"(id));
@@ -273,7 +273,7 @@ namespace algorithms
      **/
     template< class T_COMPLEX, class T_MASK >
     template< class T_ACC >
-    ALPAKA_FN_ACC void cudaKernelCalculateHioError<T_COMPLEX, T_MASK>
+    ALPAKA_FN_NO_INLINE_ACC void cudaKernelCalculateHioError<T_COMPLEX, T_MASK>
     ::template operator()
     (
         T_ACC const     & acc,

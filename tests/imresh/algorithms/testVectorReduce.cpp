@@ -74,8 +74,7 @@ namespace algorithms
     void testVectorReduce( void )
     {
         using namespace std::chrono;
-        //using namespace benchmark::imresh::algorithms::cuda;
-        //using namespace imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms;
         using namespace imresh::algorithms;
 
         const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
@@ -95,7 +94,7 @@ namespace algorithms
         assert( cudaVectorMin( dpData, 1 ) == pData[0] );
         assert( cudaVectorMax( dpData, 1 ) == pData[0] );
         assert( cudaVectorSum( dpData, 1 ) == pData[0] );
-#if false
+
         /* do some checks with longer arrays and obvious results */
         float obviousMaximum = 7.37519;
         float obviousMinimum =-7.37519;
@@ -143,10 +142,10 @@ namespace algorithms
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
 
-            TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
-            TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
-            TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
-            TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
+            //TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
+            //TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
+            //TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
+            //TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
             TIME_GPU( cudaVectorMax                 , obviousMaximum )
 
             /* time CPU */
@@ -167,14 +166,14 @@ namespace algorithms
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
 
-            TIME_CPU( vectorMax, obviousMaximum )
+            //TIME_CPU( vectorMax, obviousMaximum )
 
             /* Minimum */
             pData[iObviousValuePos] = obviousMinimum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
             TIME_GPU( cudaVectorMin, obviousMinimum )
-            TIME_CPU( vectorMin, obviousMinimum )
+            //TIME_CPU( vectorMin, obviousMinimum )
 
             /* set obvious value back to random value */
             pData[iObviousValuePos] = (float) rand() / RAND_MAX;
@@ -186,7 +185,7 @@ namespace algorithms
 
 
         //for ( unsigned nElements = 2; nElements
-#endif
+
         CUDA_ERROR( cudaFree( dpData ) );
         delete[] pData;
     }

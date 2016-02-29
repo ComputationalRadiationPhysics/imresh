@@ -29,13 +29,13 @@ sed -r -i 's|^([^/]*)#([ \t]*)include([ \t]*)<([ \t]*)cuda.*\.h([ \t]*)>|\1#\2in
 #sed -r -i 's|^([^[/]]*)(#[ \t]*include[ \t]*<[ \t]*cufft\.h[ \t]*>)|//\1\2|' $file
 sed -r -i 's|^([^/]*)#([ \t]*)include([ \t]*)<([ \t]*)cufft\.h([ \t]*)>|\1#\2include\3<\4cufft_to_cupla.hpp\5>|' $file
 
-# __device__ __host__ -> ALPAKA_FN_ACC_CUDA_ONLY
-sed -r -i 's|__device__[ \t]+__host__|ALPAKA_FN_ACC_CUDA_ONLY|' $file
-sed -r -i 's|__host__[ \t]+__device__|ALPAKA_FN_ACC_CUDA_ONLY|' $file
+# __device__ __host__ -> ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+sed -r -i 's|__device__[ \t]+__host__|ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY|' $file
+sed -r -i 's|__host__[ \t]+__device__|ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY|' $file
 sed -r -i 's|__host__[ \t]*||' $file
 
-# __device__ -> ALPAKA_FN_ACC_CUDA_ONLY
-sed -r -i 's|__device__|ALPAKA_FN_ACC_CUDA_ONLY|' $file
+# __device__ -> ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+sed -r -i 's|__device__|ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY|' $file
 
 # Replace CUDA kernel calls kernelName<<<...>>> -> CUPLA_KERNEL( kernelName )(...)
 # Note that this won't fully work for
@@ -67,7 +67,7 @@ if [ $isHpp -eq 1 ]; then
     #    struct cudaKernelApplyHioDomainConstraints
     #    {
     #        template< typename T_ACC >
-    #        ALPAKA_FN_ACC
+    #        ALPAKA_FN_NO_INLINE_ACC
     #        void operator()
     #        (
     #            T_ACC const & acc,
@@ -97,7 +97,7 @@ if [ $isHpp -eq 1 ]; then
 # Without escaping & would print the matched address, meaning (
     s|([ \t]*)\(|\1{\
 \1    template< typename T_ACC >\
-\1    ALPAKA_FN_ACC\
+\1    ALPAKA_FN_NO_INLINE_ACC\
 \1    void operator()\
 \1    (\
 \1        T_ACC const \& acc,|
@@ -112,7 +112,7 @@ if [ $isTpp -eq 1 ]; then
     #       template< class T_PREC, class T_COMPLEX >
     #  -    __global__ void cudaKernelCopyFromRealPart
     #  +    template< class T_ACC >
-    #  +    ALPAKA_FN_ACC void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
+    #  +    ALPAKA_FN_NO_INLINE_ACC void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
     #  +    ::template operator()
     #       (
     #  +        T_ACC const & acc,
@@ -128,14 +128,14 @@ if [ $isTpp -eq 1 ]; then
 # and {
 # Note that if the struct is templated, you will need to add those template
 # parameters manually, e.g.
-# ALPAKA_FN_ACC void kernelName
+# ALPAKA_FN_NO_INLINE_ACC void kernelName
 # to
-# ALPAKA_FN_ACC void kernelName<T_PREC, T_COMPLEX>
+# ALPAKA_FN_NO_INLINE_ACC void kernelName<T_PREC, T_COMPLEX>
 # Furthermore this rules wronlgy inserts template< class T_ACC > in
 # explicit instantiations.
 /__global__/,/^[ \t]*\)[ \t]*$/{
     s/([ \t]*)__global__/\1template< class T_ACC >\
-\1ALPAKA_FN_ACC/
+\1ALPAKA_FN_NO_INLINE_ACC/
 # replace line with ( by the operator() method header
     s|([ \t]*)\(|\1::template operator()\
 \1(\
@@ -149,7 +149,7 @@ fi
 if [ $isCpp -eq 1 ]; then
     sed -r -i '#
 /__global__/,/^[ \t]*\);[ \t]*$/{
-    s/([ \t]*)__global__/\1ALPAKA_FN_ACC/
+    s/([ \t]*)__global__/\1ALPAKA_FN_NO_INLINE_ACC/
 # replace line with ( by the operator() method header
     s|([ \t]*)\(|\1::template operator()\
 \1(\

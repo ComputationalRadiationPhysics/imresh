@@ -36,7 +36,8 @@ namespace algorithms
 
 
     template<class T_ACC, class T_PREC, class T_FUNC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline
+    void atomicFunc
     (
         T_ACC const     & acc,
         T_PREC * const rdpTarget,
@@ -45,7 +46,8 @@ namespace algorithms
     );
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline
+    void atomicFunc
     (
         T_ACC const     & acc,
         float * const rdpTarget,
@@ -54,7 +56,8 @@ namespace algorithms
     );
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline
+    void atomicFunc
     (
         T_ACC const     & acc,
         double * const rdpTarget,
@@ -68,19 +71,19 @@ namespace algorithms
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
-        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { if (a>b) return a; else return b; }
     };
     template<> struct MaxFunctor<float> {
-        ALPAKA_FN_ACC_CUDA_ONLY inline float operator() ( float a, float b ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline float operator() ( float a, float b ) const
         { return fmax(a,b); }
     };
 
@@ -112,7 +115,7 @@ namespace algorithms
     struct kernelVectorReduce
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -156,7 +159,7 @@ namespace algorithms
     struct cudaKernelCalculateHioError
     {
         template< typename T_ACC >
-        ALPAKA_FN_ACC
+        ALPAKA_FN_NO_INLINE_ACC
         void operator()
         (
             T_ACC const & acc,

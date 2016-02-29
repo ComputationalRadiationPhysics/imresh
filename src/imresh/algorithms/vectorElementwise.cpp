@@ -36,10 +36,11 @@ namespace algorithms
     /* explicit instantiations */
 
     #include "libs/alpaka_T_ACC.hpp"
+    #define inline
 
     #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )            \
     template                                                \
-    ALPAKA_FN_ACC void                                      \
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void                  \
     cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>  \
     ::template operator()<T_ACC>                            \
     (                                                       \
@@ -53,9 +54,9 @@ namespace algorithms
     INSTANTIATE_TMP( cufftComplex, float )
     #undef INSTANTIATE_TMP
 
-
     template
-    ALPAKA_FN_ACC void
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    void
     cudaKernelCopyToRealPart<cufftComplex,float>
     ::template operator()<T_ACC>
     (
@@ -65,9 +66,8 @@ namespace algorithms
         unsigned int const rnElements
     ) const;
 
-
     template
-    ALPAKA_FN_ACC void
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void
     cudaKernelCopyFromRealPart<float,cufftComplex>
     ::template operator()<T_ACC>
     (
@@ -80,7 +80,7 @@ namespace algorithms
 
     #define INSTANTIATE_TMP( T_PREC, T_COMPLEX )        \
     template                                            \
-    ALPAKA_FN_ACC void                                  \
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void              \
     cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>  \
     ::template operator()<T_ACC>                        \
     (                                                   \
@@ -109,7 +109,7 @@ namespace algorithms
 
     #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )    \
     template                                        \
-    ALPAKA_FN_ACC void                              \
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void          \
     cudaKernelApplyComplexModulus<T_COMPLEX,T_PREC> \
     ::template operator()<T_ACC>                    \
     (                                               \
@@ -124,7 +124,8 @@ namespace algorithms
 
     #define INSTANTIATE_TMP( T_PREC )               \
     template                                        \
-    ALPAKA_FN_ACC void cudaKernelCutOff<T_PREC>     \
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY               \
+    void cudaKernelCutOff<T_PREC>                   \
     ::template operator()<T_ACC>                    \
     (                                               \
         T_ACC const & acc,                          \
@@ -142,6 +143,7 @@ namespace algorithms
      * you will run into many errors when trying to use T_ACC as a simple
      * template parameter after this point */
     #undef T_ACC
+    #undef inline
 
 
 } // namespace algorithms
