@@ -56,14 +56,16 @@ if(BUILD_DOC)
 endif()
 
 if(IMRESH_DEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    # don't set -std=c++11 here! @see
+    # https://github.com/ComputationalRadiationPhysics/alpaka/issues/186
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo -Xptxas=-v")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo") #  -Xptxas=-v
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
+    # don't set -std=c++11 here! @see
+    # https://github.com/ComputationalRadiationPhysics/alpaka/issues/186
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
-# sm_30 is needed for __shfl_down
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30")
 
 if(USE_PNG)
     find_package(PNGwriter REQUIRED)
@@ -83,12 +85,12 @@ endif()
 
 # add files and compile
 file( GLOB_RECURSE SOURCE_FILES
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorElementwise.tpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/alpaka/vectorReduce.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
@@ -142,23 +144,35 @@ endif()
 # Tests and Benchmarks
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
-    file( GLOB_RECURSE BENCHMARK_SOURCE_FILES ${PROJECT_SOURCE_DIR}/benchmark/*.cpp  ${PROJECT_SOURCE_DIR}/benchmark/*.hpp ${PROJECT_SOURCE_DIR}/benchmark/*.cu )
-    cuda_add_library("benchmark" ${BENCHMARK_SOURCE_FILES} STATIC)
+    file( GLOB_RECURSE BENCHMARK_SOURCE_FILES
+        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.cpp
+        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.hpp
+        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.tpp
+    )
+    alpaka_add_library( "benchmark" ${BENCHMARK_SOURCE_FILES} STATIC )
     target_link_libraries("benchmark" ${PROJECT_NAME})
 
     # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
-    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wno-unused-parameter -g -std=c++11 ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wunused-parameter -g ${OpenMP_CXX_FLAGS}")
     # for includes of #include "benchmarks/...". Note that
     #    clude_directories(${PROJECT_SOURCE_DIR})
     # would lead to ambiguous includes
     include_directories(${PROJECT_SOURCE_DIR})
-    cuda_include_directories(${PROJECT_SOURCE_DIR})
+    #alpaka_include_directories(${PROJECT_SOURCE_DIR})
 
-    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp ${PROJECT_SOURCE_DIR}/tests/*.cu )
-    cuda_add_library("tests" ${TEST_SOURCE_FILES} STATIC)
+    file( GLOB_RECURSE TEST_SOURCE_FILES
+        ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.cpp
+        ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
+        ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
+    )
+    alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
     target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
 
-    cuda_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
+    alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
     target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark" "examples")
 
     enable_testing()
@@ -168,11 +182,11 @@ if(RUN_TESTS)
                   DEPENDS mainTestAll)
 
     # the following are very small executable units for the use with nvvp as too complex programs are difficult to profile (threadMainExample makes nvvp use 6+GB RAM)
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
-
-    add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
-    target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
-
-    add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
-    target_link_libraries("profileGaussian" ${PROJECT_NAME} )
+    #set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
+    #
+    #add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
+    #target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
+    #
+    #add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
+    #target_link_libraries("profileGaussian" ${PROJECT_NAME} )
 endif()

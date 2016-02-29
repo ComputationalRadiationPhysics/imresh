@@ -32,10 +32,9 @@
 #include <vector>
 #include <cmath>
 #include <cfloat>    // FLT_MAX
-#include <cuda_runtime.h>
+#include <cuda_to_cupla.hpp>
 #include "algorithms/vectorReduce.hpp"
-#include "algorithms/cuda/cudaVectorReduce.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 

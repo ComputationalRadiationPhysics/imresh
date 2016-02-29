@@ -22,46 +22,38 @@
  * SOFTWARE.
  */
 
-#include "cudaVectorReduce.hpp"
+#include "vectorReduce.hpp"
 
 #include <cassert>
 #include <cstdio>
 #include <cstdint>    // uint64_t
 #include <limits>     // lowest
 #include <cmath>
-#include <cuda.h>     // atomicCAS
-#include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include <cuda_to_cupla.hpp>     // atomicCAS
+#include <cufft_to_cupla.hpp>    // cufftComplex, cufftDoubleComplex
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
 {
 namespace algorithms
 {
-namespace cuda
-{
 
 
-    SumFunctor<float > sumFunctorf;
-    MinFunctor<float > minFunctorf;
-    MaxFunctor<float > maxFunctorf;
-    SumFunctor<double> sumFunctord;
-    MinFunctor<double> minFunctord;
-    MaxFunctor<double> maxFunctord;
-
-
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+    template<class T_ACC, class T_FUNC>
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         float * const rdpTarget,
         float const rValue,
         T_FUNC f
     )
     {
+        static_assert( sizeof(int) == sizeof(float), "" );
         /* atomicCAS only is defined for int and long long int, thats why we
          * need these roundabout casts */
-        uint32_t assumed;
-        uint32_t old = * (uint32_t*) rdpTarget;
+        int assumed;
+        int old = * (int*) rdpTarget;
 
         /* atomicCAS returns the value with which the current value 'assumed'
          * was compared. If the value changed between reading out to assumed
@@ -83,15 +75,20 @@ namespace cuda
             /* compare and swap after the value was read with assumend, return
              * old value, if assumed isn't anymore the value at rdpTarget,
              * then we will have to try again to write it */
-            old = atomicCAS( (uint32_t*) rdpTarget, assumed,
-                __float_as_int( f( __int_as_float(assumed), rValue ) ) );
+            //old = atomicCAS( (uint32_t*) rdpTarget, assumed,
+            //    __float_as_int( f( __int_as_float(assumed), rValue ) ) );
+            old = atomicCAS( (int*) rdpTarget, assumed,
+                __float_as_int( f( __int_as_float(assumed), rValue ) )
+            );
         }
         while ( assumed != old );
     }
 
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+
+    template<class T_ACC, class T_FUNC>
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         double * const rdpTarget,
         double const rValue,
         T_FUNC f
@@ -103,16 +100,17 @@ namespace cuda
         do
         {
             assumed = old;
-            old = atomicCAS( (ull*) rdpTarget, assumed,
-                __double_as_longlong( f( __longlong_as_double(assumed), rValue ) ) );
+            //old = atomicCAS( (ull*) rdpTarget, assumed,
+            //    __double_as_longlong( f( __longlong_as_double(assumed), rValue ) ) );
         }
         while ( assumed != old );
     }
 
 
-    template<>
-    __device__ inline void atomicFunc<int,MaxFunctor<int>>
+    template<typename T_ACC>
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         int * const rdpTarget,
         int const rValue,
         MaxFunctor<int> f
@@ -125,7 +123,7 @@ namespace cuda
     /*
     // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
     template<>
-    __device__ inline void atomicFunc<float,MaxFunctor<float>>
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc<float,MaxFunctor<float>>
     (
         float * const rdpTarget,
         const float rValue,
@@ -136,14 +134,17 @@ namespace cuda
     }*/
 
     template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduce
+    template< class T_ACC >
+    ALPAKA_FN_ACC void kernelVectorReduce<T_PREC, T_FUNC>
+    ::template operator()
     (
+        T_ACC const     & acc,
         T_PREC const * const __restrict__ rdpData,
         unsigned int const rnData,
         T_PREC * const __restrict__ rdpResult,
         T_FUNC f,
         T_PREC const rInitValue
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -156,15 +157,7 @@ namespace cuda
         for ( ; iElem < rdpData + rnData; iElem += gridDim.x * blockDim.x )
             localReduced = f( localReduced, *iElem );
 
-        /* reduce per warp (warpSize == 32 assumed) */
-        int constexpr cWarpSize = 32;
-        assert( cWarpSize == warpSize );
-        #pragma unroll
-        for ( int32_t warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2)
-            localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
-
-        if ( threadIdx.x % cWarpSize == 0 )
-            atomicFunc( rdpResult, localReduced, f );
+        atomicFunc( acc, rdpResult, localReduced, f );
     }
 
 
@@ -198,7 +191,7 @@ namespace cuda
                                      cudaMemcpyHostToDevice, rStream ) );
 
         /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
-        kernelVectorReduce<<< nBlocks, nThreads, 0, rStream >>>
+        CUPLA_KERNEL( kernelVectorReduce<T_PREC, T_FUNC> )( nBlocks, nThreads, 0, rStream )
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -248,7 +241,7 @@ namespace cuda
         return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
     }
 
-    inline __device__ uint32_t getLaneId( void )
+    inline ALPAKA_FN_ACC_CUDA_ONLY uint32_t getLaneId( void )
     {
         uint32_t id;
         asm("mov.u32 %0, %%laneid;" : "=r"(id));
@@ -279,15 +272,18 @@ namespace cuda
      *     you should go even higher.
      **/
     template< class T_COMPLEX, class T_MASK >
-    __global__ void cudaKernelCalculateHioError
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCalculateHioError<T_COMPLEX, T_MASK>
+    ::template operator()
     (
+        T_ACC const     & acc,
         T_COMPLEX const * const __restrict__ rdpData,
         T_MASK    const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         bool const rInvertMask,
         float * const __restrict__ rdpTotalError,
         float * const __restrict__ rdpnMaskedPixels
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
@@ -316,7 +312,7 @@ namespace cuda
             #ifndef NDEBUG
                 if ( not ( *iMask == 0 or *iMask == 1 ) )
                 {
-                    printf( "rdpIsMasked[%i] = %u\n", iMask-rdpIsMasked, *iMask );
+                    printf( "rdpIsMasked[%i] = %i\n", (int)(iMask-rdpIsMasked), (int) *iMask );
                     assert( *iMask == 0 or *iMask == 1 );
                 }
             #endif
@@ -333,22 +329,8 @@ namespace cuda
             localnMaskedPixels += shouldBeZero;
         }
 
-        /* reduce per warp (warpSize == 32 assumed) */
-        int constexpr cWarpSize = 32;
-        assert( cWarpSize == warpSize );
-        #pragma unroll
-        for ( int32_t warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
-        {
-            localTotalError    += __shfl_down( localTotalError   , warpDelta );
-            localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
-        }
-
-        assert( getLaneId() == threadIdx.x % cWarpSize );
-        if ( getLaneId() == 0 )
-        {
-            atomicAdd( rdpTotalError   , localTotalError    );
-            atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
-        }
+        atomicAdd( rdpTotalError   , localTotalError    );
+        atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
     }
 
     template<class T_COMPLEX, class T_MASK>
@@ -377,7 +359,7 @@ namespace cuda
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
-        cudaKernelCalculateHioError<<< nBlocks, nThreads, 0, rStream >>>
+        CUPLA_KERNEL( cudaKernelCalculateHioError<T_COMPLEX, T_MASK> )( nBlocks, nThreads, 0, rStream )
             ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
@@ -397,106 +379,5 @@ namespace cuda
     }
 
 
-    /* explicit template instantiations */
-
-    template
-    float cudaVectorMin<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorMin<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-
-    template
-    float cudaVectorMax<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorMax<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-
-    template
-    float cudaVectorSum<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorSum<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-    template
-    __global__ void cudaKernelCalculateHioError
-    <cufftComplex, float>
-    (
-        cufftComplex const * rdpgPrime,
-        float const * rdpIsMasked,
-        unsigned int rnData,
-        bool rInvertMask,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-
-
-    template
-    float cudaCalculateHioError
-    <cufftComplex, float>
-    (
-        cufftComplex const * rdpData,
-        float const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-    template
-    float cudaCalculateHioError
-    <cufftComplex, bool>
-    (
-        cufftComplex const * rdpData,
-        bool const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-    template
-    float cudaCalculateHioError
-    <cufftComplex, unsigned char>
-    (
-        cufftComplex const * rdpData,
-        unsigned char const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-
-
-} // namespace cuda
 } // namespace algorithms
 } // namespace imresh

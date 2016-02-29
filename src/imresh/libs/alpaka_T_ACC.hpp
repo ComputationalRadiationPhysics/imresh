@@ -14,6 +14,6 @@
 #      define T_ACC ::alpaka::acc::AccCpuSerial< ::alpaka::dim::DimInt<3u>, unsigned int >
 #   endif
 #   ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
-#      define T_ACC = ::alpaka::acc::AccGpuCudaRt< ::alpaka::dim::DimInt<3u>, unsigned int >
+#      define T_ACC ::alpaka::acc::AccGpuCudaRt< ::alpaka::dim::DimInt<3u>, unsigned int >
 #   endif
 #endif

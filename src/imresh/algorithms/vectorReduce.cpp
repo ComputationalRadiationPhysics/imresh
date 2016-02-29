@@ -24,11 +24,7 @@
 
 
 #include "vectorReduce.hpp"
-
-#include <algorithm>  // max
-#include <cmath>
-#include <limits>     // lowest, max
-#include <cassert>
+#include "vectorReduce.tpp"
 
 
 namespace imresh
@@ -37,156 +33,65 @@ namespace algorithms
 {
 
 
-    template<class T_PREC>
-    T_PREC vectorMaxAbsDiff
-    (
-        T_PREC const * const rData1,
-        T_PREC const * const rData2,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    )
-    {
-        assert( rnStride > 0 );
-        T_PREC maxAbsDiff = T_PREC(0);
-        #pragma omp parallel for reduction( max : maxAbsDiff )
-        for ( unsigned i = 0; i < rnData*rnStride; i += rnStride )
-            maxAbsDiff = std::max( maxAbsDiff, std::abs( rData1[i]-rData2[i] ) );
-        return maxAbsDiff;
-    }
-
-    template<class T_PREC>
-    T_PREC vectorMaxAbs
-    (
-        T_PREC const * const rData,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    )
-    {
-        assert( rnStride > 0 );
-        T_PREC maximum = T_PREC(0);
-        #pragma omp parallel for reduction( max : maximum )
-        for ( unsigned i = 0; i < rnData*rnStride; i += rnStride )
-            maximum = std::max( maximum, std::abs( rData[i] ) );
-        return maximum;
-    }
-
-    template<class T_PREC>
-    T_PREC vectorMax
-    (
-        T_PREC const * const rData,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    )
-    {
-        assert( rnStride > 0 );
-        T_PREC maximum = std::numeric_limits<T_PREC>::lowest();
-        #pragma omp parallel for reduction( max : maximum )
-        for ( unsigned i = 0; i < rnData*rnStride; i += rnStride )
-            maximum = std::max( maximum, rData[i] );
-        return maximum;
-    }
-
-    template<class T_PREC>
-    T_PREC vectorMin
-    (
-        T_PREC const * const rData,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    )
-    {
-        assert( rnStride > 0 );
-        T_PREC minimum = std::numeric_limits<T_PREC>::max();
-        #pragma omp parallel for reduction( min : minimum )
-        for ( unsigned i = 0; i < rnData*rnStride; i += rnStride )
-            minimum = std::min( minimum, rData[i] );
-        return minimum;
-    }
-
-    template<class T_PREC>
-    T_PREC vectorSum
-    (
-        T_PREC const * const rData,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    )
-    {
-        assert( rnStride > 0 );
-        T_PREC sum = T_PREC(0);
-        #pragma omp parallel for reduction( + : sum )
-        for ( unsigned i = 0; i < rnData*rnStride; i += rnStride )
-            sum += rData[i];
-        return sum;
-    }
+    SumFunctor<float > sumFunctorf;
+    MinFunctor<float > minFunctorf;
+    MaxFunctor<float > maxFunctorf;
+    SumFunctor<double> sumFunctord;
+    MinFunctor<double> minFunctord;
+    MaxFunctor<double> maxFunctord;
 
 
-    /* explicitly instantiate needed data types */
+    /* explicit instantiations */
 
-    template float vectorMaxAbsDiff<float>
-    (
-        float const * const rData1,
-        float const * const rData2,
-        unsigned int const rnData,
-        unsigned int const rnStride
+    #include "libs/alpaka_T_ACC.hpp"
+
+    #define INSTANTIATE_TMP( cudaReduceFunc, T_PREC )   \
+    template                                            \
+    T_PREC cudaReduceFunc<T_PREC>                       \
+    (                                                   \
+        T_PREC const * rdpData,                         \
+        unsigned int rnElements,                        \
+        cudaStream_t rStream                            \
     );
-    template double vectorMaxAbsDiff<double>
-    (
-        double const * const rData1,
-        double const * const rData2,
-        unsigned int const rnData,
-        unsigned int const rnStride
-    );
+    INSTANTIATE_TMP( cudaVectorMin, float  );
+    INSTANTIATE_TMP( cudaVectorMin, double );
+    INSTANTIATE_TMP( cudaVectorMax, float  );
+    INSTANTIATE_TMP( cudaVectorMax, double );
+    INSTANTIATE_TMP( cudaVectorSum, float  );
+    INSTANTIATE_TMP( cudaVectorSum, double );
+    #undef INSTANTIATE_TMP
 
-    template float vectorMaxAbs<float>
+    template
+    ALPAKA_FN_ACC void cudaKernelCalculateHioError
+    <cufftComplex, float>
+    ::template operator()
     (
-        float const * rData,
+        T_ACC const & acc,
+        cufftComplex const * rdpgPrime,
+        float const * rdpIsMasked,
         unsigned int rnData,
-        unsigned int rnStride
-    );
-    template double vectorMaxAbs<double>
-    (
-        double const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
+        bool rInvertMask,
+        float * rdpTotalError,
+        float * rdpnMaskedPixels
+    ) const;
 
-    template float vectorMax<float>
-    (
-        float const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
+    #define INSTANTIATE_TMP( T_COMPLEX, T_MASK )    \
+    template                                        \
+    float cudaCalculateHioError                     \
+    <T_COMPLEX, T_MASK>                             \
+    (                                               \
+        cufftComplex const * rdpData,               \
+        T_MASK const * rdpIsMasked,                 \
+        unsigned int rnElements,                    \
+        bool rInvertMask,                           \
+        cudaStream_t rStream,                       \
+        float * rdpTotalError,                      \
+        float * rdpnMaskedPixels                    \
     );
-    template double vectorMax<double>
-    (
-        double const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
-
-    template float vectorMin<float>
-    (
-        float const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
-    template double vectorMin<double>
-    (
-        double const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
-
-    template float vectorSum<float>
-    (
-        float const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
-    template double vectorSum<double>
-    (
-        double const * rData,
-        unsigned int rnData,
-        unsigned int rnStride
-    );
+    INSTANTIATE_TMP( cufftComplex, float );
+    INSTANTIATE_TMP( cufftComplex, bool );
+    INSTANTIATE_TMP( cufftComplex, unsigned char );
+    #undef INSTANTIATE_TMP
 
 
 } // namespace algorithms

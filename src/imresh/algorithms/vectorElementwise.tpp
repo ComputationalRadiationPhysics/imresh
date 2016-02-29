@@ -22,39 +22,46 @@
  * SOFTWARE.
  */
 
-#include "cudaVectorElementwise.hpp"
+
+#pragma once
+
+
+#include "vectorElementwise.hpp"
 
 #include <cassert>
-#include <cmath>        // sqrtf
-#include <cuda.h>       // atomicCAS
-#include <cufft.h>      // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include <cmath>                    // sqrtf
+#include <cuda_to_cupla.hpp>
+#include <cufft_to_cupla.hpp>       // cufftComplex, cufftDoubleComplex
+#include "libs/cudacommon.hpp"
+#include <cstdint>                  // uint32_t
 
 
 namespace imresh
 {
 namespace algorithms
 {
-namespace cuda
-{
 
 
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyHioDomainConstraints
+    template< class T_ACC >
+    ALPAKA_FN_ACC void
+    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX       * const rdpgPrevious,
         T_COMPLEX const * const rdpgPrime,
         T_PREC    const * const rdpIsMasked,
         unsigned int const rnElements,
         T_PREC const rHioBeta
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -73,19 +80,22 @@ namespace cuda
 
 
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelCopyToRealPart
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCopyToRealPart<T_COMPLEX, T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rTargetComplexArray,
         T_PREC    * const rSourceRealArray,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -96,19 +106,22 @@ namespace cuda
 
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelCopyFromRealPart
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCopyFromRealPart<T_PREC, T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC    * const rTargetComplexArray,
         T_COMPLEX * const rSourceRealArray,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -118,19 +131,22 @@ namespace cuda
 
 
     template< class T_PREC, class T_COMPLEX >
-    __global__ void cudaKernelComplexNormElementwise
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_PREC, T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -140,20 +156,40 @@ namespace cuda
         }
     }
 
-    template<class T_COMPLEX>
-    __global__ void cudaKernelComplexNormElementwise
+    /* first partial specialisation of class definition is needed, only
+     * after that can the operator() of the specialized class be defined! */
+    template< class T_COMPLEX >
+    struct cudaKernelComplexNormElementwise< T_COMPLEX, T_COMPLEX >
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX * const rdpDataTarget,
+            T_COMPLEX const * const rdpDataSource,
+            unsigned int const rnElements
+        ) const;
+    };
+
+
+    template< class T_COMPLEX >
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelComplexNormElementwise<T_COMPLEX,T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -164,22 +200,24 @@ namespace cuda
         }
     }
 
-
     template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyComplexModulus
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelApplyComplexModulus<T_COMPLEX, T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
         T_PREC const * const rdpComplexModulus,
         unsigned int const rnElements
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -196,21 +234,24 @@ namespace cuda
 
 
     template< class T_PREC >
-    __global__ void cudaKernelCutOff
+    template< class T_ACC >
+    ALPAKA_FN_ACC void cudaKernelCutOff<T_PREC>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_PREC * const rData,
         unsigned int const rnElements,
         T_PREC const rThreshold,
         T_PREC const rLowerValue,
         T_PREC const rUpperValue
-    )
+    ) const
     {
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
         assert( gridDim.z  == 1 );
 
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
+        unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
         const int nTotalThreads = gridDim.x * blockDim.x;
         for ( ; i < rnElements; i += nTotalThreads )
         {
@@ -220,7 +261,6 @@ namespace cuda
 
 
     /* kernel call wrappers */
-
 
     template< class T_PREC, class T_COMPLEX >
     void cudaComplexNormElementwise
@@ -233,97 +273,20 @@ namespace cuda
     )
     {
         /* 1 operation per thread is a bit low, that's why we let each
-         * thread work on 32 elements. Of course for smaller iamges this
+         * thread work on 32 elements. Of course for smaller images this
          * could mean that the GPU is not fully utilized. But in that
          * case 1 vs. 32 times doesn't make much of a difference anyways */
-        const int nThreads = rnElements / 32;
-        const int nBlocks = ( nThreads + 256-1 ) / 256;
-        cudaKernelComplexNormElementwise<<< nBlocks, 256, 0, rStream >>>
-            ( rdpDataTarget, rdpDataSource, rnElements );
+        int const nThreads = rnElements / 32;
+        int const nBlocks = ( nThreads + 256-1 ) / 256;
+        CUPLA_KERNEL( cudaKernelComplexNormElementwise< T_PREC, T_COMPLEX > )
+            ( nBlocks, 256, 0, rStream ) // kernel config
+            ( rdpDataTarget, rdpDataSource, rnElements ); // kernel arguments
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
 
 
-    /* explicit instantiations */
-
-    template
-    __global__ void cudaKernelApplyHioDomainConstraints<cufftComplex, float>
-    (
-        cufftComplex       * const rdpgPrevious,
-        cufftComplex const * const rdpgPrime,
-        float const * const rdpIsMasked,
-        unsigned int const rnElements,
-        float const rHioBeta
-    );
-
-    template
-    __global__ void cudaKernelCopyToRealPart<cufftComplex,float>
-    (
-        cufftComplex * const rTargetComplexArray,
-        float * const rSourceRealArray,
-        unsigned int const rnElements
-    );
-
-
-    template
-    __global__ void cudaKernelCopyFromRealPart<float,cufftComplex>
-    (
-        float * const rTargetComplexArray,
-        cufftComplex * const rSourceRealArray,
-        unsigned int const rnElements
-    );
-
-
-    #define INSTANTIATE_cudaKernelComplexNormElementwise( T_PREC, T_COMPLEX ) \
-    template                                                                  \
-    __global__ void cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>        \
-    (                                                                         \
-        T_PREC * const rdpDataTarget,                                         \
-        T_COMPLEX const * const rdpDataSource,                                \
-        unsigned int const rnElements                                         \
-    );
-    INSTANTIATE_cudaKernelComplexNormElementwise( float, cufftComplex )
-
-    #define INSTANTIATE_cudaComplexNormElementwise( T_PREC, T_COMPLEX ) \
-    template                                                            \
-    void cudaComplexNormElementwise<T_PREC, T_COMPLEX>                  \
-    (                                                                   \
-        T_PREC * const rdpDataTarget,                                   \
-        T_COMPLEX const * const rdpDataSource,                          \
-        unsigned int const rnElements,                                  \
-        cudaStream_t const rStream,                                     \
-        bool const rAsync                                               \
-    );
-    INSTANTIATE_cudaComplexNormElementwise( float, cufftComplex )
-    INSTANTIATE_cudaComplexNormElementwise( cufftComplex, cufftComplex )
-
-    #define INSTANTIATE_cudaKernelApplyComplexModulus( T_COMPLEX, T_PREC )  \
-    template                                                                \
-    __global__ void cudaKernelApplyComplexModulus<T_COMPLEX,T_PREC>         \
-    (                                                                       \
-        T_COMPLEX * const rdpDataTarget,                                    \
-        T_COMPLEX const * const rdpDataSource,                              \
-        T_PREC const * const rdpComplexModulus,                             \
-        unsigned int const rnElements                                       \
-    );
-    INSTANTIATE_cudaKernelApplyComplexModulus( cufftComplex, float )
-
-    #define INSTANTIATE_cudaKernelCutOff( T_PREC )  \
-    template                                        \
-    __global__ void cudaKernelCutOff<T_PREC>        \
-    (                                               \
-        T_PREC * const rData,                       \
-        unsigned int const rnElements,              \
-        T_PREC const rThreshold,                    \
-        T_PREC const rLowerValue,                   \
-        T_PREC const rUpperValue                    \
-    );
-    INSTANTIATE_cudaKernelCutOff( float )
-    INSTANTIATE_cudaKernelCutOff( double )
-
-
-} // namespace cuda
 } // namespace algorithms
 } // namespace imresh

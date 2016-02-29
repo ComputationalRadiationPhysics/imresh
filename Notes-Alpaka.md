@@ -80,3 +80,14 @@ alpakaAddLibrary
 @TODO:
   - comment atomicCAS in again
   - test __float_as_int implementation
+
+
+./convertToCupla.sh ./imresh/tests/imresh/algorithms/testVectorReduce.cpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorElementwise.cpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorElementwise.hpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorElementwise.tpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorReduce.cpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorReduce.hpp
+./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorReduce.tpp
+
+ToDo: Remove #if false from testVectorReduce.cpp and include more and more tests ...
