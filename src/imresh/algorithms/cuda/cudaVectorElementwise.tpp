@@ -26,7 +26,7 @@
 #pragma once
 
 
-#include "vectorElementwise.hpp"
+#include "cudaVectorElementwise.hpp"
 
 #include <cassert>
 #include <cmath>                    // sqrtf
@@ -39,6 +39,8 @@
 namespace imresh
 {
 namespace algorithms
+{
+namespace cuda
 {
 
 
@@ -294,5 +296,6 @@ namespace algorithms
     }
 
 
+} // namespace cuda
 } // namespace algorithms
 } // namespace imresh

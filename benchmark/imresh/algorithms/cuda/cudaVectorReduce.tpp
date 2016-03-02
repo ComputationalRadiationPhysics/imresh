@@ -28,9 +28,9 @@
 #include <cstdio>
 #include <cstdint>    // uint64_t
 #include <limits>     // numeric_limits
-#include <cuda.h>     // atomicCAS, atomicAdd
-#include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include <cuda_to_cupla.hpp>     // atomicCAS, atomicAdd
+#include <cufft_to_cupla.hpp>    // cufftComplex, cufftDoubleComplex
+#include "libs/cudacommon.hpp"
 /**
  * Gives only compile errors, e.g.
  *    ptxas fatal   : Unresolved extern function '_ZN6imresh10algorithms4cuda10SumFunctorIfEclEff'
@@ -49,25 +49,28 @@ namespace cuda
 {
 
 
-    template<class T_PREC, class T_FUNC>
-    __device__ inline void atomicFunc
+    template< class T_ACC, class T_PREC, class T_FUNC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         T_PREC * rdpTarget,
         T_PREC rValue,
         T_FUNC f
     );
 
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+    template< class T_ACC, class T_FUNC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         float * rdpTarget,
         float rValue,
         T_FUNC f
     );
 
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+    template< class T_ACC, class T_FUNC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         double * rdpTarget,
         double rValue,
         T_FUNC f
@@ -79,26 +82,27 @@ namespace cuda
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
-        __device__ __host__ inline T operator() ( T a, T b )
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { if (a>b) return a; else return b; }
     };
     template<> struct MaxFunctor<float> {
-        __device__ __host__ inline float operator() ( float a, float b )
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline float operator() ( float a, float b )
         { return fmax(a,b); }
     };
 
 
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+    template< class T_ACC, class T_FUNC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         float * const rdpTarget,
         const float rValue,
         T_FUNC f
@@ -111,14 +115,15 @@ namespace cuda
         {
             assumed = old;
             old = atomicCAS( (uint32_t*) rdpTarget, assumed,
-                __float_as_int( f( __int_as_float(assumed), rValue ) ) );
+                (uint32_t) __float_as_int( f( __int_as_float(assumed), rValue ) ) );
         }
         while ( assumed != old );
     }
 
-    template<class T_FUNC>
-    __device__ inline void atomicFunc
+    template< class T_ACC, class T_FUNC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
+        T_ACC const & acc,
         double * const rdpTarget,
         const double rValue,
         T_FUNC f
@@ -136,10 +141,12 @@ namespace cuda
         while ( assumed != old );
     }
 
-
-    template<>
-    __device__ inline void atomicFunc<int,MaxFunctor<int>>
+    /*
+    template< class T_ACC >
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline
+    void atomicFunc< T_ACC, int, MaxFunctor<int> >
     (
+        T_ACC const & acc,
         int * const rdpTarget,
         const int rValue,
         MaxFunctor<int> f
@@ -147,163 +154,176 @@ namespace cuda
     {
         atomicMax( rdpTarget, rValue );
     }
+    */
 
+    template< class T_PREC, class T_FUNC >
+    struct kernelVectorReduceGlobalAtomic2
+    {
+        template< class T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC const * const rdpData,
+            unsigned int const rnData,
+            T_PREC * const rdpResult,
+            T_FUNC f,
+            T_PREC const rInitValue
+        ) const
+        {
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-    SumFunctor<float > sumFunctorf;
-    MinFunctor<float > minFunctorf;
-    MaxFunctor<float > maxFunctorf;
-    SumFunctor<double> sumFunctord;
-    MinFunctor<double> minFunctord;
-    MaxFunctor<double> maxFunctord;
+            const int32_t nTotalThreads = gridDim.x * blockDim.x;
+            int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            assert( i < nTotalThreads );
+
+            for ( ; i < rnData; i += nTotalThreads )
+                atomicFunc( acc, rdpResult, rdpData[i], f );
+        }
+    };
+
+    template<class T_PREC, class T_FUNC>
+    struct kernelVectorReduceGlobalAtomic
+    {
+        template< class T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC const * const rdpData,
+            unsigned int const rnData,
+            T_PREC * const rdpResult,
+            T_FUNC f,
+            T_PREC const rInitValue
+        ) const
+        {
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
+
+            const int32_t nTotalThreads = gridDim.x * blockDim.x;
+            int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            assert( i < nTotalThreads );
+
+            T_PREC localReduced = T_PREC(rInitValue);
+            for ( ; i < rnData; i += nTotalThreads )
+                localReduced = f( localReduced, rdpData[i] );
+
+            atomicFunc( acc, rdpResult, localReduced, f );
+        }
+    };
 
 
     template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceGlobalAtomic2
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
+    struct kernelVectorReduceSharedMemory
     {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
+        template< class T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC const * const rdpData,
+            unsigned int const rnData,
+            T_PREC * const rdpResult,
+            T_FUNC f,
+            T_PREC const rInitValue
+        ) const
+        {
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
+            const int32_t nTotalThreads = gridDim.x * blockDim.x;
+            int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            assert( i < nTotalThreads );
 
-        for ( ; i < rnData; i += nTotalThreads )
-            atomicFunc( rdpResult, rdpData[i], f );
-    }
+            T_PREC localReduced = T_PREC(rInitValue);
+            for ( ; i < rnData; i += nTotalThreads )
+                localReduced = f( localReduced, rdpData[i] );
 
+            sharedMem( smReduced, T_PREC );
+            /* master thread of every block shall set shared mem variable to 0 */
+            __syncthreads();
+            if ( threadIdx.x == 0 )
+                smReduced = T_PREC(rInitValue);
+            __syncthreads();
 
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceGlobalAtomic
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
+            atomicFunc( acc, &smReduced, localReduced, f );
 
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
-
-        T_PREC localReduced = T_PREC(rInitValue);
-        for ( ; i < rnData; i += nTotalThreads )
-            localReduced = f( localReduced, rdpData[i] );
-
-        atomicFunc( rdpResult, localReduced, f );
-    }
-
-
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
-
-        T_PREC localReduced = T_PREC(rInitValue);
-        for ( ; i < rnData; i += nTotalThreads )
-            localReduced = f( localReduced, rdpData[i] );
-
-        __shared__ T_PREC smReduced;
-        /* master thread of every block shall set shared mem variable to 0 */
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            smReduced = T_PREC(rInitValue);
-        __syncthreads();
-
-        atomicFunc( &smReduced, localReduced, f );
-
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            atomicFunc( rdpResult, smReduced, f );
-    }
-
+            __syncthreads();
+            if ( threadIdx.x == 0 )
+                atomicFunc( acc, rdpResult, smReduced, f );
+        }
+    };
 
     /**
      * benchmarks suggest that this kernel is twice as fast as
      * kernelVectorReduceShared
      **/
     template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
+    struct kernelVectorReduceSharedMemoryWarps
     {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
+        template< class T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC const * const rdpData,
+            unsigned int const rnData,
+            T_PREC * const rdpResult,
+            T_FUNC f,
+            T_PREC const rInitValue
+        ) const
+        {
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-        const int32_t nTotalThreads = gridDim.x * blockDim.x;
-        int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-        assert( i < nTotalThreads );
+            const int32_t nTotalThreads = gridDim.x * blockDim.x;
+            int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            assert( i < nTotalThreads );
 
-        T_PREC localReduced = T_PREC(rInitValue);
-        for ( ; i < rnData; i += nTotalThreads )
-            localReduced = f( localReduced, rdpData[i] );
+            T_PREC localReduced = T_PREC(rInitValue);
+            for ( ; i < rnData; i += nTotalThreads )
+                localReduced = f( localReduced, rdpData[i] );
 
-        /**
-         * reduce per warp:
-         * With __shfl_down we can read the register values of other lanes in
-         * a warp. In the first iteration lane 0 will add to it's value the
-         * value of lane 16, lane 1 from lane 17 and so in.
-         * In the next step lane 0 will add the result from lane 8.
-         * In the end lane 0 will have the reduced value.
-         * @see http://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
-         **/
-        constexpr int warpSize = 32;
-        const int32_t laneId = threadIdx.x % warpSize;
-        for ( int32_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
-            localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
+            /**
+             * reduce per warp:
+             * With __shfl_down we can read the register values of other lanes in
+             * a warp. In the first iteration lane 0 will add to it's value the
+             * value of lane 16, lane 1 from lane 17 and so in.
+             * In the next step lane 0 will add the result from lane 8.
+             * In the end lane 0 will have the reduced value.
+             * @see http://devblogs.nvidia.com/parallelforall/faster-parallel-reductions-kepler/
+             **/
+            //constexpr int warpSize = 32;
+            //const int32_t laneId = threadIdx.x % warpSize;
+            //for ( int32_t warpDelta = warpSize / 2; warpDelta > 0; warpDelta /= 2)
+            //    localReduced = f( localReduced, __shfl_down( localReduced, warpDelta ) );
 
-        __shared__ T_PREC smReduced;
-        /* master thread of every block shall set shared mem variable to 0 */
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            smReduced = T_PREC(rInitValue);
-        __syncthreads();
+            sharedMem( smReduced, T_PREC );
+            /* master thread of every block shall set shared mem variable to 0 */
+            __syncthreads();
+            if ( threadIdx.x == 0 )
+                smReduced = T_PREC(rInitValue);
+            __syncthreads();
 
-        if ( laneId == 0 )
-            atomicFunc( &smReduced, localReduced, f );
+            //if ( laneId == 0 )
+                atomicFunc( acc, &smReduced, localReduced, f );
 
-        __syncthreads();
-        if ( threadIdx.x == 0 )
-            atomicFunc( rdpResult, smReduced, f );
-    }
+            __syncthreads();
+            if ( threadIdx.x == 0 )
+                atomicFunc( acc, rdpResult, smReduced, f );
+        }
+    };
 
-
-    #define WRAP_REDUCE_WITH_FUNCTOR( NAME)                                    \
+    #define WARP_REDUCE_WITH_FUNCTOR( NAME)                                    \
     template<class T_PREC, class T_FUNC>                                       \
     T_PREC cudaReduce##NAME                                                    \
     (                                                                          \
@@ -332,7 +352,8 @@ namespace cuda
                                                                                \
         /* memcpy is on the same stream as kernel will be, so no synchronize   \
            needed! */                                                          \
-        kernelVectorReduce##NAME<<< nBlocks, nThreads, 0, rStream >>>          \
+        CUPLA_KERNEL( kernelVectorReduce##NAME< T_PREC, T_FUNC> )              \
+            ( nBlocks, nThreads, 0, rStream )                                  \
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );            \
                                                                                \
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );                        \
@@ -357,25 +378,14 @@ namespace cuda
         return cudaReduce##NAME( rdpData, rnElements, maxFunctor,              \
                                  std::numeric_limits<T_PREC>::lowest(),        \
                                  rStream );                                    \
-    }                                                                          \
-                                                                               \
-    /* explicit template instantiations */                                     \
-                                                                               \
-    template                                                                   \
-    float cudaVectorMax##NAME<float>                                           \
-    (                                                                          \
-        float const * const rdpData,                                           \
-        unsigned int const rnElements,                                         \
-        cudaStream_t rStream                                                   \
-    );
+    }
+    WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
+    WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
+    WARP_REDUCE_WITH_FUNCTOR( SharedMemory )
+    WARP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
+    #undef WARP_REDUCE_WITH_FUNCTOR
 
-
-    WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
-    WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
-    WRAP_REDUCE_WITH_FUNCTOR( SharedMemory )
-    WRAP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
-
-    inline __device__ uint32_t getLaneId( void )
+    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t getLaneId( void )
     {
         uint32_t id;
         asm("mov.u32 %0, %%laneid;" : "=r"(id));
@@ -383,7 +393,10 @@ namespace cuda
     }
 
     /* needs __CUDA_ARCH__ >= 200 */
-    inline __device__ uint32_t bfe
+    /**
+     * returns nBits starting from offset of src. Bit 0 is the lowest value.
+     **/
+    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t bfe
     (
         uint32_t src,
         uint32_t offset,
@@ -391,8 +404,12 @@ namespace cuda
     )
     {
         uint32_t result;
-        asm( "bfe.u32 %0, %1, %2, %3;" :
-             "=r"(result) : "r"(src), "r"(offset), "r"(nBits) );
+        #if false
+            asm( "bfe.u32 %0, %1, %2, %3;" :
+                 "=r"(result) : "r"(src), "r"(offset), "r"(nBits) );
+        #else
+            result = ( ( uint32_t(0xFFFF) >> (32-nBits) ) << offset ) & src;
+        #endif
         return result;
     }
 
@@ -400,14 +417,18 @@ namespace cuda
      * @see cudaKernelCalculateHioError
      **/
     template<class T_COMPLEX>
-    __global__ void cudaKernelCalculateHioErrorBitPacked
+    template< class T_ACC >
+    ALPAKA_FN_NO_INLINE_ACC
+    void cudaKernelCalculateHioErrorBitPacked< T_COMPLEX>
+    ::template operator()
     (
+        T_ACC const & acc,
         T_COMPLEX  const * const __restrict__ rdpData,
         uint32_t   const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         float * const __restrict__ rdpTotalError,
         float * const __restrict__ rdpnMaskedPixels
-    )
+    ) const
     {
         /**
          * @see http://www.pixel.io/blog/2012/4/19/does-anyone-actually-use-cudas-built-in-warpsize-variable.html
@@ -415,10 +436,10 @@ namespace cuda
          * it is not known at compile time, meaning some optimizations like
          * loop unrolling won't work. That's the reason for this roundabout way
          **/
-        constexpr int cWarpSize = 32;
-        static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
-        assert( cWarpSize  == warpSize );
-        assert( blockDim.x == cWarpSize );
+        //constexpr int cWarpSize = 32;
+        //static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
+        //assert( cWarpSize  == warpSize );
+        //assert( blockDim.x == cWarpSize );
         assert( blockDim.y == 1 );
         assert( blockDim.z == 1 );
         assert( gridDim.y  == 1 );
@@ -443,18 +464,18 @@ namespace cuda
             localnMaskedPixels += shouldBeZero;
         }
 
-        #pragma unroll
-        for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
-        {
-            localTotalError    += __shfl_down( localTotalError   , warpDelta );
-            localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
-        }
-
-        if ( getLaneId() == 0 )
-        {
+        //#pragma unroll
+        //for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
+        //{
+        //    localTotalError    += __shfl_down( localTotalError   , warpDelta );
+        //    localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
+        //}
+        //
+        //if ( getLaneId() == 0 )
+        //{
             atomicAdd( rdpTotalError   , localTotalError    );
             atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
-        }
+        //}
     }
 
 
@@ -484,7 +505,8 @@ namespace cuda
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
-        cudaKernelCalculateHioErrorBitPacked<<< nBlocks, nThreads, 0, rStream >>>
+        CUPLA_KERNEL( cudaKernelCalculateHioErrorBitPacked<T_COMPLEX> )
+            ( nBlocks, nThreads, 0, rStream )
             ( rdpData, rdpIsMasked, rnElements, dpTotalError, dpnMaskedPixels );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
@@ -502,32 +524,6 @@ namespace cuda
 
         return sqrtf(totalError) / nMaskedPixels;
     }
-
-
-
-    /* explicit template instantiations */
-
-    template
-    __global__ void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
-    (
-        cufftComplex const * const __restrict__ rdpgPrime,
-        uint32_t     const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    );
-
-    template
-    float cudaCalculateHioErrorBitPacked<cufftComplex>
-    (
-        cufftComplex const * const rdpData,
-        uint32_t  const * const rdpIsMasked,
-        unsigned int const rnElements,
-        bool const rInvertMask,
-        cudaStream_t rStream,
-        float * const rpTotalError,
-        float * const rpnMaskedPixels
-    );
 
 
 } // namespace cuda

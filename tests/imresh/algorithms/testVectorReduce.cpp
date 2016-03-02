@@ -43,7 +43,8 @@
 #   include "libs/hybridInputOutput.hpp"
 #endif
 #include "algorithms/vectorReduce.hpp"
-//#include "benchmark/imresh/algorithms/cudaVectorReduce.hpp"
+#include "algorithms/cuda/cudaVectorReduce.hpp"
+#include "benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp"
 #include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
@@ -74,8 +75,9 @@ namespace algorithms
     void testVectorReduce( void )
     {
         using namespace std::chrono;
-        //using namespace benchmark::imresh::algorithms;
+        using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::algorithms;
+        using namespace imresh::algorithms::cuda;
 
         const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
         auto pData = new float[nMaxElements];
@@ -88,9 +90,9 @@ namespace algorithms
         CUDA_ERROR( cudaMemcpy( dpData, pData, nMaxElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
         /* Test for array of length 1 */
-        //assert( vectorMin( pData, 1 ) == pData[0] );
-        //assert( vectorMax( pData, 1 ) == pData[0] );
-        //assert( vectorSum( pData, 1 ) == pData[0] );
+        assert( vectorMin( pData, 1 ) == pData[0] );
+        assert( vectorMax( pData, 1 ) == pData[0] );
+        assert( vectorSum( pData, 1 ) == pData[0] );
         assert( cudaVectorMin( dpData, 1 ) == pData[0] );
         assert( cudaVectorMax( dpData, 1 ) == pData[0] );
         assert( cudaVectorSum( dpData, 1 ) == pData[0] );
@@ -108,7 +110,8 @@ namespace algorithms
 
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "vector length : cudaVectorMax (global atomic) | cudaVectorMax (global atomic) | cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
+        std::cout << "# Timings are in milliseconds, but note that measurements are repeated " << nRepetitions << " times, meaning they take that much longer than the value displayed\n";
+        std::cout << "# vector length : cudaVectorMax (global atomic) | cudaVectorMax (global atomic) | cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
         using namespace imresh::tests;
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
@@ -146,7 +149,7 @@ namespace algorithms
             //TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
             //TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
             //TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
-            TIME_GPU( cudaVectorMax                 , obviousMaximum )
+            //TIME_GPU( cudaVectorMax                 , obviousMaximum )
 
             /* time CPU */
             #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
@@ -166,14 +169,20 @@ namespace algorithms
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
 
-            //TIME_CPU( vectorMax, obviousMaximum )
+            TIME_CPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
+            TIME_CPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
+            TIME_CPU( cudaVectorMaxSharedMemory     , obviousMaximum )
+            TIME_CPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
+            TIME_CPU( cudaVectorMax                 , obviousMaximum )
+
+            TIME_CPU( vectorMax, obviousMaximum )
 
             /* Minimum */
             pData[iObviousValuePos] = obviousMinimum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
             TIME_GPU( cudaVectorMin, obviousMinimum )
-            //TIME_CPU( vectorMin, obviousMinimum )
+            TIME_CPU( vectorMin, obviousMinimum )
 
             /* set obvious value back to random value */
             pData[iObviousValuePos] = (float) rand() / RAND_MAX;

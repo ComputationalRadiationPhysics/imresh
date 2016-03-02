@@ -22,9 +22,22 @@
  * SOFTWARE.
  */
 
+#include "cudaVectorReduce.hpp"
+#include "cudaVectorReduce.tpp"
 
-#include "vectorReduce.hpp"
-#include "vectorReduce.tpp"
+#include <cassert>
+#include <cstdio>
+#include <cstdint>    // uint64_t
+#include <limits>     // numeric_limits
+#include <cuda_to_cupla.hpp>     // atomicCAS, atomicAdd
+#include <cufft_to_cupla.hpp>    // cufftComplex, cufftDoubleComplex
+#include "libs/cudacommon.hpp"
+/**
+ * Gives only compile errors, e.g.
+ *    ptxas fatal   : Unresolved extern function '_ZN6imresh10algorithms4cuda10SumFunctorIfEclEff'
+ * so I justd copy-pasted the functors here ...
+ **/
+//#include "algorithms/cuda/cudaVectorReduce.hpp" // maxFunctor, atomicFunc
 
 
 namespace benchmark
@@ -32,6 +45,8 @@ namespace benchmark
 namespace imresh
 {
 namespace algorithms
+{
+namespace cuda
 {
 
 
@@ -42,17 +57,15 @@ namespace algorithms
     MinFunctor<double> minFunctord;
     MaxFunctor<double> maxFunctord;
 
-
     /* explicit template instantiations */
 
-
-    #define INSTANTIATE_TMP( NAME )     \
-    template                            \
-    float cudaVectorMax##NAME<float>    \
-    (                                   \
-        float const * const rdpData,    \
-        unsigned int const rnElements,  \
-        cudaStream_t rStream            \
+    #define INSTANTIATE_TMP( NAME)          \
+    template                                \
+    float cudaVectorMax##NAME<float>        \
+    (                                       \
+        float const * const rdpData,        \
+        unsigned int const rnElements,      \
+        cudaStream_t rStream                \
     );
     INSTANTIATE_TMP( GlobalAtomic2 )
     INSTANTIATE_TMP( GlobalAtomic )
@@ -60,15 +73,19 @@ namespace algorithms
     INSTANTIATE_TMP( SharedMemoryWarps )
     #undef INSTANTIATE_TMP
 
+    #include "libs/alpaka_T_ACC.hpp"
+
     template
-    __global__ void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
+    ALPAKA_FN_NO_INLINE_ACC void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
+    ::template operator()
     (
+        T_ACC const & acc,
         cufftComplex const * const __restrict__ rdpgPrime,
         uint32_t     const * const __restrict__ rdpIsMasked,
         unsigned int const rnData,
         float * const __restrict__ rdpTotalError,
         float * const __restrict__ rdpnMaskedPixels
-    );
+    ) const;
 
     template
     float cudaCalculateHioErrorBitPacked<cufftComplex>
@@ -82,7 +99,10 @@ namespace algorithms
         float * const rpnMaskedPixels
     );
 
+    #undef T_ACC
 
+
+} // namespace cuda
 } // namespace algorithms
 } // namespace imresh
 } // namespace benchmark

@@ -87,10 +87,14 @@ endif()
 file( GLOB_RECURSE SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
@@ -145,9 +149,9 @@ endif()
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
     file( GLOB_RECURSE BENCHMARK_SOURCE_FILES
-        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.cpp
-        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.hpp
-        #${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/vectorReduce.tpp
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.cpp
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.tpp
     )
     alpaka_add_library( "benchmark" ${BENCHMARK_SOURCE_FILES} STATIC )
     target_link_libraries("benchmark" ${PROJECT_NAME})

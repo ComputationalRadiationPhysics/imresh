@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-#include "vectorReduce.hpp"
+#include "cudaVectorReduce.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -37,6 +37,8 @@
 namespace imresh
 {
 namespace algorithms
+{
+namespace cuda
 {
 
 
@@ -379,5 +381,6 @@ namespace algorithms
     }
 
 
+} // namespace cuda
 } // namespace algorithms
 } // namespace imresh

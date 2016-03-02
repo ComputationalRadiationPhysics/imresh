@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <cuda_runtime_api.h>   // cudaStream_t
+#include <cuda_to_cupla.hpp>   // cudaStream_t
 #include <cstdint>              // uint32_t
 #include <cstddef>              // NULL
 
@@ -56,14 +56,20 @@ namespace cuda
 
 
     template<class T_COMPLEX>
-    __global__ void cudaKernelCalculateHioErrorBitPacked
-    (
-        T_COMPLEX const * const __restrict__ rdpgPrime,
-        uint32_t  const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    );
+    struct cudaKernelCalculateHioErrorBitPacked
+    {
+        template< typename T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX const * const __restrict__ rdpgPrime,
+            uint32_t  const * const __restrict__ rdpIsMasked,
+            unsigned int const rnData,
+            float * const __restrict__ rdpTotalError,
+            float * const __restrict__ rdpnMaskedPixels
+        ) const;
+    };
 
     template<class T_COMPLEX>
     float cudaCalculateHioErrorBitPacked

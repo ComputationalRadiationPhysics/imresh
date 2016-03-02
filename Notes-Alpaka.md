@@ -91,3 +91,59 @@ alpakaAddLibrary
 ./convertToCupla.sh ./imresh/src/imresh/algorithms/vectorReduce.tpp
 
 ToDo: Remove #if false from testVectorReduce.cpp and include more and more tests ...
+
+compile error cupla matrixMul example with CUDA
+    [ 40%] Building NVCC (Device) object CMakeFiles/matrixMul.dir/src/matrixMul_generated_matrixMul.cpp.o
+    [ 50%] Building NVCC (Device) object CMakeFiles/matrixMul.dir/__/__/__/src/matrixMul_generated_memory.cpp.o
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/stream/Traits.hpp(75): error: incomplete type is not allowed
+              detected during:
+                instantiation of "auto alpaka::stream::enqueue(TStream &, TTask &&)->void [with TStream=cupla::AccStream, TTask=alpaka::mem::view::cpu::detail::TaskCopy<cupla::HostBufWrapper<1U>, cupla::HostBufWrapper<1U>, alpaka::Vec<cupla::AlpakaDim<1U>, cupla::MemSizeType>>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/mem/view/Traits.hpp(436): here
+                instantiation of "auto alpaka::mem::view::copy(TStream &, TViewDst &, const TViewSrc &, const TExtent &)->void [with TExtent=alpaka::Vec<cupla::AlpakaDim<1U>, cupla::MemSizeType>, TViewSrc=cupla::HostBufWrapper<1U>, TViewDst=cupla::HostBufWrapper<1U>, TStream=cupla::AccStream]" 
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/src/memory.cpp(331): here
+
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/stream/Traits.hpp(75): error: incomplete type is not allowed
+              detected during:
+                instantiation of "auto alpaka::stream::enqueue(TStream &, TTask &&)->void [with TStream=cupla::AccStream, TTask=alpaka::mem::view::cpu::detail::TaskCopy<cupla::HostBufWrapper<2U>, cupla::HostBufWrapper<2U>, alpaka::Vec<cupla::AlpakaDim<2U>, cupla::MemSizeType>>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/mem/view/Traits.hpp(436): here
+                instantiation of "auto alpaka::mem::view::copy(TStream &, TViewDst &, const TViewSrc &, const TExtent &)->void [with TExtent=alpaka::Vec<cupla::AlpakaDim<2U>, cupla::MemSizeType>, TViewSrc=cupla::HostBufWrapper<2U>, TViewDst=cupla::HostBufWrapper<2U>, TStream=cupla::AccStream]" 
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/src/memory.cpp(605): here
+
+    2 errors detected in the compilation of "/tmp/tmpxft_00004d92_00000000-7_memory.cpp1.ii".
+    CMake Error at matrixMul_generated_memory.cpp.o.cmake:266 (message):
+      Error generating file /media/d/Studium/9TH
+      SEMESTER/imresh/cupla/build/CMakeFiles/matrixMul.dir/__/__/__/src/./matrixMul_generated_memory.cpp.o
+
+
+    CMakeFiles/matrixMul.dir/build.make:5099: recipe for target 'CMakeFiles/matrixMul.dir/__/__/__/src/matrixMul_generated_memory.cpp.o' failed
+    make[2]: *** [CMakeFiles/matrixMul.dir/__/__/__/src/matrixMul_generated_memory.cpp.o] Error 1
+    CMakeFiles/Makefile2:141: recipe for target 'CMakeFiles/matrixMul.dir/all' failed
+    make[1]: *** [CMakeFiles/matrixMul.dir/all] Error 2
+    Makefile:83: recipe for target 'all' failed
+    make: *** [all] Error 2
+
+Problem getting workdiv ... 
+
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/workdiv/Traits.hpp(71): error: calling a __device__ function("getWorkDiv") from a __host__ __device__ function("getWorkDiv") is not allowed
+              detected during:
+                instantiation of "auto alpaka::workdiv::getWorkDiv<TOrigin,TUnit,TWorkDiv>(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv>, alpaka::size::Size<TWorkDiv>> [with TOrigin=alpaka::origin::Block, TUnit=alpaka::unit::Threads, TWorkDiv=alpaka::workdiv::WorkDivCudaBuiltIn<cupla::KernelDim, cupla::IdxType>]" 
+    (136): here
+                instantiation of "auto alpaka::workdiv::traits::GetWorkDiv<TWorkDiv, alpaka::origin::Block, alpaka::unit::Threads, std::enable_if<<expression>, void>::type>::getWorkDiv(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv::WorkDivBase>, alpaka::size::Size<TWorkDiv::WorkDivBase>> [with TWorkDiv=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    (71): here
+                instantiation of "auto alpaka::workdiv::getWorkDiv<TOrigin,TUnit,TWorkDiv>(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv>, alpaka::size::Size<TWorkDiv>> [with TOrigin=alpaka::origin::Block, TUnit=alpaka::unit::Threads, TWorkDiv=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/src/imresh/algorithms/vectorElementwise.tpp(59): here
+                instantiation of "void imresh::algorithms::cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>::operator()(const T_ACC &, T_COMPLEX *, const T_COMPLEX *, const T_PREC *, unsigned int, T_PREC) const [with T_COMPLEX=cufftComplex, T_PREC=float, T_ACC=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/src/imresh/algorithms/vectorElementwise.cpp(54): here
+
+    /media/d/Studium/9TH SEMESTER/imresh/cupla/alpaka/include/alpaka/workdiv/Traits.hpp(71): error: calling a __device__ function("getWorkDiv") from a __host__ __device__ function("getWorkDiv") is not allowed
+              detected during:
+                instantiation of "auto alpaka::workdiv::getWorkDiv<TOrigin,TUnit,TWorkDiv>(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv>, alpaka::size::Size<TWorkDiv>> [with TOrigin=alpaka::origin::Grid, TUnit=alpaka::unit::Blocks, TWorkDiv=alpaka::workdiv::WorkDivCudaBuiltIn<cupla::KernelDim, cupla::IdxType>]" 
+    (107): here
+                instantiation of "auto alpaka::workdiv::traits::GetWorkDiv<TWorkDiv, alpaka::origin::Grid, alpaka::unit::Blocks, std::enable_if<<expression>, void>::type>::getWorkDiv(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv::WorkDivBase>, alpaka::size::Size<TWorkDiv::WorkDivBase>> [with TWorkDiv=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    (71): here
+                instantiation of "auto alpaka::workdiv::getWorkDiv<TOrigin,TUnit,TWorkDiv>(const TWorkDiv &)->alpaka::Vec<alpaka::dim::Dim<TWorkDiv>, alpaka::size::Size<TWorkDiv>> [with TOrigin=alpaka::origin::Grid, TUnit=alpaka::unit::Blocks, TWorkDiv=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/src/imresh/algorithms/vectorElementwise.tpp(61): here
+                instantiation of "void imresh::algorithms::cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>::operator()(const T_ACC &, T_COMPLEX *, const T_COMPLEX *, const T_PREC *, unsigned int, T_PREC) const [with T_COMPLEX=cufftComplex, T_PREC=float, T_ACC=alpaka::acc::AccGpuCudaRt<cupla::KernelDim, cupla::IdxType>]" 
+    /media/d/Studium/9TH SEMESTER/imresh/src/imresh/algorithms/vectorElementwise.cpp(54): here
+
+

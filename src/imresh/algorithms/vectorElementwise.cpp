@@ -24,7 +24,12 @@
 
 
 #include "vectorElementwise.hpp"
-#include "vectorElementwise.tpp"
+
+#include <algorithm>  // max
+#include <cmath>
+#ifdef USE_FFTW
+#   include <fftw3.h>
+#endif
 
 
 namespace imresh
@@ -33,117 +38,76 @@ namespace algorithms
 {
 
 
-    /* explicit instantiations */
-
-    #include "libs/alpaka_T_ACC.hpp"
-    #define inline
-
-    #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )            \
-    template                                                \
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void                  \
-    cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>  \
-    ::template operator()<T_ACC>                            \
-    (                                                       \
-        T_ACC const & acc,                                  \
-        T_COMPLEX       * const rdpgPrevious,               \
-        T_COMPLEX const * const rdpgPrime,                  \
-        T_PREC    const * const rdpIsMasked,                \
-        unsigned int const rnElements,                      \
-        T_PREC const rHioBeta                               \
-    ) const;
-    INSTANTIATE_TMP( cufftComplex, float )
-    #undef INSTANTIATE_TMP
-
-    template
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-    void
-    cudaKernelCopyToRealPart<cufftComplex,float>
-    ::template operator()<T_ACC>
+    template< class T_PREC, class T_COMPLEX >
+    void complexNormElementwise
     (
-        T_ACC const & acc,
-        cufftComplex * const rTargetComplexArray,
-        float * const rSourceRealArray,
-        unsigned int const rnElements
-    ) const;
+        T_PREC          * const __restrict__ rDataTarget,
+        T_COMPLEX const * const __restrict__ rDataSource,
+        unsigned int const rnData
+    )
+    {
+        #pragma omp parallel for
+        for ( auto i = 0u; i < rnData; ++i )
+        {
+            auto const re = rDataSource[i][0];
+            auto const im = rDataSource[i][1];
+            rDataTarget[i] = std::sqrt( re*re + im*im );
+        }
+    }
 
-    template
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void
-    cudaKernelCopyFromRealPart<float,cufftComplex>
-    ::template operator()<T_ACC>
+
+    template< class T_COMPLEX, class T_PREC >
+    void applyComplexModulus
     (
-        T_ACC const & acc,
-        float * const rTargetComplexArray,
-        cufftComplex * const rSourceRealArray,
-        unsigned int const rnElements
-    ) const;
+        T_COMPLEX       * const __restrict__ rData,
+        T_PREC    const * const __restrict__ rComplexModulus,
+        unsigned int const rnData
+    )
+    {
+        #pragma omp parallel for
+        for ( auto i = 0u; i < rnData; ++i )
+        {
+            auto const re = rData[i][0];
+            auto const im = rData[i][1];
 
+            auto norm = std::sqrt( re*re + im*im );
+            if ( norm == 0 )
+                norm = 1;
 
-    #define INSTANTIATE_TMP( T_PREC, T_COMPLEX )        \
-    template                                            \
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void              \
-    cudaKernelComplexNormElementwise<T_PREC,T_COMPLEX>  \
-    ::template operator()<T_ACC>                        \
-    (                                                   \
-        T_ACC const & acc,                              \
-        T_PREC * const rdpDataTarget,                   \
-        T_COMPLEX const * const rdpDataSource,          \
-        unsigned int const rnElements                   \
-    ) const;
-    INSTANTIATE_TMP( float, cufftComplex )
-    INSTANTIATE_TMP( cufftComplex, cufftComplex )
-    #undef INSTANTIATE_TMP
+            auto const factor = rComplexModulus[i] / norm;
+            rData[i][0] = re * factor;
+            rData[i][1] = im * factor;
+        }
+    }
 
-    #define INSTANTIATE_TMP( T_PREC, T_COMPLEX )        \
-    template                                            \
-    void cudaComplexNormElementwise<T_PREC, T_COMPLEX>  \
-    (                                                   \
-        T_PREC * const rdpDataTarget,                   \
-        T_COMPLEX const * const rdpDataSource,          \
-        unsigned int const rnElements,                  \
-        cudaStream_t const rStream,                     \
-        bool const rAsync                               \
-    );
-    INSTANTIATE_TMP( float, cufftComplex )
-    INSTANTIATE_TMP( cufftComplex, cufftComplex )
-    #undef INSTANTIATE_TMP
+    /* explicitely instantiate needed data types */
+    #ifdef USE_FFTW
+        template void complexNormElementwise<float,fftwf_complex>
+        (
+            float               * const __restrict__ rDataTarget,
+            fftwf_complex const * const __restrict__ rDataSource,
+            unsigned int const rnData
+        );
+        template void complexNormElementwise<double,fftw_complex>
+        (
+            double             * const __restrict__ rDataTarget,
+            fftw_complex const * const __restrict__ rDataSource,
+            unsigned int const rnData
+        );
 
-    #define INSTANTIATE_TMP( T_COMPLEX, T_PREC )    \
-    template                                        \
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void          \
-    cudaKernelApplyComplexModulus<T_COMPLEX,T_PREC> \
-    ::template operator()<T_ACC>                    \
-    (                                               \
-        T_ACC const & acc,                          \
-        T_COMPLEX * const rdpDataTarget,            \
-        T_COMPLEX const * const rdpDataSource,      \
-        T_PREC const * const rdpComplexModulus,     \
-        unsigned int const rnElements               \
-    ) const;
-    INSTANTIATE_TMP( cufftComplex, float )
-    #undef INSTANTIATE_TMP
-
-    #define INSTANTIATE_TMP( T_PREC )               \
-    template                                        \
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY               \
-    void cudaKernelCutOff<T_PREC>                   \
-    ::template operator()<T_ACC>                    \
-    (                                               \
-        T_ACC const & acc,                          \
-        T_PREC * const rData,                       \
-        unsigned int const rnElements,              \
-        T_PREC const rThreshold,                    \
-        T_PREC const rLowerValue,                   \
-        T_PREC const rUpperValue                    \
-    ) const;
-    INSTANTIATE_TMP( float )
-    INSTANTIATE_TMP( double )
-    #undef INSTANTIATE_TMP
-
-    /* this is necessray after including "libs/alapaka_T_ACC.hpp" or else
-     * you will run into many errors when trying to use T_ACC as a simple
-     * template parameter after this point */
-    #undef T_ACC
-    #undef inline
+        template void applyComplexModulus<fftwf_complex,float>
+        (
+            fftwf_complex      * const __restrict__ rData,
+            float        const * const __restrict__ rComplexModulus,
+            unsigned int const rnData
+        );
+        template void applyComplexModulus<fftw_complex,double>
+        (
+            fftw_complex       * const __restrict__ rData,
+            double       const * const __restrict__ rComplexModulus,
+            unsigned int const rnData
+        );
+    #endif
 
 
 } // namespace algorithms

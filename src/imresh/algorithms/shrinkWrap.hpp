@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include <vector>
+
 
 namespace imresh
 {
@@ -33,49 +35,21 @@ namespace algorithms
 
 
     /**
-     * Calculate the maximum absolute difference between to arrays
-     *
-     * Useful for comparing two vectors of floating point numbers
+     * The exact same as @see cudaShrinkWrap
      **/
-    template<class T_PREC>
-    T_PREC vectorMaxAbsDiff
+    int shrinkWrap
     (
-        T_PREC const * rData1,
-        T_PREC const * rData2,
-        unsigned int rnData,
-        unsigned int rnStride = 1
-    );
-
-    template<class T_PREC>
-    T_PREC vectorMaxAbs
-    (
-        T_PREC const * rData,
-        unsigned int rnData,
-        unsigned int rnStride = 1
-    );
-
-    template<class T_PREC>
-    T_PREC vectorMax
-    (
-        T_PREC const * rData,
-        unsigned int rnData,
-        unsigned int rnStride = 1
-    );
-
-    template<class T_PREC>
-    T_PREC vectorMin
-    (
-        T_PREC const * rData,
-        unsigned int rnData,
-        unsigned int rnStride = 1
-    );
-
-    template<class T_PREC>
-    T_PREC vectorSum
-    (
-        T_PREC const * rData,
-        unsigned int rnData,
-        unsigned int rnStride = 1
+        float * const rIoData,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        unsigned int rnCycles = 20,
+        float rTargetError = 1e-5,
+        float rHioBeta = 0.9,
+        float rIntensityCutOffAutoCorel = 0.04,
+        float rIntensityCutOff = 0.20,
+        float sigma0 = 3.0,
+        float rSigmaChange = 0.01,
+        unsigned int rnHioCycles = 20
     );
 
 
