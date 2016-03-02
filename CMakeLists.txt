@@ -98,6 +98,23 @@ file( GLOB_RECURSE SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.hpp
+    # makes use of cufft and only cufft, therefore could be a nice test example for a cufft_to_cupla.hpp test
+    #${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.cpp
+    #${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.hpp
 )
 message( "SOURCE_FILES = ${SOURCE_FILES}" )
 include_directories(
@@ -171,6 +188,12 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
+        #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
+        #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.hpp
         ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
     )
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )

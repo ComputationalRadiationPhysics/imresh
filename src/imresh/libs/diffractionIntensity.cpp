@@ -29,9 +29,9 @@
 #ifdef USE_FFTW
 #   include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
 #else
-#   include <cuda_runtime_api.h>
-#   include <cufft.h>
-#   include "libs/cudacommon.h"
+#   include <cuda_to_cupla.hpp>
+#   include <cufft_to_cupla.hpp>
+#   include "libs/cudacommon.hpp"
 #   include "libs/checkCufftError.hpp"
 #   include "algorithms/cuda/cudaVectorElementwise.hpp"
 #endif

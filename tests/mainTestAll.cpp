@@ -27,24 +27,26 @@
 //#include "imresh/algorithms/testGaussian.hpp"
 #include "imresh/algorithms/testVectorReduce.hpp"
 #include "imresh/algorithms/testVectorElementwise.hpp"
-//#include "imresh/libs/testVectorIndex.hpp"
-//#include "imresh/io/testReadWrite.hpp"
+#include "imresh/libs/testVectorIndex.hpp"
+#include "imresh/io/testReadWrite.hpp"
 //#include "imresh/algorithms/testShrinkWrap.hpp"
 
 
 int main( void )
 {
     using namespace imresh::algorithms;
-    //using namespace imresh::libs;
-    //using namespace imresh::io;
+    using namespace imresh::libs;
+    using namespace imresh::io;
 
     //testFft();
     //testShrinkWrap();
-    //testPng();
+    #ifdef USE_PNG
+        testPng();
+    #endif
 
-    //testVectorIndex();
-    //testUnpackBitMask();
-    //testCalculateHioError();
+    testVectorIndex();
+    testUnpackBitMask();
+    testCalculateHioError();
     testVectorReduce();
     testVectorElementwise();
 

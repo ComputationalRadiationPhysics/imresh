@@ -27,7 +27,7 @@
 
 #include <utility>
 #ifndef USE_FFTW
-#   include <cuda_runtime_api.h>
+#   include <cuda_to_cupla.hpp>
 #endif
 
 

@@ -90,7 +90,7 @@ namespace libs
      **/
     unsigned fftShiftIndex
     (
-        unsigned int const rLinearIndex,
+        unsigned int rLinearIndex,
         std::vector<unsigned int> const rSize
     );
 
