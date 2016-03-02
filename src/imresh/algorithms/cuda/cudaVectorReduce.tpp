@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+
+#pragma once
+
+
 #include "cudaVectorReduce.hpp"
 
 #include <cassert>

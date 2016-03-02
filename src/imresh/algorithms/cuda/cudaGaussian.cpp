@@ -23,13 +23,12 @@
  */
 
 
-#pragma once
+#include "cudaGaussian.hpp"
+#include "cudaGaussian.tpp"
 
-#include <cuda_runtime_api.h>    // cudaStream_t
+#include <cuda_to_cupla.hpp>    // cudaStream_t
 
 
-namespace benchmark
-{
 namespace imresh
 {
 namespace algorithms
@@ -38,25 +37,31 @@ namespace cuda
 {
 
 
-    /**
-     * Should only be used for benchmarking purposes.
-     *
-     * Makes use of constant memory to store the kernel.
-     * @see cudaGaussianBlurHorizontal
-     **/
-    template<class T_PREC>
-    void cudaGaussianBlurHorizontalConstantWeights
-    (
-        T_PREC * rdpData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream = 0,
-        bool rAsync = false
+    /* Explicitely instantiate certain template arguments to make an object file */
+
+    #define INSTANTIATE_TMP( NAME, T_PREC )         \
+    template void cudaGaussianBlur##NAME< T_PREC >  \
+    (                                               \
+        T_PREC * rData,                             \
+        unsigned int rnDataX,                       \
+        unsigned int rnDataY,                       \
+        double rSigma,                              \
+        cudaStream_t rStream,                       \
+        bool rAsync                                 \
     );
+
+    INSTANTIATE_TMP( , float )
+    INSTANTIATE_TMP( , double )
+    INSTANTIATE_TMP( SharedWeights, float )
+    INSTANTIATE_TMP( SharedWeights, double )
+    INSTANTIATE_TMP( Vertical, float )
+    INSTANTIATE_TMP( Vertical, double )
+    INSTANTIATE_TMP( HorizontalSharedWeights, float )
+    INSTANTIATE_TMP( HorizontalSharedWeights, double )
+
+    #undef INSTANTIATE_TMP
 
 
 } // namespace cuda
 } // namespace algorithms
 } // namespace imresh
-} // namespace benchmark

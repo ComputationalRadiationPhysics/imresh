@@ -35,13 +35,13 @@
 #include <vector>
 #include <cmath>
 #include <cfloat>    // FLT_MAX, FLT_EPSILON
-#include <cuda_runtime.h>
+#include <cuda_to_cupla.hpp>
 #include "algorithms/vectorReduce.hpp"
-#include "algorithms/cuda/cudaGaussian.h"
-#include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
+#include "algorithms/cuda/cudaGaussian.hpp"
+//#include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
 #include "libs/gaussian.hpp"
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 
@@ -218,7 +218,7 @@ namespace algorithms
     {
         using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
-        using namespace benchmark::imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* test gaussian blur for 000100010001000 where the number of 0s
@@ -340,7 +340,7 @@ namespace algorithms
     void TestGaussian::testGaussianRandomSingleData( void )
     {
         using namespace imresh::algorithms::cuda;
-        using namespace benchmark::imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Test for array of length 1. In this case the values shouldn't change
@@ -400,7 +400,7 @@ namespace algorithms
     void TestGaussian::testGaussianConstantValuesPerRowLine( void )
     {
         using namespace imresh::algorithms::cuda;
-        using namespace benchmark::imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* now do checks with longer arrays which contain constant values,
@@ -483,7 +483,7 @@ namespace algorithms
     void TestGaussian::testGaussianConstantValues( void )
     {
         using namespace imresh::algorithms::cuda;
-        using namespace benchmark::imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         std::cout << "Test gaussian blur of vectors of whose rows or columns (depending on whether to use vertical or horizontal blur) are all equal" << std::flush;
@@ -548,7 +548,7 @@ namespace algorithms
     {
         using namespace std::chrono;
         using namespace imresh::algorithms::cuda;
-        using namespace benchmark::imresh::algorithms::cuda;
+        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Now test with random data and assert only some general properties */
@@ -582,6 +582,7 @@ namespace algorithms
                              << std::setw(5) << nRows << ") : ";
 
             /* time CUDA horizontal blur (constant memory kernel) */
+            /*
             minTime = FLT_MAX;
             for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
             {
@@ -600,6 +601,7 @@ namespace algorithms
                 checkGaussianHorizontal( pResult, pData, nCols, nRows );
             }
             std::cout << std::setw(8) << minTime << " |" << std::flush;
+            */
 
             /* time CUDA horizontal blur (shared memory kernel) */
             minTime = FLT_MAX;

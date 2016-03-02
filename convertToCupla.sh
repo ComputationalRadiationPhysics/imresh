@@ -10,7 +10,9 @@ if test -z "$file" || ( [ $isHpp -eq 0 ] && [ $isCpp -eq 0 ] && [ $isTpp -eq 0 ]
 fi
 
 
-trash -f $file.old
+if test -f $file.old; then
+    trash $file.old
+fi
 cp $file $file.old
 if [ -f $file.old ]; then
     echo "Created backup in $file.old"
@@ -25,7 +27,7 @@ echo ""
 
 # replace cuda.h with cuda_to_cupla.h (leaving all spaces untouched)
 sed -r -i 's|^([^/]*)#([ \t]*)include([ \t]*)<([ \t]*)cuda.*\.h([ \t]*)>|\1#\2include\3<\4cuda_to_cupla.hpp\5>|' $file
- cv
+
 # cufft.h -> cufft_to_cupla.hpp (if not commented out)
 #sed -r -i 's|^([^[/]]*)(#[ \t]*include[ \t]*<[ \t]*cufft\.h[ \t]*>)|//\1\2|' $file
 sed -r -i 's|^([^/]*)#([ \t]*)include([ \t]*)<([ \t]*)cufft\.h([ \t]*)>|\1#\2include\3<\4cufft_to_cupla.hpp\5>|' $file
@@ -46,6 +48,7 @@ if grep -q '__device__' $file; then
           <oldArguments>
       )
 
+    You can search for those functions by searching for 'ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY' (instead of __device__)
     And also add 'acc' as the first parameter to all those device function calls. Note that 'acc' is only available form inside kernels by default.
     Currently this is not done automatically, because a simple sed script can't remember what function calls are device functions and also if those device functions really need 'acc'. It may not add much overhead, but it may seem useless from a user perspective. Furthermore if the function is already templated, then instead of prepending a 'template <class T_ACC>' we would have to insert 'class T_ACC,' at the right position, which is hard to detect with sed.
     "
@@ -63,11 +66,16 @@ sed -r -i 's|__device__|ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY|' $file
 # kind of usage:
 #   #define macro(NAME) \
 #   kernelVectorReduce##NAME<<< ... >>>(...)
+foundKernels=0
 if grep -q '<<<' $file; then
-    echo "Found some kernel calls which were replaced with CUPLA_KERNEL( kernelName )( ... ). Please note, that in the case of templated kernels you will have to add the kernel parameters manually in order to give a data type to CUPLA_KERNEL, i.e. CUPLA_KERNEL( kernelName<T,P> )( ... )"
+    echo "  - Found some kernel calls which were replaced with CUPLA_KERNEL( kernelName )( ... ). Please note, that in the case of templated kernels you will have to add the kernel parameters manually in order to give a data type to CUPLA_KERNEL, i.e. CUPLA_KERNEL( kernelName<T,P> )( ... )"
     echo ""
+    foundKernels=1
 fi
 sed -r -i 's|([A-Za-z]+[A-Za-z0-9_#]*)[ \t]*<<<|CUPLA_KERNEL( \1 )(|; s|>>>|)|' $file
+if test "$foundKernels" -eq 1; then
+    grep --color -n 'CUPLA_KERNEL' $file
+fi
 
 if grep -q '__global__' $file; then
     echo "  - Some __global__ kernel functions were found, please note that if those were templated you will see something like:
@@ -232,10 +240,16 @@ fi
 #    __shared__ T_PREC   smReduced ; // wugen; wegionwe
 #    __shared__ T_PREC   smReduced[23];
 #    __shared__ unsigned int smReduced[a wef w*e ];//
+#    extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
+#    extern __shared__ __align__( sizeof(T_PREC) ) unsigned char * dynamicSharedMemory;
 # simple data type version
-sed -r -i 's|__shared__[\t ]+([\t _[:alnum:]]*)[\t ]+([_[:alnum:]]+)[\t ]*;([ \t]*(//.*)?)$|sharedMem( \2, \1 );\3|' $file
+typeAndName='([\t _[:alnum:]*]*)[\t ]+([_[:alnum:]]+)'
+sed -r -i 's|__shared__[\t ]+'"$typeAndName"'[\t ]*;([ \t]*(//.*)?)$|sharedMem( \2, \1 );\3|' $file
 # array version
-sed -r -i 's|__shared__[\t ]+([\t _[:alnum:]]*)[\t ]+([_[:alnum:]]+)[\t ]*\[(.*)\][\t ]*;([ \t]*(//.*)?)$|sharedMem( \2, cupla::Array< \1, \3 > );\4|' $file
+sed -r -i 's|__shared__[\t ]+'"$typeAndName"'[\t ]*\[(.*)\][\t ]*;([ \t]*(//.*)?)$|sharedMem( \2, cupla::Array< \1, \3 > );\4|' $file
+# extern shared memory declaration versions
+sed -r -i 's|extern[\t ]+__shared__[\t ]+(__align__[\t]*\(.*\))?'"$typeAndName"'[\t ]*;([ \t]*(//.*)?)$|sharedMemExtern( \3, \2 );\4|' $file
+sed -r -i 's|extern[\t ]+__shared__[\t ]+(__align__[\t]*\(.*\))?'"$typeAndName"'[\t ]*\[(.*)\][\t ]*;([ \t]*(//.*)?)$|sharedMemExtern( \3, \2 * );\4|' $file
 #Result:
 #    shared( smReduced, T_PREC   ) ;
 #    shared( smReduced, long int );
@@ -245,12 +259,12 @@ sed -r -i 's|__shared__[\t ]+([\t _[:alnum:]]*)[\t ]+([_[:alnum:]]+)[\t ]*\[(.*)
 
 searchString='warpSize|__shfl_down'
 if grep -q -E "$searchString" $file; then
-    echo "Found a problematic keyword which can't be mapped to alpaka, please review the following lines provided by grep:"
+    echo "  - Found a problematic keyword which can't be mapped to alpaka, please review the following lines provided by grep:"
     grep --color -n -E "$searchString" $file
     echo ""
 fi
 
-if grep -q 'atomic[A-Z][a-z]+'; then
-    echo "[Hint] You are making use of alpaka atomic function, please note that calls to those are much more strict than normal atomic function calls. I.e. because of templatisation they don't allow implicit type conversions. All arguments need to be converted to the same type manually."
+if grep -q 'atomic[A-Z][a-z]+' $file; then
+    echo "  - You are making use of alpaka atomic function, please note that calls to those are much more strict than normal atomic function calls. I.e. because of templatisation they don't allow implicit type conversions. All arguments need to be converted to the same type manually."
     echo ""
 fi

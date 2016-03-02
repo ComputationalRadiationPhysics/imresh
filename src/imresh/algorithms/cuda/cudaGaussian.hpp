@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <cuda_runtime_api.h>    // cudaStream_t
+#include <cuda_to_cupla.hpp>    // cudaStream_t
 
 
 namespace imresh

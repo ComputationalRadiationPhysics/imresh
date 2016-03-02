@@ -24,7 +24,7 @@
 
 
 #include <iostream>
-//#include "imresh/algorithms/testGaussian.hpp"
+#include "imresh/algorithms/testGaussian.hpp"
 #include "imresh/algorithms/testVectorReduce.hpp"
 #include "imresh/algorithms/testVectorElementwise.hpp"
 #include "imresh/libs/testVectorIndex.hpp"
@@ -38,6 +38,8 @@ int main( void )
     using namespace imresh::libs;
     using namespace imresh::io;
 
+    TestGaussian testGaussian; testGaussian();
+
     //testFft();
     //testShrinkWrap();
     #ifdef USE_PNG
@@ -49,8 +51,6 @@ int main( void )
     testCalculateHioError();
     testVectorReduce();
     testVectorElementwise();
-
-    //TestGaussian testGaussian; testGaussian();
 
     std::cout << "All tests OK.\n";
 

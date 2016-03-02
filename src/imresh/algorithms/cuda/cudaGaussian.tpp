@@ -23,7 +23,10 @@
  */
 
 
-#include "cudaGaussian.h"
+#pragma once
+
+
+#include "cudaGaussian.hpp"
 
 #include <iostream>
 #include <cstdio>           // printf
@@ -34,9 +37,9 @@
 #include <mutex>
 #include <list>
 #include <utility>          // pair
-#include <cuda.h>
+#include <cuda_to_cupla.hpp>
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -45,6 +48,17 @@ namespace algorithms
 {
 namespace cuda
 {
+
+
+    /* can't use cmath because it must work in CUDA and in OpenMP and
+     * everything, because we use cupla
+     * @see https://github.com/ComputationalRadiationPhysics/cupla/issues/28 */
+    #ifndef max
+    #   define max( a, b ) ( ((a) > (b)) ? (a) : (b) )
+    #endif
+    #ifndef min
+    #   define min( a, b ) ( ((a) < (b)) ? (a) : (b) )
+    #endif
 
     /** this flag adds some debug output to stdout if set to 1 **/
     #define DEBUG_CUDAGAUSSIAN_CPP 0
@@ -135,7 +149,7 @@ namespace cuda
 
             DeviceGaussianKernels buffer;
             buffer.dpKernelBuffer = NULL;
-            CUDA_ERROR( cudaMalloc( &buffer.dpKernelBuffer, mnMaxKernels *
+            CUDA_ERROR( cudaMalloc( (void**) &buffer.dpKernelBuffer, mnMaxKernels *
                 mMaxKernelSize * sizeof( buffer.dpKernelBuffer[0] ) ) );
             buffer.firstFree = 0;
             assert( mnMaxKernels <= buffer.kernelSigmas.max_size() );
@@ -280,16 +294,17 @@ namespace cuda
 
 
     template<class T>
-    __device__ inline T * ptrMin ( T * const a, T * const b )
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T * ptrMin ( T * const a, T * const b )
     {
         return a < b ? a : b;
     }
     /**
      * Provides a class for a moving window type 2d cache
      **/
-    template<class T_PREC>
+    template< class T_ACC, class T_PREC >
     struct Cache1d
     {
+        T_ACC const & acc;
         T_PREC const * const & data;
         unsigned int const & nData;
 
@@ -299,14 +314,14 @@ namespace cuda
         unsigned int const & nThreads;
         unsigned int const & nKernelHalf;
 
-        __device__ inline T_PREC & operator[]( unsigned i ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T_PREC & operator[]( unsigned i ) const
         {
             return smBuffer[i];
         }
 
         #ifndef NDEBUG
         #if DEBUG_CUDAGAUSSIAN_CPP == 1
-            __device__ void printCache( void ) const
+            ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void printCache( void ) const
             {
                 if ( threadIdx.x != 0 or blockIdx.x != 0 )
                     return;
@@ -319,7 +334,7 @@ namespace cuda
         #endif
         #endif
 
-        __device__ inline void initializeCache( void ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void initializeCache( void ) const
         {
             #ifndef NDEBUG
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -370,7 +385,7 @@ namespace cuda
             #endif
         }
 
-        __device__ inline void loadCacheLine( T_PREC const * const curDataRow ) const
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void loadCacheLine( T_PREC const * const curDataRow ) const
         {
             /* move last N elements to the front of the buffer */
             __syncthreads();
@@ -516,14 +531,19 @@ namespace cuda
      *           value.
      **/
     template<class T_PREC>
-    __global__ void cudaKernelApplyKernelSharedWeights
+    struct cudaKernelApplyKernelSharedWeights
+    {
+    template< class T_ACC >
+    ALPAKA_FN_NO_INLINE_ACC
+    void operator()
     (
+        T_ACC const & acc,
         /* You can't pass by reference to a kernel !!! compiles, but gives weird errors ... */
         T_PREC * const rdpData,
         unsigned int const rImageWidth,
         T_PREC const * const rdpWeights,
         unsigned int const nKernelHalf
-    )
+    ) const
     {
         assert( blockDim.y == 1 and blockDim.z == 1 );
         assert(  gridDim.y == 1 and  gridDim.z == 1 );
@@ -536,7 +556,7 @@ namespace cuda
 
         /* manage dynamically allocated shared memory */
         /* @see http://stackoverflow.com/questions/27570552/ */
-        extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
+        sharedMemExtern( dynamicSharedMemory, unsigned char );
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
         unsigned int const nWeights = 2*nKernelHalf+1;
@@ -545,7 +565,7 @@ namespace cuda
         T_PREC * const smBuffer  = &smBlock[ nWeights ];
         __syncthreads();
 
-        Cache1d<T_PREC> buffer{ data, rImageWidth, smBuffer, nBufferSize, blockDim.x, nKernelHalf };
+        Cache1d<T_ACC, T_PREC> buffer{ acc, data, rImageWidth, smBuffer, nBufferSize, blockDim.x, nKernelHalf };
 
         /* cache the weights to shared memory. Benchmarks imageSize 1024x1024
          * parallel (pointer arithmetic) : 0.95ms
@@ -629,7 +649,7 @@ namespace cuda
             }
         }
     }
-
+    };
 
     template<class T_PREC>
     void cudaGaussianBlurHorizontalSharedWeights
@@ -693,11 +713,11 @@ namespace cuda
         const unsigned N = (kernelSize-1)/2;
         const unsigned bufferSize = nThreads + 2*N;
 
-        cudaKernelApplyKernelSharedWeights<<<
+        CUPLA_KERNEL( cudaKernelApplyKernelSharedWeights<T_PREC> )(
             nBlocks,nThreads,
             sizeof(T_PREC)*( kernelSize + bufferSize ),
             rStream
-        >>>( rdpData, rnDataX, dpKernel, N );
+        )( rdpData, rnDataX, dpKernel, N );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -752,14 +772,19 @@ namespace cuda
      *                 values in memory
      **/
     template<class T_PREC>
-    __global__ void cudaKernelApplyKernelVertically
+    struct cudaKernelApplyKernelVertically
+    {
+    template< class T_ACC >
+    ALPAKA_FN_NO_INLINE_ACC
+    void operator()
     (
+        T_ACC const & acc,
         T_PREC * const rdpData,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
         T_PREC const * const rdpWeights,
         unsigned int const N
-    )
+    ) const
     {
         assert( blockDim.z == 1 );
         assert( gridDim.y == 1 and  gridDim.z == 1 );
@@ -780,7 +805,7 @@ namespace cuda
 
         /* The dynamically allocated shared memory buffer will fit the weights and
          * the values to calculate + the 2*N neighbors needed to calculate them */
-        extern __shared__ __align__( sizeof(T_PREC) ) unsigned char dynamicSharedMemory[];
+        sharedMemExtern( dynamicSharedMemory, unsigned char );
         T_PREC * const smBlock = reinterpret_cast<T_PREC*>( dynamicSharedMemory );
 
         const unsigned nWeights    = 2*N+1;
@@ -966,6 +991,7 @@ namespace cuda
         }
 
     }
+    };
 
 
     template<class T_PREC>
@@ -1007,11 +1033,11 @@ namespace cuda
         const unsigned kernelHalfSize = (kernelSize-1)/2;
         const unsigned bufferSize     = nThreads.x*( nThreads.y + 2*kernelHalfSize );
 
-        cudaKernelApplyKernelVertically<<<
+        CUPLA_KERNEL( cudaKernelApplyKernelVertically<T_PREC> )(
             nBlocks,nThreads,
             sizeof( dpKernel[0] ) * ( kernelSize + bufferSize ),
             rStream
-        >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
+        )( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -1048,87 +1074,6 @@ namespace cuda
         cudaGaussianBlurHorizontalSharedWeights( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
         cudaGaussianBlurVertical               ( rdpData,rnDataX,rnDataY,rSigma, rStream,rAsync );
     }
-
-
-    /* Explicitely instantiate certain template arguments to make an object file */
-
-    template void cudaGaussianBlur<float>
-    (
-        float * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-    template void cudaGaussianBlur<double>
-    (
-        double * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-
-    template void cudaGaussianBlurSharedWeights<float>
-    (
-        float * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-    template void cudaGaussianBlurSharedWeights<double>
-    (
-        double * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-
-
-    template void cudaGaussianBlurVertical<float>
-    (
-        float * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-    template void cudaGaussianBlurVertical<double>
-    (
-        double * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-
-
-    template void cudaGaussianBlurHorizontalSharedWeights<float>
-    (
-        float * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
-    template void cudaGaussianBlurHorizontalSharedWeights<double>
-    (
-        double * rData,
-        unsigned rnDataX,
-        unsigned rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
 
 
 } // namespace cuda

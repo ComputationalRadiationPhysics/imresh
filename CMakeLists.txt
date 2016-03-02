@@ -95,6 +95,9 @@ file( GLOB_RECURSE SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.tpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
@@ -190,6 +193,8 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
         #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
         #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.cpp
