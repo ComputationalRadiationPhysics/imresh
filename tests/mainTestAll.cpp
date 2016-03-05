@@ -39,9 +39,8 @@ int main( void )
     using namespace imresh::io;
 
     TestGaussian testGaussian; testGaussian();
-
-    //testFft();
-    //testShrinkWrap();
+    testFft();
+    testShrinkWrap();
     #ifdef USE_PNG
         testPng();
     #endif
