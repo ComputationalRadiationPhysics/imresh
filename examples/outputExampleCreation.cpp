@@ -50,6 +50,7 @@ namespace examples
 #       ifdef USE_PNG
             imresh::io::writeOutFuncs::writeOutPNG( data, size, filename );
 #       endif
+        delete[] data;
     }
 
 

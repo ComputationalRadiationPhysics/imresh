@@ -102,8 +102,8 @@ namespace io
                 for ( auto i = 0; i < nElements; ++i )
                     pData[i] = (float) rand() / RAND_MAX;
 
-                /* note that this call deletes the pointer @todo: move delete[] inside taskQueue.cu */
-                writeOutPNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
+                writeOutAndFreePNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
+                delete[] pData;
 
                 file = readPNG( tmpFileName );
                 assert( file.second.first == Nx );
@@ -133,7 +133,7 @@ namespace io
             {
                 /* write */
                 clock0 = clock::now();
-                    writeOutPNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
+                    writeOutAndFreePNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeRead.push_back( seconds.count() * 1000 );
