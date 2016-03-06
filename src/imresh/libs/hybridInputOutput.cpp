@@ -256,9 +256,9 @@ namespace libs
                 memcpy( gPrevious, curData, Nx*Ny*sizeof( curData[0] ) );
 
             /* check if we are done */
-            if ( rTargetErr > 0 &&
+            if ( rTargetError > 0 &&
                  calculateHioError( curData /*g'*/, rIsMasked, nElements )
-                 < rTargetErr )
+                 < rTargetError )
                 break;
             if ( iCycle >= rnCycles )
                 break;
