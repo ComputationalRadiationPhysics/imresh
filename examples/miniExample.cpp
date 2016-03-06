@@ -97,6 +97,13 @@ int main( int argc, char ** argv )
             imageSize[0], imageSize[1],
             64 /*cycles*/,
             1e-6 /* targetError */
+    #if false
+            0.9 /* rHioBeta */,
+            0.00002 /*rIntensityCutOffAutoCorel*/,
+            //0.0005 /*rIntensityCutOff*/
+            //0.005 /*rIntensityCutOff*/
+            0.002 /*rIntensityCutOff*/
+    #endif
         );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap(

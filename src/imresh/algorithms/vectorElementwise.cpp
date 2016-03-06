@@ -25,6 +25,7 @@
 
 #include "vectorElementwise.hpp"
 
+#include <iostream>
 #include <algorithm>  // max
 #include <cmath>
 #ifdef USE_FFTW
@@ -64,6 +65,7 @@ namespace algorithms
         unsigned int const rnData
     )
     {
+        T_PREC fft_scaling = T_PREC(1) / rnData;
         #pragma omp parallel for
         for ( auto i = 0u; i < rnData; ++i )
         {
@@ -74,9 +76,24 @@ namespace algorithms
             if ( norm == 0 )
                 norm = 1;
 
-            auto const factor = rComplexModulus[i] / norm;
-            rData[i][0] = re * factor;
-            rData[i][1] = im * factor;
+            /* If the values are masked, then don't apply the original
+             * intensity i.e. complex modulus, but we still need to scale
+             * the data down, because fftw doesn't do this for us */
+            T_PREC factor;
+            if ( rComplexModulus[i] == 1.0f )
+            {
+                factor = fft_scaling;
+                if ( norm*factor < 1.0 )
+                    factor = T_PREC(1) / norm;
+                rData[i][0] = re * factor;
+                rData[i][1] = im * factor;
+            }
+            else
+            {
+                factor = rComplexModulus[i] / norm;
+                rData[i][0] = re * factor;
+                rData[i][1] = im * factor;
+            }
         }
     }
 

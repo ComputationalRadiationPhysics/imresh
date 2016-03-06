@@ -38,8 +38,8 @@ int main( void )
     using namespace imresh::libs;
     using namespace imresh::io;
 
-    testFft();
     testShrinkWrap();
+    testFft();
     #ifdef USE_PNG
         testPng();
     #endif
