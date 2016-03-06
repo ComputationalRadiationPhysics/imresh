@@ -64,8 +64,27 @@ namespace algorithms
     unsigned int constexpr nShrinkWrapCycles = 4;
 
 
+    void testShrinkWrapExampleImages( void )
+    {
+        /**
+         * test in and out of examples also seen in outputCreation
+         * also add some fuzzing, like:
+         *   - shifting the center
+         *   - cropping
+         *   - extending
+         *   - blacking out border values
+         *   - whitening out center pixels
+         *   - scaling
+         *   - distortions if possible
+         *   - noise
+         **/
+    }
+
+
     void testShrinkWrap( void )
     {
+        testShrinkWrapExampleImages();
+
         using namespace std::chrono;
         using namespace imresh::algorithms;
         using namespace imresh::algorithms::cuda;
