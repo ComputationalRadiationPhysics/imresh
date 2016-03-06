@@ -63,5 +63,6 @@ Geany
 .*
 !/.git*
 .*~
+*.old
 
 /build/
