@@ -195,7 +195,7 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
 
 * `/usr/include/fftw3.h(373): error: identifier "__float128" is undefined`
 
-    Update your fftw library or manually apply the patch shown [here](https://github.com/FFTW/fftw3/commit/07ef78dc1b273a40fb4f7db1797d12d3423b1f40),
+    Update your fftw library to something higher than `3.3.4` (not yet released as of this writing) or manually apply the patch shown [here](https://github.com/FFTW/fftw3/commit/07ef78dc1b273a40fb4f7db1797d12d3423b1f40),
     i.e. add `|| defined(__CUDACC__)` to the faulty line in the header.
 
 * `stddef.h(432): error: identifier "nullptr" is undefined`
