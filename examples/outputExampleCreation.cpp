@@ -84,7 +84,7 @@ int main( void )
         filename << "rectangle_" << Nx << "x" << Ny << "_0.1x0.3_10-deg.png";
         saveToPng( data, size, filename.str() ); filename.str("");
 
-        data = createRectangle( Nx,Ny, 0.1,0.05, 0.2,0.6 );
+        data = createRectangle( Nx,Ny, 0.1,0.05, 0.2,0.6, 10 );
         filename << "rectangle_" << Nx << "x" << Ny << "_0.1x0.05_+0.2,0.6_10-deg.png";
         saveToPng( data, size, filename.str() ); filename.str("");
 
@@ -111,6 +111,16 @@ int main( void )
         data = createCircularSection( Nx,Ny, 0.2, 0.4,0.6, 10.*M_PI/180., 240.*M_PI/180. );
         filename << "circularSection_" << Nx << "x" << Ny << "_r-0.2_+0.4,0.6_10deg-to-170deg.png";
         saveToPng( data, size, filename.str() ); filename.str("");
+
+
+        auto dataCircle = createCircularSection( Nx,Ny, 0.2, 0.5,0.5 );
+        data = createRectangle( Nx,Ny, 1.0,0.05, 0.5,0.5, 10 );
+        #pragma omp parallel for
+        for ( auto i = 0u; i < Nx*Ny; ++i )
+            data[i] = fmax( data[i], dataCircle[i] );
+        filename << "oI_" << Nx << "x" << Ny << ".png";
+        saveToPng( data, size, filename.str() ); filename.str("");
+        delete[] dataCircle;
     }
 
     return 0;
