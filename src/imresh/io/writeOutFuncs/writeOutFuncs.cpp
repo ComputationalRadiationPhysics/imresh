@@ -95,7 +95,7 @@ namespace writeOutFuncs
                     if ( isnan(value) or isinf(value) or value < 0 )
                     {
                         /* write out red  pixel to alert user that something is wrong */
-                        png.plot( 1+ix, 1+iy, 65535, 0, 0 );
+                        png.plot( 1+ix, 1+iy, 65535*isnan(value), 65535*isinf(value), 65536*(value < 0) );
                     }
                     else
                     {
