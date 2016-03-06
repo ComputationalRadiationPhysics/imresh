@@ -23,7 +23,7 @@
  */
 
 
-#define DEBUG_SHRINKWRAPP_CPP 1
+#define DEBUG_SHRINKWRAPP_CPP 0
 
 #include "shrinkWrap.hpp"
 
@@ -43,9 +43,11 @@
 #include "libs/hybridInputOutput.hpp" // calculateHioError
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/vectorElementwise.hpp"
-#ifdef USE_PNG
-#   if DEBUG_SHRINKWRAPP_CPP == 1
+#if defined( IMRESH_DEBUG ) or ( DEBUG_SHRINKWRAPP_CPP == 1 )
+#   ifdef USE_PNG
+#       include <sstream>
 #       include "io/writeOutFuncs/writeOutFuncs.hpp"
+#       define WRITE_OUT_SHRINKWRAP_DEBUG 1
 #   endif
 #endif
 
@@ -121,13 +123,11 @@ namespace algorithms
         unsigned int       rnHioCycles
     )
     {
-        /* define values as used in old interface */
         auto const rIntensity = rIoData;
-        std::vector<unsigned> rSize{ rImageHeight, rImageWidth };
 
-        if ( rSize.size() != 2 ) return 1;
         unsigned int const Nx = rImageWidth;
         unsigned int const Ny = rImageHeight;
+        unsigned int const nElements = Nx*Ny;   // very often needed
 
         /* Evaluate input parameters and fill with default values if necessary */
         if ( rIntensity == NULL ) return 1;
@@ -141,14 +141,6 @@ namespace algorithms
 
         float sigma = rSigma0;
 
-        /* calculate this (length of array) often needed value */
-        unsigned nElements = 1;
-        for ( unsigned i = 0; i < rSize.size(); ++i )
-        {
-            assert( rSize[i] > 0 );
-            nElements *= rSize[i];
-        }
-
         /* allocate needed memory so that HIO doesn't need to allocate and
          * deallocate on each call */
         fftwf_complex * const curData   = fftwf_alloc_complex( nElements );
@@ -156,63 +148,33 @@ namespace algorithms
         auto const isMasked = new float[nElements];
 
         /* create fft plans G' to g' and g to G */
+        std::vector<unsigned int> rSize{ rImageHeight, rImageWidth };
         auto toRealSpace = fftwf_plan_dft( rSize.size(),
             (int*) &rSize[0], curData, curData, FFTW_BACKWARD, FFTW_ESTIMATE );
         auto toFreqSpace = fftwf_plan_dft( rSize.size(),
             (int*) &rSize[0], gPrevious, curData, FFTW_FORWARD, FFTW_ESTIMATE );
 
-        /* create first guess for mask from autocorrelation (fourier transform
-         * of the intensity @see
-         * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
+        /* copy original image into fftw_complex array and add random phase */
         #pragma omp parallel for
-        for ( unsigned i = 0; i < nElements; ++i )
+        for ( unsigned int i = 0; i < nElements; ++i )
         {
             curData[i][0] = rIntensity[i]; /* Re */
             curData[i][1] = 0;
         }
         fftwf_execute( toRealSpace );
-        complexNormElementwise( isMasked, curData, nElements );
         /* fftShift is not necessary, but I introduced this, because for the
          * example it shifted the result to a better looking position ... */
-        //fftShift( isMasked, Nx,Ny );
-        libs::gaussianBlur( isMasked, Nx, Ny, sigma );
-
-        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
-            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask-blurred.png" );
-            // comment me in after the delete[] is finally not inside writeOutFunc anymore
-        #endif
-
-        /* apply threshold to make binary mask */
-        {
-            const auto absMax = vectorMax( isMasked, nElements );
-            const float threshold = rIntensityCutOffAutoCorel * absMax;
-            #pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
-                isMasked[i] = isMasked[i] < threshold ? 1 : 0;
-        }
-
-        #if defined(USE_PNG) and DEBUG_SHRINKWRAPP_CPP == 1 and defined(IMRESH_DEBUG)
-            //imresh::io::writeOutFuncs::writeOutPNG( isMasked, std::pair<unsigned,unsigned>{Nx,Ny}, "shrinkWrap-init-mask.png" );
-            // comment me in after the delete[] is finally not inside writeOutFunc anymore
-        #endif
-
-        /* copy original image into fftw_complex array and add random phase */
-        #pragma omp parallel for
-        for ( unsigned i = 0; i < nElements; ++i )
-        {
-            curData[i][0] = rIntensity[i]; /* Re */
-            curData[i][1] = 0;
-        }
+        //fftShift( curData, Nx,Ny );
 
         /* in the first step the last value for g is to be approximated
          * by g'. The last value for g, called g_k is needed, because
          * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
          * because the fft is needed */
         #pragma omp parallel for
-        for ( unsigned i = 0; i < nElements; ++i )
+        for ( auto i = 0u; i < nElements; ++i )
         {
-            gPrevious[i][0] = curData[i][0];
-            gPrevious[i][1] = curData[i][1];
+            gPrevious[i][0] = curData[i][0]; // logf( 1 + fabs( curData[i][0] ) );
+            gPrevious[i][1] = curData[i][1]; // logf( 1 + fabs( curData[i][1] ) );
         }
 
         /* repeatedly call HIO algorithm and change mask */
@@ -220,24 +182,92 @@ namespace algorithms
         {
             /************************** Update Mask ***************************/
 
+            /* for iCycleShrinkWrap == 0 what actually is being calculated is
+             * an object guess from the autocorrelation (fourier transform
+             * of the intensity @see
+             * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
+
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
             complexNormElementwise( isMasked, curData, nElements );
+            /* quick fix for the problem that larger images result in a larger
+             * sum therefore a very largue 0-frequency value which disturbs the
+             * mask threshold cut-off, see issue #40 A better solution is
+             * necessary */
+            //if ( iCycleShrinkWrap == 0 )
+            //{
+            //    isMasked[0] = 0;
+            //    isMasked[Nx-1] = 0;
+            //    isMasked[Nx*Ny-1] = 0;
+            //    isMasked[Nx*Ny-(Ny-1)] = 0;
+            //}
+            //#pragma omp parallel for
+            //for ( auto i = 0u; i < nElements; ++i )
+            //    isMasked[i] = logf( isMasked[i] );
             libs::gaussianBlur( isMasked, Nx, Ny, sigma );
-            const auto absMax = vectorMax( isMasked, nElements );
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask-blurred.png";
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    isMasked,
+                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                    fname.str().c_str()
+                );
+            }
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask-blurred-log-scale.png";
+
+                auto logMask = new float[nElements];
+                #pragma omp parallel for
+                for ( auto i = 0u; i < nElements; ++i )
+                    logMask[i] = logf( isMasked[i] );
+
+                imresh::io::writeOutFuncs::writeOutAndFreePNG(
+                    logMask,
+                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                    fname.str().c_str()
+                );
+            }
+            #endif
+
             /* apply threshold to make binary mask */
-            const float threshold = rIntensityCutOff * absMax;
+            const auto absMax = vectorMax( isMasked, nElements );
+            float threshold = absMax;
+            if ( iCycleShrinkWrap == 0 )
+                threshold *= rIntensityCutOffAutoCorel;
+            else
+                threshold *= rIntensityCutOff;
             #pragma omp parallel for
-            for ( unsigned i = 0; i < nElements; ++i )
+            for ( auto i = 0u; i < nElements; ++i )
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
 
             /* update the blurring sigma */
             sigma = fmax( 1.5, ( 1 - rSigmaChange ) * sigma );
 
-            for ( unsigned iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask.png";
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    isMasked,
+                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                    fname.str().c_str()
+                );
+            }
+            #endif
+
+            /*************** Run Hybrid-Input-Output algorithm ****************/
+
+            for ( unsigned int iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
             {
                 /* apply domain constraints to g' to get g */
                 #pragma omp parallel for
-                for ( unsigned i = 0; i < nElements; ++i )
+                for ( unsigned int i = 0; i < nElements; ++i )
                 {
                     if ( isMasked[i] == 1 or /* g' */ curData[i][0] < 0 )
                     {
@@ -257,7 +287,45 @@ namespace algorithms
                 /* Replace absolute of G' with measured absolute |F| */
                 applyComplexModulus( curData, rIntensity, nElements );
 
+                #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-intensity.png";
+
+                    auto curIntensity = new float[nElements];
+                    #pragma omp parallel for
+                    for ( auto i = 0u; i < nElements; ++i )
+                        curIntensity[i] = sqrtf( curData[i][0]*curData[i][0] + curData[i][1]*curData[i][1] );
+
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        curIntensity,
+                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                        fname.str().c_str()
+                    );
+                }
+                #endif
+
                 fftwf_execute( toRealSpace );
+
+                #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-object.png";
+
+                    auto curObject = new float[nElements];
+                    #pragma omp parallel for
+                    for ( auto i = 0u; i < nElements; ++i )
+                        curObject[i] = curData[i][0];
+
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        curObject,
+                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                        fname.str().c_str()
+                    );
+                }
+                #endif
             } // HIO loop
 
             /* check if we are done */
@@ -271,8 +339,27 @@ namespace algorithms
                 break;
             if ( iCycleShrinkWrap >= rnCycles )
                 break;
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                auto const tmpData = new float[nElements];
+                #pragma omp parallel for
+                for ( unsigned int i = 0; i < nElements; ++i )
+                    tmpData[i] = curData[i][0];
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-object.png";
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    tmpData,
+                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
+                    fname.str().c_str()
+                );
+            }
+            #endif
         } // shrink wrap loop
-        for ( unsigned i = 0; i < nElements; ++i )
+
+        #pragma omp parallel for
+        for ( unsigned int i = 0; i < nElements; ++i )
             rIntensity[i] = curData[i][0];
 
         /* free buffers and plans */
@@ -311,4 +398,7 @@ namespace algorithms
 
 #ifdef DEBUG_SHRINKWRAPP_CPP
 #   undef DEBUG_SHRINKWRAPP_CPP
+#endif
+#ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+#   undef WRITE_OUT_SHRINKWRAP_DEBUG
 #endif
