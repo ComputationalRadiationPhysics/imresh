@@ -90,13 +90,17 @@ int main( int argc, char ** argv )
     }
 
     /* unfortunately there is a difference in the interface between
-     * shrinkWrap and cudaShrinkWrap because of cuda streams */
+     * shrinkWrap and cudaShrinkWrap because of cuda streams
+     * Note that all 0-values are replaced with default values inside
+     * the shrink-wrap functions */
+    int const nCyclesShrinkWrap = 0;
+    int const nHioCycles = 0;
     #if USE_FFTW
         imresh::algorithms::shrinkWrap(
             pData,
             imageSize[0], imageSize[1],
-            64 /*cycles*/,
-            1e-6 /* targetError */
+            nCyclesShrinkWrap /*cycles*/,
+            1e-6 /* targetError */,
     #if false
             0.9 /* rHioBeta */,
             0.00002 /*rIntensityCutOffAutoCorel*/,
@@ -104,6 +108,12 @@ int main( int argc, char ** argv )
             //0.005 /*rIntensityCutOff*/
             0.002 /*rIntensityCutOff*/
     #endif
+            0 /* rHioBeta */,
+            0 /* rIntensityCutOffAutoCorel */,
+            0 /* rIntensityCutOff */,
+            0 /* rSigma0 */,
+            0 /* rSigmaChange */,
+            nHioCycles /* rnHioCycles */
         );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap(
@@ -112,7 +122,14 @@ int main( int argc, char ** argv )
             cudaStream_t(0),
             96 /* nBlocks */,
             256 /* nThreads */,
-            64 /*cycles*/, 1e-6 /* targetError */
+            nCyclesShrinkWrap /*cycles*/,
+            1e-6 /* targetError */,
+            0 /* rHioBeta */,
+            0 /* rIntensityCutOffAutoCorel */,
+            0 /* rIntensityCutOff */,
+            0 /* rSigma0 */,
+            0 /* rSigmaChange */,
+            nHioCycles /* rnHioCycles */
         );
     #endif
     /* pData now holds the original image again (with some deviation)
