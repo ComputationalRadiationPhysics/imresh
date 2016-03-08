@@ -28,7 +28,7 @@
 #include <cstdlib>   // srand, rand
 #include <cuda_runtime.h>
 #include "algorithms/cuda/cudaVectorReduce.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 #define USE_PINNED_MEMORY 0
 #define MALLOC_BEFORE_MEMCPY 0 // if 0 program takes 1.4s instead of 0.9s O_O!? in nvvp the difference looks even worse for some reason (1.25s vs 0.125s), only difference visible if not using pinned memory!

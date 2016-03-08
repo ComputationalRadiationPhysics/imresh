@@ -23,7 +23,7 @@
  */
 
 
-#include "cudaGaussian.h"
+#include "cudaGaussian.hpp"
 
 #include <iostream>
 #include <cstdio>           // printf
@@ -36,7 +36,7 @@
 #include <utility>          // pair
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -185,18 +185,21 @@ namespace cuda
 
         /**
          * @param[in]  rSigma
-         * @param[out] rdpKernel will contain the pointer to device memory
-         *             containing the kernel
-         * @param[out] rKernelSize will contain the number of elements of the
+         * @param[out] rdppKernel will contain the pointer to the pointer to
+         *             device memory containing the kernel
+         * @param[out] rpKernelSize will contain the number of elements of the
          *             kernel
+         * @param[in]  rStream CUDA stream to use
+         * @param[in]  rAsync if true, then don't wait for the CUDA kernel to
+         *             finish, else call cudaStreamSynchronize on rStream.
          **/
         void getGpuPointer
         (
             T_PREC const & rSigma,
             T_PREC* * rdppKernel,
-            unsigned * rpKernelSize,
+            unsigned int * rpKernelSize,
             cudaStream_t rStream = 0,
-            bool rAsync = true
+            bool const rAsync = true
         )
         {
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -499,17 +502,18 @@ namespace cuda
      * rest of the array to be filled with new data from global i.e. uncached
      * memory.
      *
-     * @param[in] blockDim.x number of threads will be interpreted as how many
-     *            values are to be calculated in parallel. The internal buffer
-     *            stores then blockDim.x + 2*N values per step
-     * @param[in] blockDim.y number of rows to blur. threadIdx.y == 0 will blur
-     *            rdpData[ 0...rImageWidth-1 ], threadIdx.y == 1 the next
-     *            rImageWidth elements. Beware that you must not start more
-     *            threads in y direction than the image has rows, else a
-     *            segfault will occur!
-     * @param[in] N kernel half size, meaning the kernel is supposed to be
-     *            2*N+1 elements long. N can also be interpreted as the number
-     *            of neighbors in each direction needed to calculate one value.
+     * param[in] blockDim.x number of threads will be interpreted as how many
+     *           values are to be calculated in parallel. The internal buffer
+     *           stores then blockDim.x + 2*N values per step
+     * param[in] blockDim.y number of rows to blur. threadIdx.y == 0 will blur
+     *           rdpData[ 0...rImageWidth-1 ], threadIdx.y == 1 the next
+     *           rImageWidth elements. Beware that you must not start more
+     *           threads in y direction than the image has rows, else a
+     *           segfault will occur!
+     * param[in] nKernelHalf kernel half size, meaning the kernel is supposed
+     *           to be 2*N+1 elements long. N can also be interpreted as the
+     *           number of neighbors in each direction needed to calculate one
+     *           value.
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernelSharedWeights
@@ -732,20 +736,20 @@ namespace cuda
      *
      * @see cudaKernelApplyKernel @see gaussianBlurVertical
      *
-     * @param[in] N kernel half size. rdpWeights is assumed to be 2*N+1
-     *            elements long.
-     * @param[in] blockDim.x number of columns to calculate in parallel.
-     *            this should be a value which makes full use of a cache line,
-     *            i.e. 32 Warps * 4 Byte = 128 Byte for a NVidia GPU (2016)
-     * @param[in] blockDim.y number of rows to calculate in parallel.
-     *            This value shouldn't be too small, because else we are only
-     *            moving the buffer date to and fro without doing much
-     *            calculation. That happens because of the number of neighbors
-     *            N needed to calculate 1 value. If the buffer is 2*N+1
-     *            elements large ( blockDim.y == 1 ), then we can only
-     *            calculate 1 value with that buffer data.
-     *            @todo implement buffer index modulo instead of shifting the
-     *                  values in memory
+     * param[in] N kernel half size. rdpWeights is assumed to be 2*N+1
+     *           elements long.
+     * param[in] blockDim.x number of columns to calculate in parallel.
+     *           this should be a value which makes full use of a cache line,
+     *           i.e. 32 Warps * 4 Byte = 128 Byte for a NVidia GPU (2016)
+     * param[in] blockDim.y number of rows to calculate in parallel.
+     *           This value shouldn't be too small, because else we are only
+     *           moving the buffer date to and fro without doing much
+     *           calculation. That happens because of the number of neighbors
+     *           N needed to calculate 1 value. If the buffer is 2*N+1
+     *           elements large ( blockDim.y == 1 ), then we can only
+     *           calculate 1 value with that buffer data.
+     *           @todo implement buffer index modulo instead of shifting the
+     *                 values in memory
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernelVertically

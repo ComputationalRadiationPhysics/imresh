@@ -41,13 +41,13 @@
 #   include <fftw3.h>
 #endif
 #include "algorithms/shrinkWrap.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "io/taskQueue.hpp"
 #include "benchmarkHelper.hpp"  // getLogSpacedSamplingPoints
 #include "examples/createTestData/createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "libs/checkCufftError.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -64,8 +64,27 @@ namespace algorithms
     unsigned int constexpr nShrinkWrapCycles = 4;
 
 
+    void testShrinkWrapExampleImages( void )
+    {
+        /**
+         * test in and out of examples also seen in outputCreation
+         * also add some fuzzing, like:
+         *   - shifting the center
+         *   - cropping
+         *   - extending
+         *   - blacking out border values
+         *   - whitening out center pixels
+         *   - scaling
+         *   - distortions if possible
+         *   - noise
+         **/
+    }
+
+
     void testShrinkWrap( void )
     {
+        testShrinkWrapExampleImages();
+
         using namespace std::chrono;
         using namespace imresh::algorithms;
         using namespace imresh::algorithms::cuda;

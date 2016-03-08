@@ -45,7 +45,7 @@
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
 #include "benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 

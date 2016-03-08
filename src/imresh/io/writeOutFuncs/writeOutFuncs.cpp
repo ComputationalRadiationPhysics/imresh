@@ -95,7 +95,7 @@ namespace writeOutFuncs
                     if ( isnan(value) or isinf(value) or value < 0 )
                     {
                         /* write out red  pixel to alert user that something is wrong */
-                        png.plot( 1+ix, 1+iy, 65535, 0, 0 );
+                        png.plot( 1+ix, 1+iy, 65535*isnan(value), 65535*isinf(value), 65536*(value < 0) );
                     }
                     else
                     {
@@ -111,15 +111,22 @@ namespace writeOutFuncs
 
             png.close( );
 
-            if( _mem != NULL )
-            {
-                delete[] _mem;
-            }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): "
                              "Successfully written image data to PNG ("
                           << _filename << ")." << std::endl;
 #           endif
+        }
+
+        void writeOutAndFreePNG
+        (
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
+        )
+        {
+            writeOutPNG( _mem, _size, _filename );
+            justFree( _mem, _size, _filename );
         }
 #   endif
 
@@ -151,15 +158,22 @@ namespace writeOutFuncs
 
             sdc.close( );
 
-            if( _mem != NULL )
-            {
-                delete[] _mem;
-            }
 #           ifdef IMRESH_DEBUG
                 std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): "
                              "Successfully written image data to HDF5 ("
                           << _filename << "_0_0_0.h5)." << std::endl;
 #           endif
+        }
+
+        void writeOutAndFreeHDF5
+        (
+            float * _mem,
+            std::pair<unsigned int,unsigned int> const _size,
+            std::string const _filename
+        )
+        {
+            writeOutHDF5( _mem, _size, _filename );
+            justFree( _mem, _size, _filename );
         }
 #   endif
 

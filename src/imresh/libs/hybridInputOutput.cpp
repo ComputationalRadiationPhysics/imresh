@@ -49,14 +49,14 @@ namespace libs
 
 
     /**
-     * "For the input-output algorithms the error E_F is
-     *  usually meaningless since the input g_k(X) is no longer
+     * "For the input-output algorithms the error @f[ E_F @f] is
+     *  usually meaningless since the input @f[ g_k(x) @f] is no longer
      *  an estimate of the object. Then the meaningful error
-     *  is the object-domain error E_0 given by Eq. (15)."
+     *  is the object-domain error @f[ E_0 @f] given by Eq. (15)."
      *                                      (Fienup82)
      * Eq.15:
      * @f[ E_{0k}^2 = \sum\limits_{x\in\gamma} |g_k'(x)^2|^2 @f]
-     * where \gamma is the domain at which the constraints are
+     * where @f[ \gamma @f] is the domain at which the constraints are
      * not met. SO this is the sum over the domain which should
      * be 0.
      *
@@ -69,8 +69,8 @@ namespace libs
     (
         T_COMPLEX      const * const __restrict__ gPrime,
         T_MASK_ELEMENT const * const __restrict__ rIsMasked,
-        unsigned const nElements,
-        bool     const rInvertMask,
+        unsigned int const nElements,
+        bool const rInvertMask,
         float * const __restrict__ rpTotalError,
         float * const __restrict__ rpnMaskedPixels
     )
@@ -200,13 +200,13 @@ namespace libs
 
     int hybridInputOutput
     (
-        float * const & rIoData,
-        const uint8_t * const & rIsMasked,
-        const std::vector<unsigned> & rSize,
-        unsigned rnCycles,
-        float rTargetErr,
+        float * const rIoData,
+        uint8_t const * const rIsMasked,
+        std::vector<unsigned int> const rSize,
+        unsigned int rnCycles,
+        float rTargetError,
         float rBeta,
-        unsigned rnCores
+        unsigned int rnCores
     )
     {
         if ( rSize.size() != 2 ) return 1;
@@ -256,9 +256,9 @@ namespace libs
                 memcpy( gPrevious, curData, Nx*Ny*sizeof( curData[0] ) );
 
             /* check if we are done */
-            if ( rTargetErr > 0 &&
+            if ( rTargetError > 0 &&
                  calculateHioError( curData /*g'*/, rIsMasked, nElements )
-                 < rTargetErr )
+                 < rTargetError )
                 break;
             if ( iCycle >= rnCycles )
                 break;

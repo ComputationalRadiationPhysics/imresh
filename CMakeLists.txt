@@ -40,7 +40,7 @@ if(BUILD_DOC)
                            COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_INPUT}
                            COMMAND ${CMAKE_COMMAND} -E echo "Done."
                            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                           DEPENDS ${DOXYGEN_INPUT})
+                           DEPENDS ${DOXYGEN_INPUT} ${DOXY_MAIN_PAGE})
         add_custom_target(doc ALL DEPENDS ${DOXYGEN_OUTPUT})
         install(DIRECTORY ${DOXYGEN_OUTPUT} DESTINATION share/doc)
     endif()

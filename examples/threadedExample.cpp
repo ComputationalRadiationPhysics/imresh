@@ -88,7 +88,7 @@ int main( void )
             std::cout << "[threadedExample] Starting Task " << i << std::endl;
             imresh::io::addTask( tmpTestImage,
                                  file.second,
-                                 // writeOutPNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
+                                 // writeOutAndFreePNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
                                  imresh::io::writeOutFuncs::justFree,
                                  filename.str(),
                                  32 /* sets the number of iterations */ );
@@ -104,7 +104,7 @@ int main( void )
         imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
         imresh::io::addTask( file.first,
                              file.second,
-                             imresh::io::writeOutFuncs::writeOutHDF5,
+                             imresh::io::writeOutFuncs::writeOutAndFreeHDF5,
                              "imresh_out" );
 #   endif
 

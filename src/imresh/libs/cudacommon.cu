@@ -23,7 +23,7 @@
  */
 
 
-#include "cudacommon.h"
+#include "cudacommon.hpp"
 
 #include <cstdio>
 #include <cassert>

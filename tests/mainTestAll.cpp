@@ -40,7 +40,9 @@ int main( void )
 
     testFft();
     testShrinkWrap();
-    testPng();
+    #ifdef USE_PNG
+        testPng();
+    #endif
 
     testVectorIndex();
     testUnpackBitMask();

@@ -77,10 +77,14 @@ namespace cuda
      *
      * @param[in]  rIoData measured (phaseless) intensity distribution whose
      *             phase shrinkWrap will reconstruct
-     * @param[in]  rnCores Number of Cores to utilize in parallel.
-     *             (If 0 then it tries to choose automatically)
      * @param[out] rIoData will hold the reconstructed object. Currently
      *             only positive real valued objects are supported.
+     * @param[in] rnBlocks CUDA blocks to use. For small problems but many
+     *            images a low block size may be useful.
+     * @param[in] rnThreads CUDA threads to use. Note that on
+     *            compute capability 3.x the maximum number of concurrent
+     *            threads is 2048 per SMM.
+     * @param[in] rStream CUDA stream to use
      * @param[in] rnCycles number of shrink-wrap cycles. One shrink-wrap cycle
      *            includes blurring, mask creation and a call to HIO
      * @param[in] rTargetError if the absolute maximum of the masked values
@@ -95,6 +99,8 @@ namespace cuda
      *            The value is relative to the maximum value. 0 means
      *            everything will be masked, 1.0 means nothing will be masked.
      *            A value of 0 will result in the algorithm doing nothing.
+     * @param[in] rIntensityCutOff the cut-off threshold for subsequent steps,
+     *            @see rIntensityCutOffAutoCorel
      * @param[in] rSigma0 the first sigma for the gaussian blurs.
      * @param[in] rSigmaChange in the successive shrink-wrap cycles the
      *            partially reconstructed images will be less and less blurred
@@ -118,7 +124,7 @@ namespace cuda
         float rHioBeta = 0.9,
         float rIntensityCutOffAutoCorel = 0.04,
         float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
+        float rSigma0 = 3.0,
         float rSigmaChange = 0.01,
         unsigned int rnHioCycles = 20
     );
