@@ -15,7 +15,7 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Finding packages, calling FindX.cmake and so on
 #find_package(CUDA 7.0 REQUIRED)
-#find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 #find_package(Threads REQUIRED)
 #if(USE_FFTW)
 #    find_package(FFTW REQUIRED)

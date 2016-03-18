@@ -46,7 +46,7 @@ namespace cuda
 
     template< class T_COMPLEX, class T_PREC >
     template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    __device__
     void cudaKernelApplyHioDomainConstraints<T_COMPLEX, T_PREC>
     ::template operator()
     (
