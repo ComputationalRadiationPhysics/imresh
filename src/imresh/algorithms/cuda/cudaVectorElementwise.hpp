@@ -40,7 +40,7 @@ namespace cuda
     struct cudaKernelApplyHioDomainConstraints
     {
         template< typename T_ACC >
-        __device__
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,

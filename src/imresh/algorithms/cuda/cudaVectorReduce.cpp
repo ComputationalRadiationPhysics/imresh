@@ -42,28 +42,61 @@ namespace cuda
     MinFunctor<double> minFunctord;
     MaxFunctor<double> maxFunctord;
 
+    /* explicit instantiations */
+    #include "libs/alpaka_T_ACC.hpp"
+    #define inline
 
-    extern "C"
-    void __implicitelyInstantiateAllImreshCudaVectorReduce( void )
-    {
-        cudaVectorMin<float>( (float*) NULL, 0, 0 );
-        cudaVectorMin<double>( (double*) NULL, 0, 0 );
-        cudaVectorMax<float>( (float*) NULL, 0, 0 );
-        cudaVectorMax<double>( (double*) NULL, 0, 0 );
-        cudaVectorSum<float>( (float*) NULL, 0, 0 );
-        cudaVectorSum<double>( (double*) NULL, 0, 0 );
+    #define INSTANTIATE_TMP( cudaReduceFunc, T_PREC )   \
+    template                                            \
+    T_PREC cudaReduceFunc<T_PREC>                       \
+    (                                                   \
+        T_PREC const * rdpData,                         \
+        unsigned int rnElements,                        \
+        cudaStream_t rStream                            \
+    );
+    INSTANTIATE_TMP( cudaVectorMin, float  );
+    INSTANTIATE_TMP( cudaVectorMin, double );
+    INSTANTIATE_TMP( cudaVectorMax, float  );
+    INSTANTIATE_TMP( cudaVectorMax, double );
+    INSTANTIATE_TMP( cudaVectorSum, float  );
+    INSTANTIATE_TMP( cudaVectorSum, double );
+    #undef INSTANTIATE_TMP
 
-        /* cudaKernelCalculateHioError instantiated by below functions */
-        cudaCalculateHioError< cufftComplex, float >(
-            (cufftComplex*) NULL, (float*) NULL, 0, false, 0,
-            (float*) NULL, (float*) NULL );
-        cudaCalculateHioError< cufftComplex, bool >(
-            (cufftComplex*) NULL, (bool*) NULL, 0, false, 0,
-            (float*) NULL, (float*) NULL );
-        cudaCalculateHioError< cufftComplex, unsigned char >(
-            (cufftComplex*) NULL, (unsigned char*) NULL, 0, false, 0,
-            (float*) NULL, (float*) NULL );
-    }
+    template
+    ALPAKA_FN_NO_INLINE_ACC
+    void cudaKernelCalculateHioError
+    <cufftComplex, float>
+    ::template operator()
+    (
+        T_ACC const & acc,
+        cufftComplex const * rdpgPrime,
+        float const * rdpIsMasked,
+        unsigned int rnData,
+        bool rInvertMask,
+        float * rdpTotalError,
+        float * rdpnMaskedPixels
+    ) const;
+
+    #define INSTANTIATE_TMP( T_COMPLEX, T_MASK )    \
+    template                                        \
+    float cudaCalculateHioError                     \
+    <T_COMPLEX, T_MASK>                             \
+    (                                               \
+        cufftComplex const * rdpData,               \
+        T_MASK const * rdpIsMasked,                 \
+        unsigned int rnElements,                    \
+        bool rInvertMask,                           \
+        cudaStream_t rStream,                       \
+        float * rdpTotalError,                      \
+        float * rdpnMaskedPixels                    \
+    );
+    INSTANTIATE_TMP( cufftComplex, float );
+    INSTANTIATE_TMP( cufftComplex, bool );
+    INSTANTIATE_TMP( cufftComplex, unsigned char );
+    #undef INSTANTIATE_TMP
+
+    #undef inline
+    #undef T_ACC
 
 
 } // namespace cuda
