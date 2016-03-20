@@ -108,17 +108,17 @@ namespace algorithms
 
     int shrinkWrap
     (
-        float * const rIoData,
-        unsigned int const rImageWidth,
-        unsigned int const rImageHeight,
-        unsigned int rnCycles,
-        float rTargetError,
-        float rHioBeta,
-        float rIntensityCutOffAutoCorel,
-        float rIntensityCutOff,
-        float rSigma0,
-        float rSigmaChange,
-        unsigned int rnHioCycles
+        float *      const rIoData                  ,
+        unsigned int const rImageWidth              ,
+        unsigned int const rImageHeight             ,
+        unsigned int       rnCycles                 ,
+        float              rTargetError             ,
+        float              rHioBeta                 ,
+        float              rIntensityCutOffAutoCorel,
+        float              rIntensityCutOff         ,
+        float              rSigma0                  ,
+        float              rSigmaChange             ,
+        unsigned int       rnHioCycles
     )
     {
         /* define values as used in old interface */

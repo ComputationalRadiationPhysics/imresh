@@ -62,20 +62,6 @@ namespace cuda
     INSTANTIATE_TMP( cudaVectorSum, double );
     #undef INSTANTIATE_TMP
 
-    template
-    ALPAKA_FN_NO_INLINE_ACC
-    void cudaKernelCalculateHioError
-    <cufftComplex, float>
-    ::template operator()
-    (
-        T_ACC const & acc,
-        cufftComplex const * rdpgPrime,
-        float const * rdpIsMasked,
-        unsigned int rnData,
-        bool rInvertMask,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    ) const;
 
     #define INSTANTIATE_TMP( T_COMPLEX, T_MASK )    \
     template                                        \

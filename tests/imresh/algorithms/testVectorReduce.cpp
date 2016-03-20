@@ -139,7 +139,7 @@ namespace algorithms
                     cudaEventRecord( stop );                                 \
                     cudaEventSynchronize( stop );                            \
                     cudaEventElapsedTime( &milliseconds, start, stop );      \
-                    minTime = fmin( minTime, milliseconds );                 \
+                    minTime = std::fmin( minTime, milliseconds );            \
                     assert( cudaReduced == OBVIOUS_VALUE );                  \
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
@@ -161,9 +161,9 @@ namespace algorithms
                     clock0 = clock::now();                                   \
                     auto cpuMax = FUNC( pData, nElements );                  \
                     clock1 = clock::now();                                   \
-                    auto seconds = duration_cast<duration<double>>(          \
+                    auto seconds = duration_cast<duration<float>>(           \
                                         clock1 - clock0 );                   \
-                    minTime = fmin( minTime, seconds.count() * 1000 );       \
+                    minTime = std::fmin( minTime, seconds.count() * 1000 );  \
                     assert( cpuMax == OBVIOUS_VALUE );                       \
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \

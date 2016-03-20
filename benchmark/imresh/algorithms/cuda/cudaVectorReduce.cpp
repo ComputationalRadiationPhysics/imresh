@@ -73,19 +73,6 @@ namespace cuda
     INSTANTIATE_TMP( SharedMemoryWarps )
     #undef INSTANTIATE_TMP
 
-    #include "libs/alpaka_T_ACC.hpp"
-
-    template
-    ALPAKA_FN_NO_INLINE_ACC void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
-    ::template operator()
-    (
-        T_ACC const & acc,
-        cufftComplex const * const __restrict__ rdpgPrime,
-        uint32_t     const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    ) const;
 
     template
     float cudaCalculateHioErrorBitPacked<cufftComplex>
@@ -98,8 +85,6 @@ namespace cuda
         float * const rpTotalError,
         float * const rpnMaskedPixels
     );
-
-    #undef T_ACC
 
 
 } // namespace cuda

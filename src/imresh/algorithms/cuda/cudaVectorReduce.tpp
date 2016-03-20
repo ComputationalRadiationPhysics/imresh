@@ -46,6 +46,29 @@ namespace cuda
 {
 
 
+    /**
+     * simple functors to just get the sum of two numbers. To be used
+     * for the binary vectorReduce function to make it a vectorSum or
+     * vectorMin or vectorMax
+     **/
+    template<class T> struct SumFunctor {
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        { return a+b; }
+    };
+    template<class T> struct MinFunctor {
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
+    };
+    template<class T> struct MaxFunctor {
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        { if (a>b) return a; else return b; }
+    };
+    template<> struct MaxFunctor<float> {
+        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline float operator() ( float a, float b ) const
+        { return fmax(a,b); }
+    };
+
+
     template<class T_ACC, class T_FUNC>
     ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
     (
@@ -139,32 +162,59 @@ namespace cuda
         atomicMax( (int*)rdpTarget, __float_as_int(rValue) );
     }*/
 
+
+    /**
+     * Uses __shfl to reduce per warp before atomicAdd to global memory
+     *
+     * e.g. call with CUPLA_KERNEL( kernelVectorReduceShared )(4,128)(
+     *  data, 1888, 4, result, [](float a, float b){ return fmax(a,b); } )
+     *
+     * @tparam T_FUNC  Only the functors from this headers are instantiated
+     *         for this template type. for other functors you need to
+     *         include the body instead of this header or you need to add
+     *         it to the list of explicit template instantitions
+     *         Reasons against std::function:
+     *             @see http://stackoverflow.com/questions/14677997/
+     * @tparam T_PREC datatype of array to reduce. Only float and double are
+     *         explicitly instantiated, but you could add more easily.
+     *
+     * @param[in]  rdpData device pointer to array of data to reduce
+     * @param[in]  rnData length of array to reduce
+     * @param[out] rdpResult pointer to global memory variable which will hold
+     *             the reduce result
+     * @param[in]  f reduce functor which takes two arguments and returns 1.
+     * @param[in]  rInitValue The init value for rdpResult. E.g. for a
+     *             summation this should be 0.
+     **/
     template<class T_PREC, class T_FUNC>
-    template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC void kernelVectorReduce<T_PREC, T_FUNC>
-    ::template operator()
-    (
-        T_ACC const     & acc,
-        T_PREC const * const __restrict__ rdpData,
-        unsigned int const rnData,
-        T_PREC * const __restrict__ rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    ) const
+    struct kernelVectorReduce
     {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
+        template< typename T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_PREC const * const __restrict__ rdpData,
+            unsigned int const rnData,
+            T_PREC * const __restrict__ rdpResult,
+            T_FUNC f,
+            T_PREC const rInitValue
+        ) const
+        {
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-        auto iElem = rdpData + blockIdx.x * blockDim.x + threadIdx.x;
-        auto localReduced = T_PREC( rInitValue );
-        #pragma unroll
-        for ( ; iElem < rdpData + rnData; iElem += gridDim.x * blockDim.x )
-            localReduced = f( localReduced, *iElem );
+            auto iElem = rdpData + blockIdx.x * blockDim.x + threadIdx.x;
+            auto localReduced = T_PREC( rInitValue );
+            #pragma unroll
+            for ( ; iElem < rdpData + rnData; iElem += gridDim.x * blockDim.x )
+                localReduced = f( localReduced, *iElem );
 
-        atomicFunc( acc, rdpResult, localReduced, f );
-    }
+            atomicFunc( acc, rdpResult, localReduced, f );
+        }
+    };
 
 
     template<class T_PREC, class T_FUNC>
@@ -278,66 +328,69 @@ namespace cuda
      *     you should go even higher.
      **/
     template< class T_COMPLEX, class T_MASK >
-    template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC void cudaKernelCalculateHioError<T_COMPLEX, T_MASK>
-    ::template operator()
-    (
-        T_ACC const     & acc,
-        T_COMPLEX const * const __restrict__ rdpData,
-        T_MASK    const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        bool const rInvertMask,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    ) const
+    struct cudaKernelCalculateHioError
     {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        auto const nTotalThreads = gridDim.x * blockDim.x;
-        auto iElem = rdpData     + blockIdx.x * blockDim.x + threadIdx.x;
-        auto iMask = rdpIsMasked + blockIdx.x * blockDim.x + threadIdx.x;
-
-        float localTotalError    = 0;
-        float localnMaskedPixels = 0;
-        #pragma unroll
-        for ( ; iElem < rdpData + rnData; iElem += nTotalThreads, iMask += nTotalThreads )
+        template< typename T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX const * const __restrict__ rdpData,
+            T_MASK    const * const __restrict__ rdpIsMasked,
+            unsigned int const rnData,
+            bool const rInvertMask,
+            float * const __restrict__ rdpTotalError,
+            float * const __restrict__ rdpnMaskedPixels
+        ) const
         {
-            auto const re = iElem->x;
-            auto const im = iElem->y;
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-            /* only add up norm where no object should be (rMask == 0) */
-            /* note: invert   + masked   -> unmasked  <=> 1 ? 1 -> 0
-             *       noinvert + masked   -> masked    <=> 0 ? 1 -> 1
-             *       invert   + unmasked -> masked    <=> 1 ? 0 -> 1
-             *       noinvert + unmasked -> unmasked  <=> 0 ? 0 -> 0
-             *   => ? is xor    => no thread divergence
-             */
-            #ifndef NDEBUG
-                if ( not ( *iMask == 0 or *iMask == 1 ) )
-                {
-                    printf( "rdpIsMasked[%i] = %i\n", (int)(iMask-rdpIsMasked), (int) *iMask );
-                    assert( *iMask == 0 or *iMask == 1 );
-                }
-            #endif
-            const bool shouldBeZero = rInvertMask xor (bool) *iMask;
-            assert( *iMask >= 0.0 and *iMask <= 1.0 );
-            //float shouldBeZero = rInvertMask + ( 1-2*rInvertMask )**iMask;
-            /*
-            float shouldBeZero = rdpIsMasked[i];
-            if ( rInvertMask )
-                shouldBeZero = 1 - shouldBeZero;
-            */
+            auto const nTotalThreads = gridDim.x * blockDim.x;
+            auto iElem = rdpData     + blockIdx.x * blockDim.x + threadIdx.x;
+            auto iMask = rdpIsMasked + blockIdx.x * blockDim.x + threadIdx.x;
 
-            localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
-            localnMaskedPixels += shouldBeZero;
+            float localTotalError    = 0;
+            float localnMaskedPixels = 0;
+            #pragma unroll
+            for ( ; iElem < rdpData + rnData; iElem += nTotalThreads, iMask += nTotalThreads )
+            {
+                auto const re = iElem->x;
+                auto const im = iElem->y;
+
+                /* only add up norm where no object should be (rMask == 0) */
+                /* note: invert   + masked   -> unmasked  <=> 1 ? 1 -> 0
+                 *       noinvert + masked   -> masked    <=> 0 ? 1 -> 1
+                 *       invert   + unmasked -> masked    <=> 1 ? 0 -> 1
+                 *       noinvert + unmasked -> unmasked  <=> 0 ? 0 -> 0
+                 *   => ? is xor    => no thread divergence
+                 */
+                #ifndef NDEBUG
+                    if ( not ( *iMask == 0 or *iMask == 1 ) )
+                    {
+                        printf( "rdpIsMasked[%i] = %i\n", (int)(iMask-rdpIsMasked), (int) *iMask );
+                        assert( *iMask == 0 or *iMask == 1 );
+                    }
+                #endif
+                const bool shouldBeZero = rInvertMask xor (bool) *iMask;
+                assert( *iMask >= 0.0 and *iMask <= 1.0 );
+                //float shouldBeZero = rInvertMask + ( 1-2*rInvertMask )**iMask;
+                /*
+                float shouldBeZero = rdpIsMasked[i];
+                if ( rInvertMask )
+                    shouldBeZero = 1 - shouldBeZero;
+                */
+
+                localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
+                localnMaskedPixels += shouldBeZero;
+            }
+
+            atomicAdd( rdpTotalError   , localTotalError    );
+            atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
         }
-
-        atomicAdd( rdpTotalError   , localTotalError    );
-        atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
-    }
+    };
 
     template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError

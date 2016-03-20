@@ -48,28 +48,12 @@ namespace cuda
         unsigned int const rnElements,           \
         cudaStream_t rStream = 0                 \
     );
-
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic2 )
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic )
     CUDA_VECTOR_MAX_DECLARATION( SharedMemory )
     CUDA_VECTOR_MAX_DECLARATION( SharedMemoryWarps )
+    #undef CUDA_VECTOR_MAX_DECLARATION
 
-
-    template<class T_COMPLEX>
-    struct cudaKernelCalculateHioErrorBitPacked
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_COMPLEX const * const __restrict__ rdpgPrime,
-            uint32_t  const * const __restrict__ rdpIsMasked,
-            unsigned int const rnData,
-            float * const __restrict__ rdpTotalError,
-            float * const __restrict__ rdpnMaskedPixels
-        ) const;
-    };
 
     template<class T_COMPLEX>
     float cudaCalculateHioErrorBitPacked

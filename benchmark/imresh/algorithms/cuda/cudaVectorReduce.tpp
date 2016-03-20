@@ -396,7 +396,7 @@ namespace cuda
     /**
      * returns nBits starting from offset of src. Bit 0 is the lowest value.
      **/
-    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t bfe
+    inline ALPAKA_FN_NO_INLINE_ACC uint32_t bfe
     (
         uint32_t src,
         uint32_t offset,
@@ -417,66 +417,68 @@ namespace cuda
      * @see cudaKernelCalculateHioError
      **/
     template<class T_COMPLEX>
-    template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC
-    void cudaKernelCalculateHioErrorBitPacked< T_COMPLEX>
-    ::template operator()
-    (
-        T_ACC const & acc,
-        T_COMPLEX  const * const __restrict__ rdpData,
-        uint32_t   const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    ) const
+    struct cudaKernelCalculateHioErrorBitPacked
     {
-        /**
-         * @see http://www.pixel.io/blog/2012/4/19/does-anyone-actually-use-cudas-built-in-warpsize-variable.html
-         * warpSize will be read with some assembler isntruction, therefore
-         * it is not known at compile time, meaning some optimizations like
-         * loop unrolling won't work. That's the reason for this roundabout way
-         **/
-        //constexpr int cWarpSize = 32;
-        //static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
-        //assert( cWarpSize  == warpSize );
-        //assert( blockDim.x == cWarpSize );
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        uint32_t constexpr nBits = sizeof(rdpIsMasked[0]) * 8;
-        int const nTotalThreads = gridDim.x * blockDim.x;
-        auto i = blockIdx.x * blockDim.x + threadIdx.x;
-
-        float localTotalError    = 0;
-        float localnMaskedPixels = 0;
-        #pragma unroll
-        for ( ; i < rnData; i += nTotalThreads )
+        template< typename T_ACC >
+        ALPAKA_FN_NO_INLINE_ACC
+        void operator()
+        (
+            T_ACC const & acc,
+            T_COMPLEX const * const __restrict__ rdpData,
+            uint32_t  const * const __restrict__ rdpIsMasked,
+            unsigned int const rnData,
+            float * const __restrict__ rdpTotalError,
+            float * const __restrict__ rdpnMaskedPixels
+        ) const
         {
-            bool const shouldBeZero = bfe(
-                rdpIsMasked[ i/nBits ], nBits-1 - threadIdx.x, 1 );
+            /**
+             * @see http://www.pixel.io/blog/2012/4/19/does-anyone-actually-use-cudas-built-in-warpsize-variable.html
+             * warpSize will be read with some assembler isntruction, therefore
+             * it is not known at compile time, meaning some optimizations like
+             * loop unrolling won't work. That's the reason for this roundabout way
+             **/
+            //constexpr int cWarpSize = 32;
+            //static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
+            //assert( cWarpSize  == warpSize );
+            //assert( blockDim.x == cWarpSize );
+            assert( blockDim.y == 1 );
+            assert( blockDim.z == 1 );
+            assert( gridDim.y  == 1 );
+            assert( gridDim.z  == 1 );
 
-            auto const re = rdpData[i].x;
-            auto const im = rdpData[i].y;
+            uint32_t constexpr nBits = sizeof(rdpIsMasked[0]) * 8;
+            int const nTotalThreads = gridDim.x * blockDim.x;
+            auto i = blockIdx.x * blockDim.x + threadIdx.x;
 
-            localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
-            localnMaskedPixels += shouldBeZero;
+            float localTotalError    = 0;
+            float localnMaskedPixels = 0;
+            #pragma unroll
+            for ( ; i < rnData; i += nTotalThreads )
+            {
+                bool const shouldBeZero = bfe(
+                    rdpIsMasked[ i/nBits ], nBits-1 - threadIdx.x, 1 );
+
+                auto const re = rdpData[i].x;
+                auto const im = rdpData[i].y;
+
+                localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
+                localnMaskedPixels += shouldBeZero;
+            }
+
+            //#pragma unroll
+            //for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
+            //{
+            //    localTotalError    += __shfl_down( localTotalError   , warpDelta );
+            //    localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
+            //}
+            //
+            //if ( getLaneId() == 0 )
+            //{
+                atomicAdd( rdpTotalError   , localTotalError    );
+                atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
+            //}
         }
-
-        //#pragma unroll
-        //for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
-        //{
-        //    localTotalError    += __shfl_down( localTotalError   , warpDelta );
-        //    localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
-        //}
-        //
-        //if ( getLaneId() == 0 )
-        //{
-            atomicAdd( rdpTotalError   , localTotalError    );
-            atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
-        //}
-    }
+    };
 
 
     template<class T_COMPLEX>
