@@ -35,19 +35,19 @@
 #include <iomanip>              // setw
 #include <cassert>
 #include <vector>
-#include <cuda_runtime_api.h>   // cudaMalloc, cudaMemcpy, cudaEventRecord, ...
-#include <cufft.h>
+#include <cuda_to_cupla.hpp>    // cudaMalloc, cudaMemcpy, cudaEventRecord, ...
+#include <cufft_to_cupla.hpp>
 #ifdef USE_FFTW
 #   include <fftw3.h>
 #endif
 #include "algorithms/shrinkWrap.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "io/taskQueue.hpp"
 #include "benchmarkHelper.hpp"  // getLogSpacedSamplingPoints
 #include "examples/createTestData/createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "libs/checkCufftError.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -128,14 +128,14 @@ namespace algorithms
                 clock0 = clock::now();
                     CUDA_ERROR( cudaMalloc( (void**) &dpData, Nx*Ny*sizeof( dpData[0] ) ) );
                 clock1 = clock::now();
-                seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                seconds = duration_cast<duration<float>>( clock1 - clock0 );
                 timeCudaMalloc.push_back( seconds.count() * 1000 );
 
                 /* cudaMemcpy */
                 clock0 = clock::now();
                     CUDA_ERROR( cudaMemcpy( dpData, pData, Nx*Ny*sizeof( dpData[0] ), cudaMemcpyHostToDevice ) );
                 clock1 = clock::now();
-                seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                seconds = duration_cast<duration<float>>( clock1 - clock0 );
                 timeCudaMemcpy.push_back( seconds.count() * 1000 );
 
                 /* shrinkWrap */
@@ -144,12 +144,20 @@ namespace algorithms
                     shrinkWrap( pData, Nx, Ny, nShrinkWrapCycles, FLT_MIN ); /* use FLT_MIN to specifiy it should never end or onfly after 32 iterations */
                 #endif
                 clock1 = clock::now();
-                seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                seconds = duration_cast<duration<float>>( clock1 - clock0 );
                 timeShrinkWrap.push_back( seconds.count() * 1000 );
 
                 /* cudaShrinkWrap */
                 cudaEventRecord( start );
-                    cudaShrinkWrap( pData, Nx, Ny, cudaStream_t(0), 12288/256, 256, nShrinkWrapCycles, FLT_MIN );
+                    cudaShrinkWrap(
+                        libs::CudaKernelConfig{
+                            12288/256,      /* nBlocks  */
+                            256,            /* nThreads */
+                            -1,             /* sharedMemBytes (auto) */
+                            cudaStream_t(0)
+                        },
+                        pData, Nx, Ny, nShrinkWrapCycles, FLT_MIN
+                    );
                 cudaEventRecord( stop );
                 cudaEventSynchronize( stop );
                 float milliseconds;
@@ -160,7 +168,7 @@ namespace algorithms
                 clock0 = clock::now();
                     CUDA_ERROR( cudaFree( dpData ) );
                 clock1 = clock::now();
-                seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                seconds = duration_cast<duration<float>>( clock1 - clock0 );
                 timeCudaFree.push_back( seconds.count() * 1000 );
 
                 /* multithreaded test */
@@ -174,14 +182,19 @@ namespace algorithms
                     imresh::io::taskQueueInit( );
                     for( auto i = 0u; i < nConcurrentTasks; i++ )
                     {
-                        imresh::io::addTask( tmpDataArray + i*Nx*Ny, ImageDim{ Nx, Ny },
-                                             []( float * a, ImageDim const b, std::string const c ){},
-                                             "", nShrinkWrapCycles );
+                        imresh::io::addTask(
+                            /* dummy lambda to omit writing out */
+                            []( float *, unsigned int, unsigned int, std::string ){},
+                            "",     /* output file name */
+                            tmpDataArray + i*Nx*Ny,
+                            Nx, Ny, /* image dimensions */
+                            nShrinkWrapCycles
+                        );
                     }
                     imresh::io::taskQueueDeinit( ); // synchronizes device
                 }
                 clock1 = clock::now();
-                seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                seconds = duration_cast<duration<float>>( clock1 - clock0 );
                 timeCudaParallel.push_back( seconds.count() * 1000 / nConcurrentTasks );
                 delete[] tmpDataArray;
 
@@ -237,6 +250,7 @@ namespace algorithms
         #ifdef USE_FFTW
             auto pResult = new fftwf_complex[ nMaxElements ];
         #endif
+#if false
         cufftHandle gpuFtPlan;
 
         std::cout << "\n";
@@ -291,6 +305,7 @@ namespace algorithms
                 fftwf_destroy_plan( cpuFtPlan );
             #endif
         }
+#endif
 
         CUDA_ERROR( cudaFree( dpData  ) );
         CUDA_ERROR( cudaFree( dpResult) );

@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2016 Maximilian Knespel
+ * Copyright (c) 2016 Maximilian Knespel
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,36 +23,46 @@
  */
 
 
-#include <iostream>
-#include "imresh/algorithms/testGaussian.hpp"
-#include "imresh/algorithms/testVectorReduce.hpp"
-#include "imresh/algorithms/testVectorElementwise.hpp"
-#include "imresh/libs/testVectorIndex.hpp"
-#include "imresh/io/testReadWrite.hpp"
-#include "imresh/algorithms/testShrinkWrap.hpp"
+#pragma once
 
 
-int main( void )
+#include <cuda_to_cupla.hpp>    // cudaStream_t
+
+
+namespace imresh
 {
-    using namespace imresh::algorithms;
-    using namespace imresh::libs;
-    using namespace imresh::io;
+namespace libs
+{
 
-    TestGaussian testGaussian; testGaussian();
-    testFft();
-    testShrinkWrap();
-    #ifdef USE_PNG
-        testPng();
-    #endif
 
-    testVectorIndex();
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
-    testVectorElementwise();
+    struct CudaKernelConfig
+    {
+        dim3          nBlocks;
+        dim3          nThreads;
+        int           nBytesSharedMem;
+        cudaStream_t  iCudaStream;
 
-    std::cout << "All tests OK.\n";
+        /**
+         *
+         * Note thate CudaKernelConfig( 1,1,0, cudaStream_t(0) ) is still
+         * possible, because dim3( int ) is declared.
+         */
+        CudaKernelConfig
+        (
+            dim3         rnBlocks         = dim3{ 0, 0, 0 },
+            dim3         rnThreads        = dim3{ 0, 0, 0 },
+            int          rnBytesSharedMem = -1                ,
+            cudaStream_t riCudaStream     = cudaStream_t(0)
+        );
 
-    return 0;
-}
+        /**
+         * Checks configuration and autoadjusts default or faulty parameters
+         *
+         * @return 0: everything was OK, 1: some parameters had to be changed
+         */
+        int check( void );
+    };
 
+
+} // namespace libs
+} // namespace imresh

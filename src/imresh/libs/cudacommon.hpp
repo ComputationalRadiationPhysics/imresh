@@ -22,10 +22,12 @@
  * SOFTWARE.
  */
 
+
 #pragma once
 
 
 #include <cuda_to_cupla.hpp>
+#include "CudaKernelConfig.hpp"
 
 
 #define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);

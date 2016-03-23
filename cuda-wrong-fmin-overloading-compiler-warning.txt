@@ -1,0 +1,9 @@
+/media/d/Studium/9TH SEMESTER/imresh/tests/imresh/algorithms/testVectorReduce.cu: In function 'void imresh::algorithms::testVectorReduce()':
+/media/d/Studium/9TH SEMESTER/imresh/tests/imresh/algorithms/testVectorReduce.cu:171:351: warning: ISO C++ says that these are ambiguous, even though the worst conversion for the first is better than the worst conversion for the second:
+             TIME_CPU( vectorMax, obviousMaximum )
+                                                                                                                                                                                                                                                                                                                                                               ^
+/usr/include/x86_64-linux-gnu/bits/mathcalls.h:343:19: note: candidate 1: double fmin(double, double)
+ __MATHCALLX (fmin,, (_Mdouble_ __x, _Mdouble_ __y), (__const__));
+                   ^
+/opt/cuda-7.0/include/math_functions.hpp:648:21: note: candidate 2: float fmin(float, float)
+ __MATH_FUNCTIONS_DECL__ float fmin(float a, float b)

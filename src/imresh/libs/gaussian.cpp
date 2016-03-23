@@ -199,19 +199,19 @@ namespace libs
     template<class T_PREC>
     void gaussianBlurVerticalUncached
     (
-        T_PREC * const rData,
-        unsigned int const rnDataX,
-        unsigned int const rnDataY,
-        double const rSigma
+        T_PREC       * const rData  ,
+        unsigned int   const rnDataX,
+        unsigned int   const rnDataY,
+        double         const rSigma
     )
     {
         /* calculate Gaussian kernel */
-        const unsigned nKernelElements = 64;
+        unsigned int const nKernelElements = 64;
         T_PREC pKernel[64];
-        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
+        unsigned int const kernelSize = calcGaussianKernel( rSigma, (T_PREC*) pKernel, nKernelElements );
         assert( kernelSize <= nKernelElements );
         assert( kernelSize % 2 == 1 );
-        const unsigned nKernelHalf = (kernelSize-1)/2;
+        unsigned int const nKernelHalf = (kernelSize-1)/2;
 
         /* apply kernel vertical. Make use of cache lines / super words by
          * calculating nColsCacheLine in parallel. For a CUDA device a super
@@ -220,16 +220,16 @@ namespace libs
          * cache line is 64 Byte which would correspond to AVX512, if it was
          * available, meaning nColsCacheLine = 16
          * @todo: make it work if nColsCacheLine != rnDataX! */
-        const unsigned nColsCacheLine = rnDataX;
+        unsigned int const nColsCacheLine = rnDataX;
         /* must be at least kernelSize rows! */
-        const unsigned nRowsCacheLine = kernelSize;
+        unsigned int const nRowsCacheLine = kernelSize;
 
         /* allocate cache buffer used for shared memory caching of the results.
          * Therefore needs to be at least kernelSize*nColsCacheLine large, else
          * we would have to write-back the buffer before the weighted sum
          * completed! */
-        const unsigned bufferSize = nRowsCacheLine*nColsCacheLine;
-        auto buffer = new T_PREC[bufferSize];  /* could be in shared memory or cache */
+        unsigned int const bufferSize = nRowsCacheLine*nColsCacheLine;
+        auto buffer = (T_PREC*) malloc( sizeof( T_PREC ) * bufferSize );  /* could be in shared memory or cache */
         //assert( rnDataY <= bufferSize/nColsCacheLine );
 
         /**
@@ -451,7 +451,7 @@ namespace libs
             memcpy( rowA,rowB, nColsCacheLine*sizeof(b[0]) );
         }
 
-        delete[] buffer;
+        free( buffer );
     }
 
     inline int min( const int & a, const int & b )

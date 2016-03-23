@@ -299,7 +299,7 @@ namespace algorithms
             std::cout << pIsMasked[i];
         std::cout << "\n";
         std::cout << "[  packed] " << std::bitset<32>( pBitMasked[0] ) << "\n";
-#if false
+
         /* initialize data with Pythagorean triple 3*3 + 4*4 = 5*5 for masked bits */
         for ( auto i = 0u; i < nMaxElements; ++i )
         {
@@ -322,7 +322,7 @@ namespace algorithms
         CUDA_ERROR( cudaMemcpy( dpIsMasked , pIsMasked , nMaxElements * sizeof( pIsMasked[0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpBitMasked, pBitMasked, nBitMaskedElements * sizeof( pBitMasked[0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpIsMaskedChar, pIsMaskedChar, nMaxElements * sizeof( pIsMaskedChar[0] ), cudaMemcpyHostToDevice ) );
-
+#if false
         std::cout << "test with randomly masked pythagorean triples";
         /* because the number of elements we include only increases the number
          * of found masked elements should also only increase. */
@@ -349,7 +349,6 @@ namespace algorithms
             }
             nLastMaskedPixels = nMaskedPixels;
 
-
             /* check char version */
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
@@ -367,7 +366,6 @@ namespace algorithms
                 assert( (unsigned) totalError % 5 == 0 );
                 assert( nMaskedPixels * 5 == totalError );
             }
-
 
 
             /* check packed bit version */
@@ -418,7 +416,7 @@ namespace algorithms
             #endif
         }
         std::cout << "OK\n";
-
+#endif
         /* benchmark with random numbers */
 
         for ( auto i = 0u; i < nBitMaskedElements; ++i )
@@ -441,7 +439,7 @@ namespace algorithms
             std::cout << std::setw(8) << nElements << " : ";
             float milliseconds, minTime;
             decltype( clock::now() ) clock0, clock1;
-
+#if false
             float error;
             #define TIME_GPU( FUNC, MASK )                                    \
             minTime = FLT_MAX;                                                \
@@ -464,7 +462,7 @@ namespace algorithms
             compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
             TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
             compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
-
+#endif
             #ifdef USE_FFTW
                 /* time CPU */
                 minTime = FLT_MAX;
@@ -474,15 +472,14 @@ namespace algorithms
                     clock0 = clock::now();
                     auto error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
                     clock1 = clock::now();
-                    auto seconds = duration_cast<duration<double>>( clock1 - clock0 );
-                    minTime = fmin( minTime, seconds.count() * 1000 );
+                    auto seconds = duration_cast<duration<float>>( clock1 - clock0 );
+                    minTime = std::fmin( minTime, seconds.count() * 1000 );
                     assert( error <= nElements );
                 }
             #endif
             std::cout << std::setw(8) << minTime << "\n" << std::flush;
         }
 
-#endif
         /* free */
         CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
         CUDA_ERROR( cudaFree( dpTotalError    ) );

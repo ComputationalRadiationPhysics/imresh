@@ -22,6 +22,9 @@
  * SOFTWARE.
  */
 
+
+#include "taskQueue.hpp"
+
 #include <functional>               // std::function
 #ifdef IMRESH_DEBUG
 #   include <iostream>              // std::cout, std::endl
@@ -29,11 +32,13 @@
 #include <list>                     // std::list
 #include <mutex>                    // std::mutex
 #include <thread>                   // std::thread
-#include <utility>                  // std::pair
+#include <utility>                  // std::pair, forward
 #include <cassert>
 
 #include "algorithms/cuda/cudaShrinkWrap.hpp"
-#include "libs/cudacommon.hpp"        // CUDA_ERROR
+#include "libs/cudacommon.hpp"          // CUDA_ERROR
+#include "readInFuncs/readInFuncs.hpp"  // ImageDimensions
+
 
 namespace imresh
 {
@@ -83,20 +88,26 @@ namespace io
      *
      * @see addTask
      */
-    void addTaskAsync(
-        float * _h_mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float *,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc,
-        std::string _filename,
-        unsigned int _numberOfCycles,
-        unsigned int _numberOfHIOCycles,
-        float _targetError,
-        float _HIOBeta,
-        float _intensityCutOffAutoCorel,
-        float _intensityCutOff,
-        float _sigma0,
-        float _sigmaChange
+    void addTaskAsync
+    (
+        std::function<
+            void ( float *,
+                   unsigned int,
+                   unsigned int,
+                   std::string )
+        >                   rWriteOutFunc            ,
+        std::string         rFileName                ,
+        float *      const  rIoData                  ,
+        unsigned int const  rImageWidth              ,
+        unsigned int const  rImageHeight             ,
+        unsigned int        rnCycles                 ,
+        float               rTargetError             ,
+        float               rHioBeta                 ,
+        float               rIntensityCutOffAutoCorel,
+        float               rIntensityCutOff         ,
+        float               rSigma0                  ,
+        float               rSigmaChange             ,
+        unsigned int        rnHioCycles
     )
     {
         // Lock the mutex so no other thread intermediatly changes the device
@@ -108,100 +119,86 @@ namespace io
         streamList.push_back( strm );
         mtx.unlock( );
         auto device = strm.device;
-        auto str = strm.str;
+        /* use automatically chosen configuration on given stream */
+        libs::CudaKernelConfig config( 0, 0, 0, strm.str );
 
         // Select device and copy memory
         CUDA_ERROR( cudaSetDevice( device ) );
-        cudaDeviceProp prop;
-        CUDA_ERROR( cudaGetDeviceProperties( &prop, device ) );
-        unsigned int const nThreadsPerBlock = 256;
-        /* oversubscribe the GPU by a factor of 2 to account for cudaMalloc
-         * and cudaMemcpy stalls */
-        unsigned int const nBlocks = 2*prop.maxThreadsPerMultiProcessor / nThreadsPerBlock;
-
-
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::addTaskAsync(): Mutex locked, device and stream selected. Calling shrink-wrap."
-                << std::endl;
-#       endif
 
         // Call shrinkWrap in the selected stream on the selected device.
-        imresh::algorithms::cuda::cudaShrinkWrap( _h_mem,
-                                              _size.first,
-                                              _size.second,
-                                              str,
-                                              nBlocks,
-                                              nThreadsPerBlock,
-                                              _numberOfCycles,
-                                              _targetError,
-                                              _HIOBeta,
-                                              _intensityCutOffAutoCorel,
-                                              _intensityCutOff,
-                                              _sigma0,
-                                              _sigmaChange,
-                                              _numberOfHIOCycles );
+        imresh::algorithms::cuda::cudaShrinkWrap(
+            config                   ,
+            rIoData                  ,
+            rImageWidth              ,
+            rImageHeight             ,
+            rnCycles                 ,
+            rTargetError             ,
+            rHioBeta                 ,
+            rIntensityCutOffAutoCorel,
+            rIntensityCutOff         ,
+            rSigma0                  ,
+            rSigmaChange             ,
+            rnHioCycles
+        );
 
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::addTaskAsync(): CUDA work finished, mutex unlocked. Calling write out function."
-                << std::endl;
-#       endif
-
-        _writeOutFunc( _h_mem, _size, _filename );
+        rWriteOutFunc(
+            rIoData,
+            rImageWidth,
+            rImageHeight,
+            rFileName
+        );
     }
 
-    void addTask(
-        float * _h_mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float *,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc,
-        std::string _filename,
-        unsigned int _numberOfCycles = 20,
-        unsigned int _numberOfHIOCycles = 20,
-        float _targetError = 0.00001f,
-        float _HIOBeta = 0.9f,
-        float _intensityCutOffAutoCorel = 0.04f,
-        float _intensityCutOff = 0.2f,
-        float _sigma0 = 3.0f,
-        float _sigmaChange = 0.01f
+    void addTask
+    (
+        std::function<
+            void ( float *,
+                   unsigned int,
+                   unsigned int,
+                   std::string )
+        >                   rWriteOutFunc            ,
+        std::string         rFileName                ,
+        float *      const  rIoData                  ,
+        unsigned int const  rImageWidth              ,
+        unsigned int const  rImageHeight             ,
+        unsigned int        rnCycles                 ,
+        float               rTargetError             ,
+        float               rHioBeta                 ,
+        float               rIntensityCutOffAutoCorel,
+        float               rIntensityCutOff         ,
+        float               rSigma0                  ,
+        float               rSigmaChange             ,
+        unsigned int        rnHioCycles
     )
     {
         assert( threadPoolMaxSize > 0 and "Did you make a call to taskQueueInit?" );
 
         while( threadPool.size( ) >= threadPoolMaxSize )
         {
-#           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::addTask(): Too many active threads. Waiting for one of them to finish."
-                    << std::endl;
-#           endif
             if ( threadPool.front( ).joinable( ) )
                 threadPool.front( ).join( );
             else
             {
-#               ifdef IMRESH_DEBUG
-                    std::cout << "[Warning] " << __FILE__ << " line " << __LINE__
-                              << ": a thread from the thread pool is not joinable!\n";
-#               endif
             }
             threadPool.pop_front( );
         }
 
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::addTask(): Creating working thread."
-                << std::endl;
-#       endif
-
-        threadPool.push_back( std::thread( addTaskAsync, _h_mem,
-                                                         _size,
-                                                         _writeOutFunc,
-                                                         _filename,
-                                                         _numberOfCycles,
-                                                         _numberOfHIOCycles,
-                                                         _targetError,
-                                                         _HIOBeta,
-                                                         _intensityCutOffAutoCorel,
-                                                         _intensityCutOff,
-                                                         _sigma0,
-                                                         _sigmaChange ) );
+        /* start new thread and save thread id in threadPool */
+        threadPool.push_back( std::thread( addTaskAsync,
+            rWriteOutFunc            ,
+            rFileName                ,
+            rIoData                  ,
+            rImageWidth              ,
+            rImageHeight             ,
+            rnCycles                 ,
+            rTargetError             ,
+            rHioBeta                 ,
+            rIntensityCutOffAutoCorel,
+            rIntensityCutOff         ,
+            rSigma0                  ,
+            rSigmaChange             ,
+            rnHioCycles
+        ) );
     }
 
     /**
@@ -232,20 +229,11 @@ namespace io
 
         for( int i = 0; i < deviceCount; i++ )
         {
-            cudaDeviceProp prop;
             CUDA_ERROR( cudaSetDevice( i ) );
-            CUDA_ERROR( cudaGetDeviceProperties( & prop, i ) );
 
-            assert( prop.multiProcessorCount >= 0 );
-#           ifdef IMRESH_DEBUG
-                /* 0 makes no problems with the next for loop */
-                if( prop.multiProcessorCount <= 0 )
-                {
-                    std::cout << "[Warning] imresh::io::fillStreamList(): Devices has no multiprocessors. Ignoring this device." << std::endl;
-                }
-#           endif
+            int const multiProcessorCount = 3;
 
-            for( int j = 0; j < prop.multiProcessorCount; j++ )
+            for( int j = 0; j < multiProcessorCount; j++ )
             {
                 stream str;
                 str.device = i;
@@ -257,10 +245,6 @@ namespace io
 #               endif
             }
         }
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::fillStreamList(): Finished stream creation."
-                << std::endl;
-#       endif
 
         return streamList.size( );
     }
@@ -268,10 +252,6 @@ namespace io
     void taskQueueInit( )
     {
         threadPoolMaxSize = fillStreamList( );
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::taskQueueInit(): Finished initilization."
-                << std::endl;
-#       endif
     }
 
     void taskQueueDeinit( )
@@ -289,11 +269,6 @@ namespace io
             CUDA_ERROR( cudaStreamDestroy( streamList.front( ).str ) );
             streamList.pop_front( );
         }
-
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::taskQueueDeinit(): Finished deinitilization."
-                << std::endl;
-#       endif
     }
 
 } // namespace io

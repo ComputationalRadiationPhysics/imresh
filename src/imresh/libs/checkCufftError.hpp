@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include <cufft.h>
+#include <cufft_to_cupla.hpp>
 
 
 #define CUFFT_ERROR(X) imresh::libs::checkCufftError(X,__FILE__,__LINE__);
@@ -36,7 +36,7 @@ namespace libs
 {
 
 
-    void checkCufftError( const cufftResult rValue, const char * file, int line );
+    void checkCufftError( const   cufftResult rValue, const char * file, int line );
 
 
 } // namespace libs

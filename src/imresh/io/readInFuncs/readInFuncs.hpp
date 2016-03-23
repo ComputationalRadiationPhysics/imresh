@@ -36,6 +36,15 @@ namespace io
 namespace readInFuncs
 {
 
+    using ImageDimensions = std::pair< unsigned int, unsigned int >;
+    /**
+     * pair where first contains pointer to data. NULL on error
+     * e.g. allocation problem or couldn't open file.
+     * second pair element contains 2d dimension values as pair.
+     * They are 0 on error. The first dimension is the width
+     * and the second the height.
+     */
+    using FloatImage = std::pair< float *, ImageDimensions >;
 
     /**
      * Simple function for reading txt files.
@@ -43,7 +52,7 @@ namespace readInFuncs
      * They need to store their values as a 2D matrix with spaces as delimiters.
      * _Note:_ This is currently not working!
      */
-    std::pair<float *,std::pair<unsigned int,unsigned int>>
+    FloatImage
     readTxt
     (
         std::string const _filename
@@ -54,14 +63,23 @@ namespace readInFuncs
          * Reads data from PNG.
          *
          * @param[in] path to filename
-         * @return pair where first contains pointer to data. NULL on error
-         *         e.g. allocation problem or couldn't open file.
-         *         second pair element contains 2d dimension values as pair.
-         *         They are 0 on error. The first dimension is the width
-         *         and the second the height.
+         * @return @see FloatImage
          */
-        std::pair<float *, std::pair<unsigned int,unsigned int>>
+        FloatImage
         readPNG
+        (
+            std::string const _filename
+        );
+#   endif
+
+#   ifdef USE_TIFF
+        /**
+         * Reads data from a TIFF file using libtif.
+         *
+         * @see readPNG
+         */
+        FloatImage
+        readTiff
         (
             std::string const _filename
         );
@@ -73,7 +91,7 @@ namespace readInFuncs
          *
          * _Note:_ This is currently not working!
          **/
-        std::pair<float *,std::pair<unsigned int,unsigned int>>
+        FloatImage
         readHDF5
         (
             std::string const _filename

@@ -30,10 +30,11 @@
 
 #include <cassert>
 #include <cmath>                    // sqrtf
+#include <cstdint>                  // uint32_t
 #include <cuda_to_cupla.hpp>
 #include <cufft_to_cupla.hpp>       // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.hpp"
-#include <cstdint>                  // uint32_t
+#include "libs/CudaKernelConfig.hpp"
 
 
 namespace imresh
@@ -78,6 +79,31 @@ namespace cuda
                 rdpgPrevious[i].y = rdpgPrime[i].y;
             }
         }
+    }
+
+
+    template< class T_COMPLEX, class T_PREC >
+    void cudaApplyHioDomainConstraints
+    (
+        libs::CudaKernelConfig  const              rKernelConfig,
+        T_COMPLEX             * const __restrict__ rdpgPrevious ,
+        T_COMPLEX       const * const __restrict__ rdpgPrime    ,
+        T_PREC          const * const __restrict__ rdpIsMasked  ,
+        unsigned int            const              rnElements   ,
+        T_PREC                  const              rHioBeta
+    )
+    {
+        CUPLA_KERNEL
+            ( cudaKernelApplyHioDomainConstraints< T_COMPLEX, T_PREC > )
+            ( rKernelConfig.nBlocks         ,
+              rKernelConfig.nThreads        ,
+              rKernelConfig.nBytesSharedMem ,
+              rKernelConfig.iCudaStream     )
+            ( rdpgPrevious                  ,
+              rdpgPrime                     ,
+              rdpIsMasked                   ,
+              rnElements                    ,
+              rHioBeta                      );
     }
 
 
@@ -293,6 +319,39 @@ namespace cuda
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+    }
+
+
+    template< class T_PREC >
+    float compareCpuWithGpuArray
+    (
+        T_PREC const * const __restrict__ rpData,
+        T_PREC const * const __restrict__ rdpData,
+        unsigned int const rnElements
+    )
+    {
+        /* copy data from GPU in order to compare it */
+        const unsigned nBytes = rnElements * sizeof(T_PREC);
+        const T_PREC * const vec1 = rpData;
+        T_PREC * const vec2 = (T_PREC*) malloc( nBytes );
+        CUDA_ERROR( cudaMemcpy( (void*) vec2, (void*) rdpData, nBytes, cudaMemcpyDeviceToHost ) );
+
+        float relErr = 0;
+
+        //#pragma omp parallel for reduction( + : relErr )
+        for ( unsigned i = 0; i < rnElements; ++i )
+        {
+            float max = fmax( fabs(vec1[i]), fabs(vec2[i]) );
+            /* ignore 0/0 if both are equal and 0 */
+            if ( max == 0 )
+                max = 1;
+            relErr += fabs( vec1[i] - vec2[i] ); // / max;
+            //if ( i < 10 )
+            //    std::cout << "    " << vec1[i] << " <-> " << vec2[i] << "\n";
+        }
+
+        free( vec2 );
+        return relErr / rnElements;
     }
 
 

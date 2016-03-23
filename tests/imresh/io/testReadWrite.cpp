@@ -102,7 +102,7 @@ namespace io
                 for ( auto i = 0; i < nElements; ++i )
                     pData[i] = (float) rand() / RAND_MAX;
 
-                writeOutAndFreePNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
+                writeOutAndFreePNG( pData, Nx, Ny, tmpFileName );
                 delete[] pData;
 
                 file = readPNG( tmpFileName );
@@ -133,7 +133,7 @@ namespace io
             {
                 /* write */
                 clock0 = clock::now();
-                    writeOutAndFreePNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
+                    writeOutAndFreePNG( file.first, Nx, Ny, tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeRead.push_back( seconds.count() * 1000 );

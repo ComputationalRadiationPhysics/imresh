@@ -43,32 +43,34 @@ namespace writeOutFuncs
      * This function only exists for benchmarking purposes, as it's not
      * dependant on the filesystem.
      *
-     * @param[in]  _mem pointer to free
-     * @param[out] _mem pointer will be set to NULL after freed
-     * @param _size ignored
-     * @param _filename ignored
+     * @param[in]  data pointer to free
+     * @param[out] data pointer will be set to NULL after freed
+     * @param imageWidth ignored
+     * @param imageHeight ignored
+     * @param fileName ignored
      */
     void justFree(
-        float * _mem,
-        std::pair<unsigned int,unsigned int> const _size,
-        std::string const _filname
+        float * const data,
+        unsigned int const imageWidth,
+        unsigned int const imageHeight,
+        std::string const fileName
     );
 
 #   ifdef USE_PNG
         /**
          * Writes the reconstructed image to a PNG file.
          *
-         * @param[in] _mem image data in row-major order
-         * @param[in] _size image dimensions, order: (width, height), i.e.
-         *            (number of columns, number of rows) when thinking in
-         *            in matrices
-         * @param[in] _filename file name including .png extension and or path.
+         * @param[in] data image data in row-major order
+         * @param[in] imageWidth  in pixels
+         * @param[in] imageHeight in pixels
+         * @param[in] fileName file name including .png extension and or path.
          *            Note that paths will only work, if all folders do exist.
          */
         void writeOutPNG(
-            float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            float * const data,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
+            std::string const fileName
         );
 
         /**
@@ -76,9 +78,10 @@ namespace writeOutFuncs
          * @see writeOutPNG @see justFree
          */
         void writeOutAndFreePNG(
-            float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            float * const data,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
+            std::string const fileName
         );
 #   endif
 
@@ -89,9 +92,10 @@ namespace writeOutFuncs
          * This is done using libSplash.
          */
         void writeOutHDF5(
-            float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            float * const data,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
+            std::string const fileName
         );
 
         /**
@@ -100,9 +104,10 @@ namespace writeOutFuncs
          * This is done using libSplash.
          */
         void writeOutAndFreeHDF5(
-            float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
-            std::string const _filename
+            float * const data,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
+            std::string const fileName
         );
 #   endif
 

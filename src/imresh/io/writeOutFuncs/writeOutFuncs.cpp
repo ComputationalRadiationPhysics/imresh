@@ -23,6 +23,9 @@
  */
 
 
+#include "writeOutFuncs.hpp"
+
+
 #include <algorithm>
 #ifdef IMRESH_DEBUG
 #   include <iostream>              // std::cout, std::endl
@@ -42,7 +45,6 @@
 #include <cmath>                    // isnan, isinf
 
 #include "algorithms/vectorReduce.hpp" // vectorMax
-#include "io/writeOutFuncs/writeOutFuncs.hpp"
 
 
 namespace imresh
@@ -56,7 +58,8 @@ namespace writeOutFuncs
     void justFree
     (
         float * _mem,
-        std::pair<unsigned int,unsigned int> const _size,
+        unsigned int const imageWidth,
+        unsigned int const imageHeight,
         std::string const _filename
     )
     {
@@ -74,10 +77,12 @@ namespace writeOutFuncs
         void writeOutPNG
         (
             float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
             std::string const _filename
         )
         {
+            auto _size = std::make_pair( imageWidth, imageHeight );
             pngwriter png( _size.first, _size.second, 0, _filename.c_str( ) );
 
             float max = algorithms::vectorMax( _mem,
@@ -121,12 +126,13 @@ namespace writeOutFuncs
         void writeOutAndFreePNG
         (
             float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
             std::string const _filename
         )
         {
-            writeOutPNG( _mem, _size, _filename );
-            justFree( _mem, _size, _filename );
+            writeOutPNG( _mem, imageWidth, imageHeight, _filename );
+            justFree   ( _mem, imageWidth, imageHeight, _filename );
         }
 #   endif
 
@@ -134,7 +140,8 @@ namespace writeOutFuncs
         void writeOutHDF5
         (
             float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
             std::string const _filename
         )
         {
@@ -147,7 +154,7 @@ namespace writeOutFuncs
             sdc.open( _filename.c_str( ), fCAttr );
 
             splash::ColTypeFloat cTFloat;
-            splash::Dimensions size( _size.first, _size.second, 1 );
+            splash::Dimensions size( imageWidth, imageHeight, 1 );
 
             sdc.write( 0,
                        cTFloat,
@@ -168,12 +175,13 @@ namespace writeOutFuncs
         void writeOutAndFreeHDF5
         (
             float * _mem,
-            std::pair<unsigned int,unsigned int> const _size,
+            unsigned int const imageWidth,
+            unsigned int const imageHeight,
             std::string const _filename
         )
         {
-            writeOutHDF5( _mem, _size, _filename );
-            justFree( _mem, _size, _filename );
+            writeOutHDF5( _mem, imageWidth, imageHeight, _filename );
+            justFree    ( _mem, imageWidth, imageHeight, _filename );
         }
 #   endif
 

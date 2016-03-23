@@ -79,34 +79,6 @@ namespace algorithms
     }
 
 #ifdef USE_FFTW
-    /**
-     * checks if the imaginary parts are all 0 for debugging purposes
-     **/
-    template< class T_COMPLEX >
-    void checkIfReal
-    (
-        const T_COMPLEX * const & rData,
-        const unsigned & rnElements
-    )
-    {
-        float avgRe = 0;
-        float avgIm = 0;
-
-        for ( unsigned i = 0; i < rnElements; ++i )
-        {
-            avgRe += fabs( rData[i][0] );
-            avgIm += fabs( rData[i][1] );
-        }
-
-        avgRe /= (float) rnElements;
-        avgIm /= (float) rnElements;
-
-        std::cout << std::scientific
-                  << "Avg. Re = " << avgRe << "\n"
-                  << "Avg. Im = " << avgIm << "\n";
-        assert( avgIm <  1e-5 );
-    }
-
 
     int shrinkWrap
     (
@@ -211,9 +183,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-mask-blurred.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    isMasked,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    isMasked, Nx, Ny, fname.str().c_str()
                 );
             }
             {
@@ -227,9 +197,7 @@ namespace algorithms
                     logMask[i] = logf( isMasked[i] );
 
                 imresh::io::writeOutFuncs::writeOutAndFreePNG(
-                    logMask,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    logMask, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif
@@ -246,7 +214,7 @@ namespace algorithms
                 isMasked[i] = isMasked[i] < threshold ? 1 : 0;
 
             /* update the blurring sigma */
-            sigma = fmax( 1.5, ( 1 - rSigmaChange ) * sigma );
+            sigma = std::fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
 
             #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
             {
@@ -254,9 +222,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-mask.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    isMasked,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    isMasked, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif
@@ -299,9 +265,7 @@ namespace algorithms
                         curIntensity[i] = sqrtf( curData[i][0]*curData[i][0] + curData[i][1]*curData[i][1] );
 
                     imresh::io::writeOutFuncs::writeOutPNG(
-                        curIntensity,
-                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                        fname.str().c_str()
+                        curIntensity, Nx, Ny, fname.str().c_str()
                     );
                 }
                 #endif
@@ -320,9 +284,7 @@ namespace algorithms
                         curObject[i] = curData[i][0];
 
                     imresh::io::writeOutFuncs::writeOutPNG(
-                        curObject,
-                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                        fname.str().c_str()
+                        curObject, Nx, Ny, fname.str().c_str()
                     );
                 }
                 #endif
@@ -350,9 +312,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-object.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    tmpData,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    tmpData, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif

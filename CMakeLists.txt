@@ -17,9 +17,9 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 #find_package(CUDA 7.0 REQUIRED)
 find_package(OpenMP)
 #find_package(Threads REQUIRED)
-#if(USE_FFTW)
-#    find_package(FFTW REQUIRED)
-#endif()
+if(USE_FFTW)
+    find_package(FFTW REQUIRED)
+endif()
 
 # Find cupla
 SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING  "The location of the cupla library" FORCE )
@@ -68,11 +68,74 @@ else()
 endif()
 
 if(USE_PNG)
-    find_package(PNGwriter REQUIRED)
-    add_definitions("-DUSE_PNG ${PNGwriter_DEFINITIONS}")
+    # if PNGWRITER_ROOT not set, then get and compile submodule
+    if( "$ENV{PNGWRITER_ROOT}" STREQUAL "" )
+        if( NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/include/pngwriter.h" OR
+            NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/lib/libpngwriter.a"  OR
+            NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/lib/libpngwriter.so"
+        )
+            # every command own execute process because of this bug:
+            execute_process(
+                COMMAND git submodule update --init -- ./pngwriter
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+            execute_process(
+                COMMAND mkdir -p ./pngwriter/build
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+            execute_process(
+                COMMAND cmake .. -DCMAKE_INSTALL_PREFIX=..
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
+            )
+            execute_process(
+                COMMAND ls ${PROJECT_SOURCE_DIR}/pngwriter/build
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
+            )
+            execute_process(
+                COMMAND make install -j
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
+            )
+        endif()
+        set( ENV{PNGWRITER_ROOT} "${PROJECT_SOURCE_DIR}/pngwriter")
+    endif()
+
+    find_package( PNGwriter REQUIRED )
+    add_definitions( "-DUSE_PNG" ${PNGwriter_DEFINITIONS} )
+endif()
+
+if(USE_TIFF)
+    find_package(TIFF REQUIRED)
+    add_definitions( "-DUSE_TIFF" )
 endif()
 
 if(USE_SPLASH)
+    # if PNGWRITER_ROOT not set, then get and compile submodule
+    if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
+        if( NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/include/splash/splash.h" OR
+            NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/lib/libsplash.a" OR
+            NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/lib/libsplash.so"
+        )
+            # every command own execute process because of this bug:
+            execute_process(
+                COMMAND git submodule update --init -- ${PROJECT_SOURCE_DIR}/libsplash
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+            execute_process(
+                COMMAND mkdir -p ./libsplash/build
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+            execute_process(
+                COMMAND cmake .. -DCMAKE_INSTALL_PREFIX=..
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/libsplash/build
+            )
+            execute_process(
+                COMMAND make install -j
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/libsplash/build
+            )
+        endif()
+        set( ENV{SPLASH_ROOT} "${PROJECT_SOURCE_DIR}/libsplash")
+    endif()
+
     find_package(Splash REQUIRED)
     add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
 endif()
@@ -84,49 +147,40 @@ if(USE_FFTW)
 endif()
 
 # add files and compile
-file( GLOB_RECURSE SOURCE_FILES
+set( SOURCE_FILES
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/shrinkWrap.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.tpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.tpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.tpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/alpaka_T_ACC.hpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaShrinkWrap.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/checkCufftError.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/CudaKernelConfig.cpp
     # makes use of cufft and only cufft, therefore could be a nice test example for a cufft_to_cupla.hpp test
-    #${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.cpp
-    #${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.hpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/ReadTiff.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/taskQueue.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.hpp
     ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.hpp
 )
-message( "SOURCE_FILES = ${SOURCE_FILES}" )
 include_directories(
     ${PROJECT_SOURCE_DIR}/src/imresh
+)
+include_directories(
     SYSTEM
     ${CUDA_INCLUDE_DIRS}
     ${PNGwriter_INCLUDE_DIRS}
     ${Splash_INCLUDE_DIRS}
     ${OpenMP_INCLUDE_DIRS}
+    ${cupla_INCLUDE_DIRS}
+    ${TIFF_INCLUDE_DIRS}
     ${cupla_INCLUDE_DIRS}
 )
 
@@ -145,6 +199,7 @@ set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
     ${CUDA_CUFFT_LIBRARIES}
     ${OpenMP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
+    ${TIFF_LIBRARIES}
 )
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} ${_cupla_LINK_LIBRARIES_PUBLIC} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
@@ -191,8 +246,8 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
-        #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
-        #${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.hpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
@@ -204,8 +259,8 @@ if(RUN_TESTS)
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
     target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
 
-    alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp)
-    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark" "examples")
+    alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp )
+    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark" "examples" )
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)

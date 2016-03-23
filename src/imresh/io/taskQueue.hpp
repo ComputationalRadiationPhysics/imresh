@@ -22,11 +22,11 @@
  * SOFTWARE.
  */
 
+
 #pragma once
 
+
 #include <functional>               // std::function
-#include <list>                     // std::list
-#include <utility>                  // std::pair
 
 
 namespace imresh
@@ -38,32 +38,33 @@ namespace io
     /**
      * Calls imresh::io::addTaskAsync() in a thread.
      *
-     * @param _h_mem Pointer to the image data.
-     * @param _size Size of the memory to be adressed.
-     * @param _writeOutFunc A function pointer (std::function) that will be
-     * used to handle the processed data.
-     * @param _filename The filename to use to save the processed image. Note
-     * that some write out functions will take a file extension (as '.png') and
-     * some others may not.
-     * @param _numberOfCycles Number of iterations to run shrink wrap for.
-     * @param _numberOfHIOCycles Number of iterations to run the initial
-     * hybrid input output for.
-     * @param _targetError The target error to stop the program when reached.
+     * @param writeOutFunc A function pointer (std::function) that will be
+     *        used to handle the processed data.
+     * @param fileName The file name to use to save the processed image. Note
+     *        that some write out functions will take a file extension
+     *        (as '.png') and some others may not.
+     * @see cudaShrinkWrap for unexplained parameters
      */
-    void addTask(
-        float * _h_mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float *,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc,
-        std::string _filename,
-        unsigned int _numberOfCycles = 20,
-        unsigned int _numberOfHIOCycles = 20,
-        float _targetError = 0.00001f,
-        float _HIOBeta = 0.9f,
-        float _intensityCutOffAutoCorel = 0.04f,
-        float _intensityCutOff = 0.2f,
-        float _sigma0 = 3.0f,
-        float _sigmaChange = 0.01f
+    void addTask
+    (
+        std::function<
+            void ( float *,
+                   unsigned int,
+                   unsigned int,
+                   std::string )
+        >                   writeOutFunc                   ,
+        std::string         fileName                       ,
+        float *      const  ioData                         ,
+        unsigned int const  imageWidth                     ,
+        unsigned int const  imageHeight                    ,
+        unsigned int        nCycles                  = 20  ,
+        float               targetError              = 1e-5,
+        float               hioBeta                  = 0.9 ,
+        float               intensityCutOffAutoCorel = 0.04,
+        float               intensityCutOff          = 0.20,
+        float               sigma0                   = 3.0 ,
+        float               sigmaChange              = 0.01,
+        unsigned int        nHioCycles               = 20
     );
 
     /**

@@ -25,7 +25,15 @@
 
 #pragma once
 
-#include <cuda_runtime_api.h> // cudaStream_t
+#include <cuda_to_cupla.hpp>            // cudaStream_t
+#include "libs/CudaKernelConfig.hpp"    // CudaKernelConfig
+
+
+#ifndef NDEBUG
+#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
+#else
+#   define DEBUG_CUDASHRINKWRAP 2  // leave this as it is
+#endif
 
 
 namespace imresh
@@ -34,17 +42,6 @@ namespace algorithms
 {
 namespace cuda
 {
-
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyHioDomainConstraints
-    (
-        T_COMPLEX       * const __restrict__ rdpgPrevious,
-        T_COMPLEX const * const __restrict__ rdpgPrime,
-        T_PREC    const * const __restrict__ rdpIsMasked,
-        unsigned int const rnElements,
-        T_PREC const rHioBeta
-    );
 
 
 #   ifdef IMRESH_DEBUG
@@ -113,20 +110,18 @@ namespace cuda
      **/
     int cudaShrinkWrap
     (
-        float * const rIoData,
-        unsigned int const rImageWidth,
-        unsigned int const rImageHeight,
-        cudaStream_t const rStream = 0,
-        unsigned int rnBlocks = 256,
-        unsigned int rnThreads = 256,
-        unsigned int rnCycles = 20,
-        float rTargetError = 1e-5,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float rSigma0 = 3.0,
-        float rSigmaChange = 0.01,
-        unsigned int rnHioCycles = 20
+        libs::CudaKernelConfig rKernelConfig                    ,
+        float *      const     rIoData                          ,
+        unsigned int const     rImageWidth                      ,
+        unsigned int const     rImageHeight                     ,
+        unsigned int           rnCycles                  = 20   ,
+        float                  rTargetError              = 1e-5 ,
+        float                  rHioBeta                  = 0.9  ,
+        float                  rIntensityCutOffAutoCorel = 0.04 ,
+        float                  rIntensityCutOff          = 0.20 ,
+        float                  rSigma0                   = 3.0  ,
+        float                  rSigmaChange              = 0.01 ,
+        unsigned int           rnHioCycles               = 20
     );
 
 

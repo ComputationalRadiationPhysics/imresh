@@ -51,12 +51,12 @@ namespace algorithms
 {
 
     void TestGaussian::compareFloatArray
-    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
+    ( float * rpData, float * rpResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
     {
         const unsigned nElements = nCols * nRows;
-        auto maxError = vectorMaxAbsDiff( pData, pResult, nElements );
-        float maxValue = vectorMaxAbs( pData, nElements );
-        maxValue = fmax( maxValue, vectorMaxAbs( pResult, nElements ) );
+        auto maxError = vectorMaxAbsDiff( rpData, rpResult, nElements );
+        float maxValue = vectorMaxAbs( rpData, nElements );
+        maxValue = fmax( maxValue, vectorMaxAbs( rpResult, nElements ) );
         if ( maxValue == 0 )
             maxValue = 1;
         const bool errorMarginOk = maxError / maxValue <= FLT_EPSILON * maxKernelWidth;
@@ -68,14 +68,14 @@ namespace algorithms
             for ( unsigned iRow = 0; iRow < nRows; ++iRow )
             {
                 for ( unsigned iCol = 0; iCol < nCols; ++iCol )
-                    std::cout << pData[iRow*nCols+iCol] << " ";
+                    std::cout << rpData[iRow*nCols+iCol] << " ";
                 std::cout << "\n";
             }
             std::cout << " = ? = \n";
             for ( unsigned iRow = 0; iRow < nRows; ++iRow )
             {
                 for ( unsigned iCol = 0; iCol < nCols; ++iCol )
-                    std::cout << pResult[iRow*nCols+iCol] << " ";
+                    std::cout << rpResult[iRow*nCols+iCol] << " ";
                 std::cout << "\n";
             }
             std::cout << "Called from line " << line << "\n";
@@ -133,18 +133,18 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussian
     (
-        float const * const pResult,
-        float const * const pOriginal,
-        unsigned const nElements,
-        unsigned const nStride
+        float const * const rpResult,
+        float const * const rpOriginal,
+        unsigned int const rnElements,
+        unsigned int const rnStride
     )
     {
-        assert( vectorMin( pOriginal, nElements, nStride )
-             <= vectorMin( pResult  , nElements, nStride ) );
-        assert( vectorMax( pOriginal, nElements, nStride )
-             >= vectorMax( pResult  , nElements, nStride ) );
-        assert( vectorMaxAbsDiff( pResult  , pResult  +nStride, nElements-1, nStride )
-             <= vectorMaxAbsDiff( pOriginal, pOriginal+nStride, nElements-1, nStride ) );
+        assert( vectorMin( rpOriginal, rnElements, rnStride )
+             <= vectorMin( rpResult  , rnElements, rnStride ) );
+        assert( vectorMax( rpOriginal, rnElements, rnStride )
+             >= vectorMax( rpResult  , rnElements, rnStride ) );
+        assert( vectorMaxAbsDiff( rpResult  , rpResult  +rnStride, rnElements-1, rnStride )
+             <= vectorMaxAbsDiff( rpOriginal, rpOriginal+rnStride, rnElements-1, rnStride ) );
     }
 
     /**
@@ -152,14 +152,14 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussianHorizontal
     (
-        float const * const pResult,
-        float const * const pOriginal,
-        unsigned const nCols,
-        unsigned const nRows
+        float const * const rpResult,
+        float const * const rpOriginal,
+        unsigned const rnCols,
+        unsigned const rnRows
     )
     {
-        for ( unsigned iRow = 0; iRow < nRows; ++iRow )
-            checkGaussian( pResult, pOriginal, nCols );
+        for ( unsigned iRow = 0; iRow < rnRows; ++iRow )
+            checkGaussian( rpResult, rpOriginal, rnCols );
     }
 
     /**
@@ -167,50 +167,55 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussianVertical
     (
-        float const * const pResult,
-        float const * const pOriginal,
-        unsigned int const nCols,
-        unsigned int const nRows
+        float const * const rpResult,
+        float const * const rpOriginal,
+        unsigned int const rnCols,
+        unsigned int const rnRows
     )
     {
-        for ( unsigned iCol = 0; iCol < nCols; ++iCol )
-            checkGaussian( pResult, pOriginal, nRows, nCols );
+        for ( unsigned iCol = 0; iCol < rnCols; ++iCol )
+            checkGaussian( rpResult, rpOriginal, rnRows, rnCols );
     }
 
     void TestGaussian::checkIfElementsEqual
     (
-        float const * const pData,
-        unsigned int const nData,
-        unsigned int const nStride
+        float const * const rpData,
+        unsigned int const rnData,
+        unsigned int const rnStride
     )
     {
-        assert( nStride > 0 );
+        assert( rnStride > 0 );
         /* test the maximum divergence of the result vectors, i.e.
          * are they all the same per row ? */
         float sumDiff = 0;
         #pragma omp parallel for reduction( + : sumDiff )
-        for ( unsigned i = 1; i < nData; ++i )
-            sumDiff += std::abs( pData[ (i-1)*nStride ] - pData[ i*nStride ] );
+        for ( unsigned i = 1; i < rnData; ++i )
+            sumDiff += std::abs( rpData[ (i-1) * rnStride ]
+                               - rpData[  i    * rnStride ] );
 
         if ( sumDiff != 0 )
         {
-            std::cout << "First result element=" << pData[0] << ", "
+            std::cout << "First result element=" << rpData[0] << ", "
                       << "total result divergence=" << sumDiff << "\n"
                       << "elements = ";
-            for ( unsigned i = 0; i < nData; ++i )
-                std::cout << pData[i] << " ";
+            for ( unsigned i = 0; i < rnData; ++i )
+                std::cout << rpData[i] << " ";
             std::cout << "\n" << std::flush;
         }
         assert( sumDiff == 0 );
     }
 
     void TestGaussian::fillWithRandomValues
-    ( float * dpData, float * pData, unsigned nElements )
+    (
+        float * const rdpData,
+        float * const rpData,
+        unsigned int const rnElements
+    )
     {
-        for ( unsigned i = 0; i < nElements; ++i )
-            pData[i] = (float) rand() / RAND_MAX - 0.5;
+        for ( unsigned i = 0; i < rnElements; ++i )
+            rpData[i] = (float) rand() / RAND_MAX - 0.5;
         if ( dpData != NULL )
-            CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
+            CUDA_ERROR( cudaMemcpy( rdpData, rpData, rnElements*sizeof( rdpData[0] ), cudaMemcpyHostToDevice ) );
     }
 
 
@@ -634,9 +639,9 @@ namespace algorithms
                 FUNC( pResultCpu, nCols, nRows, sigma );                  \
                 clock1 = clock::now();                                    \
                                                                           \
-                auto seconds = duration_cast<duration<double>>(           \
+                auto seconds = duration_cast<duration<float>>(            \
                                     clock1 - clock0 );                    \
-                minTime = fmin( minTime, seconds.count() * 1000 );        \
+                minTime = std::fmin( minTime, seconds.count() * 1000 );   \
                                                                           \
                 CHECK( pResultCpu, pData, nCols, nRows );                 \
                 compareFloatArray( pResultCpu, pResult, nCols, nRows,     \

@@ -34,6 +34,9 @@
 #ifdef USE_SPLASH
 #   include <splash/splash.h>
 #endif
+#ifdef USE_TIFF
+#   include "../ReadTiff.hpp"
+#endif
 #include <string>               // std::string
 #include <utility>              // std::pair
 #include <cstddef>              // NULL
@@ -50,7 +53,7 @@ namespace readInFuncs
 {
 
 
-    std::pair<float *,std::pair<unsigned int,unsigned int>>
+    FloatImage
     readTxt(
         std::string const _filename
     )
@@ -106,7 +109,7 @@ namespace readInFuncs
     }
 
 #   ifdef USE_PNG
-        std::pair<float *,std::pair<unsigned int,unsigned int>>
+        FloatImage
         readPNG(
             std::string const _filename
         )
@@ -156,8 +159,46 @@ namespace readInFuncs
         }
 #   endif
 
+#   ifdef USE_TIFF
+        FloatImage readTiff( std::string const rFilename )
+        {
+            FloatImage result;
+            auto & width  = result.second.first;
+            auto & height = result.second.second;
+            auto & buffer = result.first;
+
+            try
+            {
+                ReadTiff image( rFilename );
+                width  = image.getWidth ();
+                height = image.getHeight();
+                assert( image.getSampleFormat() == SAMPLEFORMAT_IEEEFP );
+                assert( width * height == image.getBufferSize() );
+                buffer = (float*) image.unlinkInternalBuffer();
+            }
+            catch ( ReadTiff::ErrorCodes error )
+            {
+                switch( error )
+                {
+                    case ReadTiff::ErrorOnOpeningFile:
+                    {
+                        std::cout << "Couldn't open file '" << rFilename << "'" << std::endl;
+                        break;
+                    }
+                    default:
+                    {
+                        std::cout << "Unknown Error!" << std::endl;
+                        break;
+                    }
+                }
+            }
+
+            return result;
+        }
+#   endif
+
 #   ifdef USE_SPLASH
-        std::pair<float *,std::pair<unsigned int,unsigned int>>
+        FloatImage
         readHDF5(
             std::string const _filename
         )

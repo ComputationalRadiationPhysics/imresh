@@ -35,55 +35,29 @@ namespace cuda
 {
 
 
-    extern "C"
-    void __implicitelyInstantiateAllImreshCudaVectorElementwise( void )
-    {
-        CUPLA_KERNEL
-            ( cudaKernelApplyHioDomainConstraints<cufftComplex, float> )
-            (1,1)
-            ( (cufftComplex*) NULL, (cufftComplex*) NULL, (float*) NULL, 0, 0);
+    #define __INSTANTIATE_TMP( T_COMPLEX, T_PREC )                \
+    template                                                      \
+    void cudaApplyHioDomainConstraints< T_COMPLEX, T_PREC >       \
+    (                                                             \
+        libs::CudaKernelConfig  const              rKernelConfig, \
+        T_COMPLEX             * const __restrict__ rdpgPrevious , \
+        T_COMPLEX       const * const __restrict__ rdpgPrime    , \
+        T_PREC          const * const __restrict__ rdpIsMasked  , \
+        unsigned int            const              rnElements   , \
+        T_PREC                  const              rHioBeta       \
+    );
+    //__INSTANTIATE_TMP( cufftComplex, float )
+    #undef __INSTANTIATE_TMP
 
-        CUPLA_KERNEL
-            ( cudaKernelCopyToRealPart<cufftComplex, float> )
-            (1,1)
-            ( (cufftComplex*) NULL, (float*) NULL, 0);
-
-        CUPLA_KERNEL
-            ( cudaKernelCopyFromRealPart<float, cufftComplex> )
-            (1,1)
-            ( (float*) NULL, (cufftComplex*) NULL, 0);
-
-        /* implicitely instantiated by cudaComplexNormElementwise */
-        /*
-        CUPLA_KERNEL
-            ( cudaKernelComplexNormElementwise<float, cufftComplex> )
-            (1,1)
-            ( (float*) NULL, (cufftComplex*) NULL, 0 );
-        CUPLA_KERNEL
-            ( cudaKernelComplexNormElementwise<cufftComplex, cufftComplex> )
-            (1,1)
-            ( (cufftComplex*) NULL, (cufftComplex*) NULL, 0 );
-        */
-
-        cudaComplexNormElementwise< float, cufftComplex >(
-            (float*) NULL, (cufftComplex*) NULL, 0, 0, false );
-        cudaComplexNormElementwise< cufftComplex, cufftComplex >(
-            (cufftComplex*) NULL, (cufftComplex*) NULL, 0, 0, false );
-
-        CUPLA_KERNEL
-            ( cudaKernelApplyComplexModulus< cufftComplex, float > )
-            (1,1)
-            ( (cufftComplex*) NULL, (cufftComplex*) NULL, (float*) NULL, 0 );
-
-        CUPLA_KERNEL
-            ( cudaKernelCutOff<float> )
-            (1,1)
-            ( (float*) NULL, 0, 0.0f, 0.0f, 0.0f );
-        CUPLA_KERNEL
-            ( cudaKernelCutOff<double> )
-            (1,1)
-            ( (double*) NULL, 0, 0.0, 0.0, 0.0 );
-    }
+    #define __INSTANTIATE_TMP( T_PREC )             \
+    float compareCpuWithGpuArray< T_PREC >          \
+    (                                               \
+        T_PREC const * const __restrict__ rpData,   \
+        T_PREC const * const __restrict__ rdpData,  \
+        unsigned int const rnElements               \
+    );
+    //__INSTANTIATE_TMP( float )
+    #undef __INSTANTIATE_TMP
 
 
 } // namespace cuda
