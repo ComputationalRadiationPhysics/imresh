@@ -12,6 +12,7 @@ cmake ..                                    \
     -DBUILD_EXAMPLES=OFF                    \
     -DRUN_TESTS=ON                          \
     -DUSE_PNG=ON                            \
+    -DUSE_SPLASH=ON                         \
     -DUSE_TIFF=ON                           \
     -DUSE_FFTW=ON
 #make -j 3

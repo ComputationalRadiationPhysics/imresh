@@ -74,7 +74,7 @@ namespace cuda
     (
         T_ACC const & acc,
         float * const rdpTarget,
-        float const rValue,
+        float   const rValue,
         T_FUNC f
     )
     {
@@ -119,7 +119,7 @@ namespace cuda
     (
         T_ACC const & acc,
         double * const rdpTarget,
-        double const rValue,
+        double   const rValue,
         T_FUNC f
     )
     {
@@ -141,7 +141,7 @@ namespace cuda
     (
         T_ACC const & acc,
         int * const rdpTarget,
-        int const rValue,
+        int   const rValue,
         MaxFunctor<int> f
     )
     {
@@ -220,24 +220,14 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     T_PREC cudaReduce
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * const rdpData,
         unsigned int const rnElements,
         T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream
+        T_PREC const rInitValue
     )
     {
-        const unsigned nThreads = 128;
-        //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
-        //printf( "nThreads = %i, nBlocks = %i\n", nThreads, nBlocks );
-        const unsigned nBlocks = 288;
-        /* 256*256 = 65536 concurrent threads should fill most modern graphic
-         * cards. E.g. GTX 760 can only handle 12288 runnin concurrently,
-         * everything else will be run after some threads finished. The
-         * number of kernels is only 384, because of oversubscription with
-         * warps */
-        assert( nBlocks < 65536 );
-
+        auto const & rStream = rKernelConfig.iStream;
         T_PREC reducedValue;
         T_PREC * dpReducedValue;
         T_PREC initValue = rInitValue;
@@ -247,13 +237,15 @@ namespace cuda
                                      cudaMemcpyHostToDevice, rStream ) );
 
         /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
-        CUPLA_KERNEL( kernelVectorReduce<T_PREC, T_FUNC> )( nBlocks, nThreads, 0, rStream )
+        CUPLA_KERNEL
+            ( kernelVectorReduce<T_PREC, T_FUNC> )
+            ( rKernelConfig.nBlocks, rKernelConfig.nThreads, 0, rKernelConfig.iStream )
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
 
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
                                      cudaMemcpyDeviceToHost, rStream ) );
-        CUDA_ERROR( cudaStreamSynchronize( rStream) );
+        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         CUDA_ERROR( cudaFree( dpReducedValue ) );
 
         return reducedValue;
@@ -262,39 +254,39 @@ namespace cuda
     template<class T_PREC>
     T_PREC cudaVectorMin
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int const rnElements
     )
     {
         MinFunctor<T_PREC> minFunctor;
-        return cudaReduce( rdpData, rnElements, minFunctor, std::numeric_limits<T_PREC>::max(), rStream );
+        return cudaReduce( rKernelConfig, rdpData, rnElements, minFunctor, std::numeric_limits<T_PREC>::max() );
     }
 
 
     template<class T_PREC>
     T_PREC cudaVectorMax
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int const rnElements
     )
     {
         MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduce( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest(), rStream );
+        return cudaReduce( rKernelConfig, rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest() );
     }
 
 
     template<class T_PREC>
     T_PREC cudaVectorSum
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int const rnElements
     )
     {
         SumFunctor<T_PREC> sumFunctor;
-        return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
+        return cudaReduce( rKernelConfig, rdpData, rnElements, sumFunctor, T_PREC(0) );
     }
 
     inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t getLaneId( void )
@@ -395,15 +387,16 @@ namespace cuda
     template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError
     (
+        CudaKernelConfig rKernelConfig,
         T_COMPLEX const * const rdpData,
         T_MASK const * const rdpIsMasked,
         unsigned int const rnElements,
         bool const rInvertMask,
-        cudaStream_t rStream,
         float * const rpTotalError,
         float * const rpnMaskedPixels
     )
     {
+        auto const & rStream = rKernelConfig.iStream;
         const unsigned nThreads = 256;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         const unsigned nBlocks  = 256;
@@ -418,7 +411,9 @@ namespace cuda
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
-        CUPLA_KERNEL( cudaKernelCalculateHioError<T_COMPLEX, T_MASK> )( nBlocks, nThreads, 0, rStream )
+        CUPLA_KERNEL
+            ( cudaKernelCalculateHioError<T_COMPLEX, T_MASK> )
+            ( rKernelConfig.nBlocks, rKernelConfig.nThreads, 0, rKernelConfig.iStream )
             ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 

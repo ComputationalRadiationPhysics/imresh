@@ -25,9 +25,10 @@
 
 #pragma once
 
-#include <cuda_to_cupla.hpp>   // cudaStream_t
+#include <cuda_to_cupla.hpp>    // cudaStream_t
 #include <cstdint>              // uint32_t
 #include <cstddef>              // NULL
+#include "libs/CudaKernelConfig.hpp"
 
 
 namespace benchmark
@@ -39,14 +40,15 @@ namespace algorithms
 namespace cuda
 {
 
+    using ::imresh::libs::CudaKernelConfig;
 
     #define CUDA_VECTOR_MAX_DECLARATION( NAME )  \
     template<class T_PREC>                       \
     T_PREC cudaVectorMax##NAME                   \
     (                                            \
+        CudaKernelConfig rKernelConfig,          \
         T_PREC const * const rdpData,            \
-        unsigned int const rnElements,           \
-        cudaStream_t rStream = 0                 \
+        unsigned int const rnElements            \
     );
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic2 )
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic )
@@ -58,11 +60,11 @@ namespace cuda
     template<class T_COMPLEX>
     float cudaCalculateHioErrorBitPacked
     (
+        CudaKernelConfig rKernelConfig,
         T_COMPLEX const * rdpData,
         uint32_t  const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask = false,
-        cudaStream_t rStream = 0,
         float * rpTotalError = NULL,
         float * rpnMaskedPixels = NULL
     );

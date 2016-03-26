@@ -63,9 +63,9 @@ namespace cuda
     template                                \
     float cudaVectorMax##NAME<float>        \
     (                                       \
+        CudaKernelConfig rKernelConfig,     \
         float const * const rdpData,        \
-        unsigned int const rnElements,      \
-        cudaStream_t rStream                \
+        unsigned int const rnElements       \
     );
     INSTANTIATE_TMP( GlobalAtomic2 )
     INSTANTIATE_TMP( GlobalAtomic )
@@ -77,13 +77,13 @@ namespace cuda
     template
     float cudaCalculateHioErrorBitPacked<cufftComplex>
     (
-        cufftComplex const * const rdpData,
-        uint32_t  const * const rdpIsMasked,
-        unsigned int const rnElements,
-        bool const rInvertMask,
-        cudaStream_t rStream,
-        float * const rpTotalError,
-        float * const rpnMaskedPixels
+        CudaKernelConfig           rKernelConfig,
+        cufftComplex const * const rdpData      ,
+        uint32_t     const * const rdpIsMasked  ,
+        unsigned int         const rnElements   ,
+        bool                 const rInvertMask  ,
+        float              * const rpTotalError ,
+        float              * const rpnMaskedPixels
     );
 
 

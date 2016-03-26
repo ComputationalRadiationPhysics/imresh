@@ -25,8 +25,8 @@
 #pragma once
 
 
-#include <cuda_to_cupla.hpp>    // cudaStream_t
 #include <cmath>                // fmax
+#include "libs/CudaKernelConfig.hpp"
 
 
 namespace imresh
@@ -40,38 +40,38 @@ namespace cuda
     template<class T_PREC>
     T_PREC cudaVectorMin
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream = 0
+        unsigned int rnElements
     );
 
 
     template<class T_PREC>
     T_PREC cudaVectorMax
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream = 0
+        unsigned int rnElements
     );
 
 
     template<class T_PREC>
     T_PREC cudaVectorSum
     (
+        CudaKernelConfig rKernelConfig,
         T_PREC const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream = 0
+        unsigned int rnElements
     );
 
 
     template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError
     (
+        CudaKernelConfig rKernelConfig,
         T_COMPLEX const * rdpData,
         T_MASK const * rdpIsMasked,
         unsigned int rnElements,
         bool rInvertMask = false,
-        cudaStream_t rStream = 0,
         float * rpTotalError = NULL,
         float * rpnMaskedPixels = NULL
     );

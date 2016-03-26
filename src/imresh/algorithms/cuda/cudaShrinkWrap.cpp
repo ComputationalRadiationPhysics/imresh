@@ -79,7 +79,7 @@ namespace cuda
         rKernelConfig.check();
         auto const & nBlocks  = rKernelConfig.nBlocks;
         auto const & nThreads = rKernelConfig.nThreads;
-        auto const & rStream  = rKernelConfig.iCudaStream;
+        auto const & rStream  = rKernelConfig.iStream;
 
         /* Evaluate input parameters and fill with default values if necessary */
         assert( rImageWidth > 0 );

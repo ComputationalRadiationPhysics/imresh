@@ -26,7 +26,7 @@
 #include "cudaVectorReduce.hpp"
 #include "cudaVectorReduce.tpp"
 
-#include <cufft_to_cupla.hpp>
+#include <cufft_to_cupla.hpp>   // cuComplex
 
 
 namespace imresh
@@ -52,9 +52,9 @@ namespace cuda
     template                                            \
     T_PREC cudaReduceFunc<T_PREC>                       \
     (                                                   \
+        CudaKernelConfig rKernelConfig,                 \
         T_PREC const * rdpData,                         \
-        unsigned int rnElements,                        \
-        cudaStream_t rStream                            \
+        unsigned int rnElements                         \
     );
     INSTANTIATE_TMP( cudaVectorMin, float  );
     INSTANTIATE_TMP( cudaVectorMin, double );
@@ -70,11 +70,11 @@ namespace cuda
     float cudaCalculateHioError                     \
     <T_COMPLEX, T_MASK>                             \
     (                                               \
+        CudaKernelConfig rKernelConfig,             \
         cufftComplex const * rdpData,               \
         T_MASK const * rdpIsMasked,                 \
         unsigned int rnElements,                    \
         bool rInvertMask,                           \
-        cudaStream_t rStream,                       \
         float * rdpTotalError,                      \
         float * rdpnMaskedPixels                    \
     );

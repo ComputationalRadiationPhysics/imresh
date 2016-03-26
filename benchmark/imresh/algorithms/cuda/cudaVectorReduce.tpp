@@ -327,18 +327,16 @@ namespace cuda
     template<class T_PREC, class T_FUNC>                                       \
     T_PREC cudaReduce##NAME                                                    \
     (                                                                          \
+        CudaKernelConfig rKernelConfig,                                        \
         T_PREC const * const rdpData,                                          \
         unsigned int const rnElements,                                         \
         T_FUNC f,                                                              \
-        T_PREC const rInitValue,                                               \
-        cudaStream_t rStream                                                   \
+        T_PREC const rInitValue                                                \
     )                                                                          \
     {                                                                          \
+        auto const & rStream = rKernelConfig.iStream;                          \
         /* the more threads we have the longer the reduction will be           \
          * done inside shared memory instead of global memory */               \
-        const unsigned nThreads = 256;                                         \
-        const unsigned nBlocks = 256;                                          \
-        assert( nBlocks < 65536 );                                             \
                                                                                \
         T_PREC reducedValue;                                                   \
         T_PREC * dpReducedValue;                                               \
@@ -352,8 +350,9 @@ namespace cuda
                                                                                \
         /* memcpy is on the same stream as kernel will be, so no synchronize   \
            needed! */                                                          \
-        CUPLA_KERNEL( kernelVectorReduce##NAME< T_PREC, T_FUNC> )              \
-            ( nBlocks, nThreads, 0, rStream )                                  \
+        CUPLA_KERNEL                                                           \
+            ( kernelVectorReduce##NAME< T_PREC, T_FUNC> )                      \
+            ( rKernelConfig.nBlocks, rKernelConfig.nThreads, 0, rStream )      \
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );            \
                                                                                \
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );                        \
@@ -369,15 +368,17 @@ namespace cuda
     template<class T_PREC>                                                     \
     T_PREC cudaVectorMax##NAME                                                 \
     (                                                                          \
+        CudaKernelConfig rKernelConfig,                                        \
         T_PREC const * const rdpData,                                          \
-        unsigned int const rnElements,                                         \
-        cudaStream_t rStream                                                   \
+        unsigned int const rnElements                                          \
     )                                                                          \
     {                                                                          \
         MaxFunctor<T_PREC> maxFunctor;                                         \
-        return cudaReduce##NAME( rdpData, rnElements, maxFunctor,              \
-                                 std::numeric_limits<T_PREC>::lowest(),        \
-                                 rStream );                                    \
+        return cudaReduce##NAME(                                               \
+            rKernelConfig,                                                     \
+            rdpData, rnElements, maxFunctor,                                   \
+            std::numeric_limits<T_PREC>::lowest()                              \
+        );                                                                     \
     }
     WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
     WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
@@ -404,7 +405,7 @@ namespace cuda
     )
     {
         uint32_t result;
-        #if false
+        #if __CUDACC__
             asm( "bfe.u32 %0, %1, %2, %3;" :
                  "=r"(result) : "r"(src), "r"(offset), "r"(nBits) );
         #else
@@ -484,19 +485,16 @@ namespace cuda
     template<class T_COMPLEX>
     float cudaCalculateHioErrorBitPacked
     (
+        CudaKernelConfig rKernelConfig,
         T_COMPLEX const * const rdpData,
         uint32_t  const * const rdpIsMasked,
         unsigned int const rnElements,
         bool const rInvertMask,
-        cudaStream_t rStream,
         float * const rpTotalError,
         float * const rpnMaskedPixels
     )
     {
-        const unsigned nThreads = 32;   /* must be warpSize! */
-        //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
-        const unsigned nBlocks  = 256;
-        assert( nBlocks < 65536 );
+        auto const & rStream = rKernelConfig.iStream;
 
         float     totalError,     nMaskedPixels;
         float * dpTotalError, * dpnMaskedPixels;
@@ -508,7 +506,7 @@ namespace cuda
 
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
         CUPLA_KERNEL( cudaKernelCalculateHioErrorBitPacked<T_COMPLEX> )
-            ( nBlocks, nThreads, 0, rStream )
+            ( rKernelConfig.nBlocks, rKernelConfig.nThreads, 0, rKernelConfig.iStream )
             ( rdpData, rdpIsMasked, rnElements, dpTotalError, dpnMaskedPixels );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 

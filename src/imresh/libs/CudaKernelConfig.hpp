@@ -40,7 +40,7 @@ namespace libs
         dim3          nBlocks;
         dim3          nThreads;
         int           nBytesSharedMem;
-        cudaStream_t  iCudaStream;
+        cudaStream_t  iStream;
 
         /**
          *
@@ -52,7 +52,7 @@ namespace libs
             dim3         rnBlocks         = dim3{ 0, 0, 0 },
             dim3         rnThreads        = dim3{ 0, 0, 0 },
             int          rnBytesSharedMem = -1                ,
-            cudaStream_t riCudaStream     = cudaStream_t(0)
+            cudaStream_t riStream         = cudaStream_t(0)
         );
 
         /**
@@ -65,4 +65,7 @@ namespace libs
 
 
 } // namespace libs
+
+    using libs::CudaKernelConfig;
+
 } // namespace imresh

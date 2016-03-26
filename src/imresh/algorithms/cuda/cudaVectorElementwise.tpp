@@ -95,15 +95,15 @@ namespace cuda
     {
         CUPLA_KERNEL
             ( cudaKernelApplyHioDomainConstraints< T_COMPLEX, T_PREC > )
-            ( rKernelConfig.nBlocks         ,
-              rKernelConfig.nThreads        ,
-              rKernelConfig.nBytesSharedMem ,
-              rKernelConfig.iCudaStream     )
-            ( rdpgPrevious                  ,
-              rdpgPrime                     ,
-              rdpIsMasked                   ,
-              rnElements                    ,
-              rHioBeta                      );
+            ( rKernelConfig.nBlocks  ,
+              rKernelConfig.nThreads ,
+              0                      ,
+              rKernelConfig.iStream  )
+            ( rdpgPrevious           ,
+              rdpgPrime              ,
+              rdpIsMasked            ,
+              rnElements             ,
+              rHioBeta               );
     }
 
 

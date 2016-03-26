@@ -93,9 +93,9 @@ namespace algorithms
         assert( vectorMin( pData, 1 ) == pData[0] );
         assert( vectorMax( pData, 1 ) == pData[0] );
         assert( vectorSum( pData, 1 ) == pData[0] );
-        assert( cudaVectorMin( dpData, 1 ) == pData[0] );
-        assert( cudaVectorMax( dpData, 1 ) == pData[0] );
-        assert( cudaVectorSum( dpData, 1 ) == pData[0] );
+        assert( cudaVectorMin( CudaKernelConfig(), dpData, 1 ) == pData[0] );
+        assert( cudaVectorMax( CudaKernelConfig(), dpData, 1 ) == pData[0] );
+        assert( cudaVectorSum( CudaKernelConfig(), dpData, 1 ) == pData[0] );
 
         /* do some checks with longer arrays and obvious results */
         float obviousMaximum = 7.37519;
@@ -135,7 +135,8 @@ namespace algorithms
                       ++iRepetition )                                        \
                 {                                                            \
                     cudaEventRecord( start );                                \
-                    auto cudaReduced = FUNC( dpData, nElements );            \
+                    auto cudaReduced = FUNC( CudaKernelConfig(), dpData,     \
+                                             nElements );                    \
                     cudaEventRecord( stop );                                 \
                     cudaEventSynchronize( stop );                            \
                     cudaEventElapsedTime( &milliseconds, start, stop );      \
@@ -145,11 +146,11 @@ namespace algorithms
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
 
-            //TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
-            //TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
-            //TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
-            //TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
-            //TIME_GPU( cudaVectorMax                 , obviousMaximum )
+            TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
+            TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
+            TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
+            TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
+            TIME_GPU( cudaVectorMax                 , obviousMaximum )
 
             /* time CPU */
             #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
@@ -168,13 +169,6 @@ namespace algorithms
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
-
-            TIME_CPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
-            TIME_CPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
-            TIME_CPU( cudaVectorMaxSharedMemory     , obviousMaximum )
-            TIME_CPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
-            TIME_CPU( cudaVectorMax                 , obviousMaximum )
-
             TIME_CPU( vectorMax, obviousMaximum )
 
             /* Minimum */
@@ -191,9 +185,6 @@ namespace algorithms
             #undef TIME_GPU
             #undef TIME_CPU
         }
-
-
-        //for ( unsigned nElements = 2; nElements
 
         CUDA_ERROR( cudaFree( dpData ) );
         delete[] pData;
@@ -254,8 +245,8 @@ namespace algorithms
     void testCalculateHioError( void )
     {
         using namespace std::chrono;
-//        using namespace benchmark::imresh::algorithms::cuda;   // cudaCalculateHioErrorBitPacked
-//        using namespace imresh::algorithms::cuda;   // cudaKernelCalculateHioError
+        using namespace benchmark::imresh::algorithms::cuda;   // cudaCalculateHioErrorBitPacked
+        using namespace imresh::algorithms::cuda;   // cudaKernelCalculateHioError
         using namespace imresh::libs;               // calculateHioError
         using namespace imresh::tests;              // getLogSpacedSamplingPoints
 
@@ -322,7 +313,7 @@ namespace algorithms
         CUDA_ERROR( cudaMemcpy( dpIsMasked , pIsMasked , nMaxElements * sizeof( pIsMasked[0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpBitMasked, pBitMasked, nBitMaskedElements * sizeof( pBitMasked[0] ), cudaMemcpyHostToDevice ) );
         CUDA_ERROR( cudaMemcpy( dpIsMaskedChar, pIsMaskedChar, nMaxElements * sizeof( pIsMaskedChar[0] ), cudaMemcpyHostToDevice ) );
-#if false
+
         std::cout << "test with randomly masked pythagorean triples";
         /* because the number of elements we include only increases the number
          * of found masked elements should also only increase. */
@@ -333,9 +324,11 @@ namespace algorithms
 
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-            CUPLA_KERNEL( cudaKernelCalculateHioError )(3,256)
-                ( dpData, dpIsMasked, nElements, false /* don't invert mask */,
-                  dpTotalError, dpnMaskedPixels );
+            cudaCalculateHioError(
+                CudaKernelConfig(3,256),
+                dpData, dpIsMasked, nElements, false /* don't invert mask */,
+                dpTotalError, dpnMaskedPixels
+            );
             CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
                                     sizeof(float), cudaMemcpyDeviceToHost) );
             CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
@@ -352,9 +345,11 @@ namespace algorithms
             /* check char version */
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-            CUPLA_KERNEL( cudaKernelCalculateHioError )(3,256)
-                ( dpData, dpIsMaskedChar, nElements, false /* don't invert mask */,
-                  dpTotalError, dpnMaskedPixels );
+            cudaCalculateHioError(
+                CudaKernelConfig(3,256),
+                dpData, dpIsMaskedChar, nElements, false /* don't invert mask */,
+                dpTotalError, dpnMaskedPixels
+            );
             CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
                                     sizeof(float), cudaMemcpyDeviceToHost) );
             CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
@@ -371,8 +366,10 @@ namespace algorithms
             /* check packed bit version */
             CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
             CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
-            CUPLA_KERNEL( cudaKernelCalculateHioErrorBitPacked )(1,32)
-                ( dpData, dpBitMasked, nElements, dpTotalError, dpnMaskedPixels );
+            cudaCalculateHioErrorBitPacked(
+                CudaKernelConfig(1,32),
+                dpData, dpBitMasked, nElements, dpTotalError, dpnMaskedPixels
+            );
             CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
                                     sizeof(float), cudaMemcpyDeviceToHost) );
             CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
@@ -416,7 +413,7 @@ namespace algorithms
             #endif
         }
         std::cout << "OK\n";
-#endif
+
         /* benchmark with random numbers */
 
         for ( auto i = 0u; i < nBitMaskedElements; ++i )
@@ -439,7 +436,7 @@ namespace algorithms
             std::cout << std::setw(8) << nElements << " : ";
             float milliseconds, minTime;
             decltype( clock::now() ) clock0, clock1;
-#if false
+
             float error;
             #define TIME_GPU( FUNC, MASK )                                    \
             minTime = FLT_MAX;                                                \
@@ -447,7 +444,7 @@ namespace algorithms
                   ++iRepetition )                                             \
             {                                                                 \
                 cudaEventRecord( start );                                     \
-                error = FUNC( dpData, MASK, nElements );                      \
+                error = FUNC( CudaKernelConfig(), dpData, MASK, nElements );  \
                 cudaEventRecord( stop );                                      \
                 cudaEventSynchronize( stop );                                 \
                 cudaEventElapsedTime( &milliseconds, start, stop );           \
@@ -462,7 +459,7 @@ namespace algorithms
             compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
             TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
             compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
-#endif
+
             #ifdef USE_FFTW
                 /* time CPU */
                 minTime = FLT_MAX;
@@ -470,7 +467,7 @@ namespace algorithms
                       ++iRepetition )
                 {
                     clock0 = clock::now();
-                    auto error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
+                    error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
                     clock1 = clock::now();
                     auto seconds = duration_cast<duration<float>>( clock1 - clock0 );
                     minTime = std::fmin( minTime, seconds.count() * 1000 );

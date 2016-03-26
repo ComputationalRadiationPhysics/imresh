@@ -22,13 +22,48 @@ if(USE_FFTW)
 endif()
 
 # Find cupla
-SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING  "The location of the cupla library" FORCE )
+SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING "The location of the cupla library" FORCE )
 if( NOT EXISTS "${cupla_ROOT}" )
-    message(FATAL_ERROR "CUPLA_ROOT points to non-existing path!")
+    set( cupla_ROOT "${PROJECT_SOURCE_DIR}/pngwriter" )
+    if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" OR
+        NOT EXISTS "${cupla_ROOT}/include/cufft_to_cupla.hpp"
+    )
+        execute_process(
+            COMMAND git submodule update --init -- ./cupla
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        )
+    endif()
+    if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" )
+        message( FATAL_ERROR "Couldn't find '${cupla_ROOT}/include/cuda_to_cupla.hpp" )
+    endif()
+    if( NOT EXISTS "${cupla_ROOT}/include/cufft_to_cupla.hpp" )
+        message( FATAL_ERROR "Couldn't find '${cupla_ROOT}/include/cufft_to_cupla.hpp" )
+    endif()
+    set( ENV{CUPLA_ROOT} "${cupla_ROOT}")
 endif()
 list( APPEND CMAKE_MODULE_PATH "${cupla_ROOT}" )  # add findCupla.cmake
 find_package( "cupla" REQUIRED )
 add_definitions( ${cupla_DEFINITIONS} )
+
+# find HaLT
+find_path(
+    _HALT_ROOT_DIR
+    NAMES "include/cuda_to_cupla.hpp"
+    HINTS "${HALT_ROOT}" ENV HALT_ROOT
+    DOC "HaLT location"
+)
+if( NOT _HALT_ROOT_DIR)
+    message(FATAL_ERROR "HaLT could not be found! Please set $HALT_ROOT to the correct directory.")
+endif()
+
+find_package( Boost 1.56.0 COMPONENTS system REQUIRED ) # 1.56 needed for boost_unused_parameter
+list( APPEND HaLT_INCLUDE_DIRS ${Boost_INCLUDE_DIRS} )
+list( APPEND HaLT_INCLUDE_DIRS "${_HALT_ROOT_DIR}/include" )
+list( APPEND HaLT_LIBRARIES    ${Boost_LIBRARIES} )
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+######
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
@@ -70,33 +105,24 @@ endif()
 if(USE_PNG)
     # if PNGWRITER_ROOT not set, then get and compile submodule
     if( "$ENV{PNGWRITER_ROOT}" STREQUAL "" )
-        if( NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/include/pngwriter.h" OR
-            NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/lib/libpngwriter.a"  OR
-            NOT EXISTS "${PROJECT_SOURCE_DIR}/pngwriter/lib/libpngwriter.so"
+        set( PNGWRITER_ROOT "${PROJECT_SOURCE_DIR}/pngwriter" )
+        if( NOT EXISTS "${PNGWRITER_ROOT}/include/pngwriter.h" OR
+            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.a"  OR
+            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.so"
         )
             # every command own execute process because of this bug:
             execute_process(
-                COMMAND git submodule update --init -- ./pngwriter
+                COMMAND sh -c "\
+                git submodule update --init -- ./pngwriter && \
+                mkdir -p ./pngwriter/build                 && \
+                cd ./pngwriter/build                       && \
+                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
+                make install -j 4                             \
+                "
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-            execute_process(
-                COMMAND mkdir -p ./pngwriter/build
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-            execute_process(
-                COMMAND cmake .. -DCMAKE_INSTALL_PREFIX=..
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
-            )
-            execute_process(
-                COMMAND ls ${PROJECT_SOURCE_DIR}/pngwriter/build
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
-            )
-            execute_process(
-                COMMAND make install -j
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/pngwriter/build
             )
         endif()
-        set( ENV{PNGWRITER_ROOT} "${PROJECT_SOURCE_DIR}/pngwriter")
+        set( ENV{PNGWRITER_ROOT} "${PNGWRITER_ROOT}")
     endif()
 
     find_package( PNGwriter REQUIRED )
@@ -111,29 +137,24 @@ endif()
 if(USE_SPLASH)
     # if PNGWRITER_ROOT not set, then get and compile submodule
     if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
-        if( NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/include/splash/splash.h" OR
-            NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/lib/libsplash.a" OR
-            NOT EXISTS "${PROJECT_SOURCE_DIR}/libsplash/lib/libsplash.so"
+        set( SPLASH_ROOT "${PROJECT_SOURCE_DIR}/libsplash" )
+        if( NOT EXISTS "${SPLASH_ROOT}/include/splash/splash.h" OR
+            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.a" OR
+            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.so"
         )
             # every command own execute process because of this bug:
             execute_process(
-                COMMAND git submodule update --init -- ${PROJECT_SOURCE_DIR}/libsplash
+                COMMAND sh -c "
+                git submodule update --init -- ./libsplash && \
+                mkdir -p  ./libsplash/build                && \
+                cd ./libsplash/build                       && \
+                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
+                make install -j 4                             \
+                "
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-            execute_process(
-                COMMAND mkdir -p ./libsplash/build
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-            execute_process(
-                COMMAND cmake .. -DCMAKE_INSTALL_PREFIX=..
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/libsplash/build
-            )
-            execute_process(
-                COMMAND make install -j
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/libsplash/build
             )
         endif()
-        set( ENV{SPLASH_ROOT} "${PROJECT_SOURCE_DIR}/libsplash")
+        set( ENV{SPLASH_ROOT} "${SPLASH_ROOT}")
     endif()
 
     find_package(Splash REQUIRED)
@@ -181,8 +202,15 @@ include_directories(
     ${OpenMP_INCLUDE_DIRS}
     ${cupla_INCLUDE_DIRS}
     ${TIFF_INCLUDE_DIRS}
-    ${cupla_INCLUDE_DIRS}
+    ${HaLT_INCLUDE_DIRS}
 )
+message( STATUS "CUDA_INCLUDE_DIRS      = ${CUDA_INCLUDE_DIRS}"      )
+message( STATUS "PNGwriter_INCLUDE_DIRS = ${PNGwriter_INCLUDE_DIRS}" )
+message( STATUS "Splash_INCLUDE_DIRS    = ${Splash_INCLUDE_DIRS}"    )
+message( STATUS "OpenMP_INCLUDE_DIRS    = ${OpenMP_INCLUDE_DIRS}"    )
+message( STATUS "cupla_INCLUDE_DIRS     = ${cupla_INCLUDE_DIRS}"     )
+message( STATUS "TIFF_INCLUDE_DIRS      = ${TIFF_INCLUDE_DIRS}"      )
+message( STATUS "HaLT_INCLUDE_DIRS      = ${HaLT_INCLUDE_DIRS}"      )
 
 #cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 #cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)
@@ -200,6 +228,7 @@ set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
     ${OpenMP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
     ${TIFF_LIBRARIES}
+    ${HaLT_LIBRARIES}
 )
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} ${_cupla_LINK_LIBRARIES_PUBLIC} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)

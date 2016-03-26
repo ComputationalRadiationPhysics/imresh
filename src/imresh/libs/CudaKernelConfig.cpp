@@ -39,13 +39,13 @@ namespace libs
         dim3         rnBlocks         ,
         dim3         rnThreads        ,
         int          rnBytesSharedMem ,
-        cudaStream_t riCudaStream
+        cudaStream_t riStream
     )
     :
         nBlocks        ( rnBlocks         ),
         nThreads       ( rnThreads        ),
         nBytesSharedMem( rnBytesSharedMem ),
-        iCudaStream    ( riCudaStream     )
+        iStream        ( riStream         )
     {
         check();
     }
@@ -63,8 +63,12 @@ namespace libs
             nMaxThreads = 4;
         #endif
         #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+            /* E.g. GTX 760 can only handle 12288 runnin concurrently,
+             * everything else will be run after some threads finished. The
+             * number of CUDA cores is only 1152, but they are oversubscribed */
             nMaxThreads = 128;
-            nMaxBlocks  = 192;    // MaxConcurrentThreads / nMaxThreads, e.g. on GTX760 it would be 96
+            nMaxBlocks  = 96;
+            //nMaxBlocks  = 192;    // MaxConcurrentThreads / nMaxThreads
         #endif
 
         if ( nBlocks.x <= 0 )
