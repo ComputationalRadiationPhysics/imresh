@@ -26,6 +26,7 @@
 #pragma once
 
 #include <cuda_to_cupla.hpp>
+#include "libs/CudaKernelConfig.hpp"
 
 
 namespace imresh
@@ -36,95 +37,6 @@ namespace cuda
 {
 
 
-    template< class T_COMPLEX, class T_PREC >
-    struct cudaKernelApplyHioDomainConstraints
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_COMPLEX       * const rdpgPrevious,
-            T_COMPLEX const * const rdpgPrime,
-            T_PREC    const * const rdpIsMasked,
-            unsigned int const rnElements,
-            T_PREC const rHioBeta
-        ) const;
-    };
-
-    template< class T_COMPLEX, class T_PREC >
-    struct cudaKernelCopyToRealPart
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_COMPLEX * const rTargetComplexArray,
-            T_PREC    * const rSourceRealArray,
-            unsigned int const rnElements
-        ) const;
-    };
-
-    template< class T_PREC, class T_COMPLEX >
-    struct cudaKernelCopyFromRealPart
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC    * const rTargetComplexArray,
-            T_COMPLEX * const rSourceRealArray,
-            unsigned int const rnElements
-        ) const;
-    };
-
-    template< class T_PREC, class T_COMPLEX >
-    struct cudaKernelComplexNormElementwise
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC          * const rdpDataTarget,
-            T_COMPLEX const * const rdpDataSource,
-            unsigned int const rnElements
-        ) const;
-    };
-
-    template< class T_COMPLEX, class T_PREC >
-    struct cudaKernelApplyComplexModulus
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_COMPLEX       * const rdpDataTarget,
-            T_COMPLEX const * const rdpDataSource,
-            T_PREC    const * const rdpComplexModulus,
-            unsigned int const rnElements
-        ) const;
-    };
-
-    template< class T_PREC >
-    struct cudaKernelCutOff
-    {
-        template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC * const rData,
-            unsigned int const rnElements,
-            T_PREC const rThreshold,
-            T_PREC const rLowerValue,
-            T_PREC const rUpperValue
-        ) const;
-    };
-
     /* kernel call wrappers in order for this to be usable from source files
      * not compiled with nvcc */
 
@@ -133,9 +45,74 @@ namespace cuda
     (
         T_PREC          * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
-        unsigned int const rnElements,
-        cudaStream_t const rStream = cudaStream_t(0),
-        bool const rAsync = true
+        unsigned int      const rnElements,
+        cudaStream_t      const rStream = cudaStream_t(0),
+        bool              const rAsync  = true
+    );
+
+
+    template< class T_COMPLEX, class T_PREC >
+    void cudaApplyHioDomainConstraints
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+        T_COMPLEX            * const rdpgPrevious ,
+        T_COMPLEX      const * const rdpgPrime    ,
+        T_PREC         const * const rdpIsMasked  ,
+        unsigned int           const rnElements   ,
+        T_PREC                 const rHioBeta
+    );
+
+
+    template< class T_COMPLEX, class T_PREC >
+    void cudaCopyToRealPart
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+            T_COMPLEX        * const rTargetComplexArray,
+            T_PREC           * const rSourceRealArray,
+            unsigned int       const rnElements
+    );
+
+
+    template< class T_PREC, class T_COMPLEX >
+    void cudaCopyFromRealPart
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+            T_PREC           * const rTargetComplexArray,
+            T_COMPLEX        * const rSourceRealArray,
+            unsigned int       const rnElements
+    );
+
+
+    template< class T_PREC, class T_COMPLEX >
+    void cudaComplexNormElementwise
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+            T_PREC           * const rdpDataTarget,
+            T_COMPLEX  const * const rdpDataSource,
+            unsigned int       const rnElements
+    );
+
+
+    template< class T_COMPLEX, class T_PREC >
+    void cudaApplyComplexModulus
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+            T_COMPLEX        * const rdpDataTarget,
+            T_COMPLEX  const * const rdpDataSource,
+            T_PREC     const * const rdpComplexModulus,
+            unsigned int       const rnElements
+    );
+
+
+    template< class T_PREC >
+    void cudaCutOff
+    (
+        libs::CudaKernelConfig const rKernelConfig,
+            T_PREC           * const rData,
+            unsigned int       const rnElements,
+            T_PREC             const rThreshold,
+            T_PREC             const rLowerValue,
+            T_PREC             const rUpperValue
     );
 
 

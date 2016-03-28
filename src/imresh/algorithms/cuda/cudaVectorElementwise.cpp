@@ -26,6 +26,8 @@
 #include "cudaVectorElementwise.hpp"
 #include "cudaVectorElementwise.tpp"
 
+#include <foobar/FFT.hpp>    // foobar::types::Complex<float>
+
 
 namespace imresh
 {
@@ -35,28 +37,98 @@ namespace cuda
 {
 
 
-    #define __INSTANTIATE_TMP( T_COMPLEX, T_PREC )                \
-    template                                                      \
-    void cudaApplyHioDomainConstraints< T_COMPLEX, T_PREC >       \
-    (                                                             \
-        libs::CudaKernelConfig  const              rKernelConfig, \
-        T_COMPLEX             * const __restrict__ rdpgPrevious , \
-        T_COMPLEX       const * const __restrict__ rdpgPrime    , \
-        T_PREC          const * const __restrict__ rdpIsMasked  , \
-        unsigned int            const              rnElements   , \
-        T_PREC                  const              rHioBeta       \
+    #define __INSTANTIATE_TMP( T_COMPLEX, T_PREC )              \
+                                                                \
+    template                                                    \
+    void cudaComplexNormElementwise< T_PREC, T_COMPLEX >        \
+    (                                                           \
+        T_PREC          * const rdpDataTarget,                  \
+        T_COMPLEX const * const rdpDataSource,                  \
+        unsigned int      const rnElements,                     \
+        cudaStream_t      const rStream = cudaStream_t(0),      \
+        bool              const rAsync  = true                  \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaApplyHioDomainConstraints< T_COMPLEX, T_PREC >     \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+        T_COMPLEX            * const rdpgPrevious ,             \
+        T_COMPLEX      const * const rdpgPrime    ,             \
+        T_PREC         const * const rdpIsMasked  ,             \
+        unsigned int           const rnElements   ,             \
+        T_PREC                 const rHioBeta                   \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaCopyToRealPart< T_COMPLEX, T_PREC >                \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+            T_COMPLEX        * const rTargetComplexArray,       \
+            T_PREC           * const rSourceRealArray,          \
+            unsigned int       const rnElements                 \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaCopyFromRealPart< T_PREC, T_COMPLEX >              \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+            T_PREC           * const rTargetComplexArray,       \
+            T_COMPLEX        * const rSourceRealArray,          \
+            unsigned int       const rnElements                 \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaComplexNormElementwise< T_PREC, T_COMPLEX >        \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+            T_PREC           * const rdpDataTarget,             \
+            T_COMPLEX  const * const rdpDataSource,             \
+            unsigned int       const rnElements                 \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaApplyComplexModulus< T_COMPLEX, T_PREC >           \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+            T_COMPLEX        * const rdpDataTarget,             \
+            T_COMPLEX  const * const rdpDataSource,             \
+            T_PREC     const * const rdpComplexModulus,         \
+            unsigned int       const rnElements                 \
     );
-    //__INSTANTIATE_TMP( cufftComplex, float )
+
+    __INSTANTIATE_TMP( cufftComplex, float )
     #undef __INSTANTIATE_TMP
 
-    #define __INSTANTIATE_TMP( T_PREC )             \
-    float compareCpuWithGpuArray< T_PREC >          \
-    (                                               \
-        T_PREC const * const __restrict__ rpData,   \
-        T_PREC const * const __restrict__ rdpData,  \
-        unsigned int const rnElements               \
+
+    #define __INSTANTIATE_TMP( T_PREC )                         \
+                                                                \
+    template                                                    \
+    float compareCpuWithGpuArray< T_PREC >                      \
+    (                                                           \
+        T_PREC const * const rpData,                            \
+        T_PREC const * const rdpData,                           \
+        unsigned int   const rnElements                         \
+    );                                                          \
+                                                                \
+                                                                \
+    template                                                    \
+    void cudaCutOff< T_PREC >                                   \
+    (                                                           \
+        libs::CudaKernelConfig const rKernelConfig,             \
+            T_PREC           * const rData,                     \
+            unsigned int       const rnElements,                \
+            T_PREC             const rThreshold,                \
+            T_PREC             const rLowerValue,               \
+            T_PREC             const rUpperValue                \
     );
-    //__INSTANTIATE_TMP( float )
+
+    __INSTANTIATE_TMP( float )
     #undef __INSTANTIATE_TMP
 
 

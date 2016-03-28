@@ -74,14 +74,13 @@ namespace cuda
         /* load libraries and functions which we need */
         using namespace imresh::algorithms;
         using imresh::libs::mallocCudaArray;
+        using namespace foobar; // types::Vec2, types::Complex, FFT_Definition, ...
 
         rKernelConfig.check();
-        auto const & nBlocks  = rKernelConfig.nBlocks;
-        auto const & nThreads = rKernelConfig.nThreads;
         auto const & rStream  = rKernelConfig.iStream;
 
         /* Evaluate input parameters and fill with default values if necessary */
-        assert( rImageWidth > 0 );
+        assert( rImageWidth  > 0 );
         assert( rImageHeight > 0 );
         assert( rIoData != NULL );
         /* this makes it possible to specifiy new values for e.g. rSigma0,
@@ -108,35 +107,68 @@ namespace cuda
         mallocCudaArray( &dpgPrevious, nElements );
         mallocCudaArray( &dpIntensity, nElements );
         mallocCudaArray( &dpIsMasked , nElements );
-        CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIoData, sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
+        CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIoData,
+            sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
 
-#if false
-        /* create fft plans G' to g' and g to G */
-        cufftHandle ftPlan;
-        cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C );
-        cufftSetStream( ftPlan, rStream );
+        /* shorthand for HaLT wrapper */
+        auto wcdp /* wrapComplexDevicePointer */ =
+            [ &rImageHeight,  &rImageWidth ]( cufftComplex * const & rdp )
+            {
+                auto arraySize = types::Vec2
+                                 {
+                                    rImageHeight /* Ny, nRows */,
+                                    rImageWidth  /* Nx, nCols */
+                                 };
+                return foobar::mem::wrapPtr
+                       <
+                           true /* is complex */,
+                           true /* is device pointer */
+                       >( (types::Complex<float> *) rdp, arraySize );
+            };
+
+        /* create plan and wrap data g->G (dpgPrevious->dpCurData) */
+        using Plan_gToG = FFT_Definition<
+            FFT_Kind::Complex2Complex,
+            2             ,  /* dims         */
+            float         ,  /* precision    */
+            std::true_type,  /* forward      */
+            false            /* not in-place */
+        >;
+        auto dpgPreviousIn = Plan_gToG::wrapInput ( wcdp( dpgPrevious ) );
+        auto dpCurDataOut  = Plan_gToG::wrapOutput( wcdp( dpCurData   ) );
+        auto fft_gToG = makeFftPlan( dpgPreviousIn, dpCurDataOut );
+
+        /* create plan and wrap data G'->g' (dpCurData->dpCurData) */
+        using Plan_GPrimeTogPrime = FFT_Definition<
+            FFT_Kind::Complex2Complex,
+            2              , /* dims         */
+            float          , /* precision    */
+            std::false_type, /* inverse      */
+            true             /* in-place     */
+        >;
+        auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wcdp( dpCurData ) );
+        auto fft_GPrimeTogPrime = makeFftPlan( dpCurDataIn );
+
+        #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+            cufftSetStream( ftPlan, rStream );
+        #endif
 
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see
          * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
-        cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
-        CUDA_ERROR( cudaPeekAtLastError() );
-
-        cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
-        cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream >>>( dpIsMasked, dpCurData, nElements );
-        CUDA_ERROR( cudaPeekAtLastError() );
+        cudaCopyToRealPart( rKernelConfig, dpCurData, dpIntensity, nElements );
+        fft_GPrimeTogPrime( dpCurDataIn );
+        cudaComplexNormElementwise( rKernelConfig, dpIsMasked, dpCurData, nElements );
         cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream,
                           true /* don't call cudaDeviceSynchronize */ );
 
         /* apply threshold to make binary mask */
-        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements, rStream );
-        const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
-        cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
-        CUDA_ERROR( cudaPeekAtLastError() );
+        float const maskedAbsMax = cudaVectorMax( rKernelConfig, dpIsMasked, nElements );
+        float const maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
+        cudaCutOff( rKernelConfig, dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
 
         /* copy original image into fftw_complex array @todo: add random phase */
-        cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream>>>( dpCurData, dpIntensity, nElements );
-        CUDA_ERROR( cudaPeekAtLastError() );
+        cudaCopyToRealPart( rKernelConfig, dpCurData, dpIntensity, nElements );
 
         /* in the first step the last value for g is to be approximated
          * by g'. The last value for g, called g_k is needed, because
@@ -146,20 +178,18 @@ namespace cuda
                     cudaMemcpyDeviceToDevice, rStream );
 
         /* repeatedly call HIO algorithm and change mask */
-        for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
+        for ( auto iCycleShrinkWrap = 0u; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
 
             /* blur |g'| (normally g' should be real!, so |.| not necessary) */
-            cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );
-            CUDA_ERROR( cudaPeekAtLastError() );
+            cudaComplexNormElementwise( rKernelConfig, dpIsMasked, dpCurData, nElements );
             cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
 
             /* apply threshold to make binary mask */
-            const float absMax = cudaVectorMax( dpIsMasked, nElements, rStream );
+            const float absMax = cudaVectorMax( rKernelConfig, dpIsMasked, nElements );
             const float threshold = rIntensityCutOff * absMax;
-            cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
-            CUDA_ERROR( cudaPeekAtLastError() );
+            cudaCutOff( rKernelConfig, dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
             /* update the blurring sigma */
             sigma = fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
@@ -167,23 +197,20 @@ namespace cuda
             for ( unsigned iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
             {
                 /* apply domain constraints to g' to get g */
-                cudaKernelApplyHioDomainConstraints<<<nBlocks,nThreads,0,rStream >>>
-                    ( dpgPrevious, dpCurData, dpIsMasked, nElements, rHioBeta );
-                CUDA_ERROR( cudaPeekAtLastError() );
+                cudaApplyHioDomainConstraints( rKernelConfig, dpgPrevious, dpCurData, dpIsMasked, nElements, rHioBeta );
 
-                /* Transform new guess g for f back into frequency space G' */
-                cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD );
+                /* Transform new guess g for f back into frequency space G */
+                fft_gToG( dpgPreviousIn, dpCurDataOut );
 
-                /* Replace absolute of G' with measured absolute |F| */
-                cudaKernelApplyComplexModulus<<<nBlocks,nThreads,0,rStream>>>
-                    ( dpCurData, dpCurData, dpIntensity, nElements );
-                CUDA_ERROR( cudaPeekAtLastError() );
+                /* Replace absolute of G with measured absolute |F| to get G' */
+                cudaApplyComplexModulus( rKernelConfig, dpCurData, dpCurData, dpIntensity, nElements );
 
-                cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
+                fft_GPrimeTogPrime( dpCurDataIn );
             } // HIO loop
 
             /* check if we are done */
-            const float currentError = cudaCalculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
+            auto const currentError = cudaCalculateHioError( rKernelConfig,
+                dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */ );
 #           ifdef IMRESH_DEBUG
                 std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                           << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
@@ -194,17 +221,13 @@ namespace cuda
             if ( iCycleShrinkWrap >= rnCycles )
                 break;
         } // shrink wrap loop
-        cudaKernelCopyFromRealPart<<<nBlocks,nThreads,0,rStream>>>( dpIntensity, dpCurData, nElements );
+        cudaCopyFromRealPart( rKernelConfig, dpIntensity, dpCurData, nElements );
 
-        CUDA_ERROR( cudaPeekAtLastError() );
         CUDA_ERROR( cudaMemcpyAsync( rIoData, dpIntensity, sizeof(rIoData[0])*nElements, cudaMemcpyDeviceToHost, rStream ) );
 
         /* wait for everything to finish */
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
-        /* free buffers and plans */
-        cufftDestroy( ftPlan );
-#endif
         CUDA_ERROR( cudaFree( dpCurData   ) );
         CUDA_ERROR( cudaFree( dpgPrevious ) );
         CUDA_ERROR( cudaFree( dpIntensity ) );
