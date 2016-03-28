@@ -90,11 +90,13 @@ namespace libs
             bool rAsync
         )
         {
+            using imresh::libs::mallocCudaArray;
+
             const unsigned int nElements = rImageWidth * rImageHeight;
 
             cufftComplex * dpTmp;
             const unsigned int tmpSize = nElements * sizeof( dpTmp[0] );
-            CUDA_ERROR( cudaMalloc( (void**)&dpTmp, tmpSize ) );
+            mallocCudaArray( &dpTmp, nElements );
             /* what we want to do is copy the float input array to the real
              * part of the cufftComplex array and set the imaginary part to 0 */
             CUDA_ERROR( cudaMemsetAsync( dpTmp, 0, tmpSize, rStream ) );

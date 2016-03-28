@@ -77,6 +77,7 @@ namespace cuda
     {
         /* load libraries and functions which we need */
         using namespace imresh::algorithms;
+        using namespace imresh::libs;
 
         /* Evaluate input parameters and fill with default values if necessary */
         assert( rImageWidth > 0 );
@@ -102,10 +103,10 @@ namespace cuda
         cufftComplex * dpgPrevious;
         float * dpIntensity;
         float * dpIsMasked;
-        CUDA_ERROR( cudaMalloc( (void**)&dpCurData  , sizeof(dpCurData  [0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpgPrevious, sizeof(dpgPrevious[0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpIntensity, sizeof(dpIntensity[0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpIsMasked , sizeof(dpIsMasked [0])*nElements ) );
+        mallocCudaArray( &dpCurData  , nElements );
+        mallocCudaArray( &dpgPrevious, nElements );
+        mallocCudaArray( &dpIntensity, nElements );
+        mallocCudaArray( &dpIsMasked , nElements );
         CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIntensity, sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
 
         /* create fft plans G' to g' and g to G */

@@ -213,6 +213,7 @@ namespace algorithms
         using namespace imresh::algorithms::cuda;
         using examples::createTestData::createAtomCluster;
         using imresh::libs::diffractionIntensity;
+        using imresh::libs::mallocCudaArray;
         using namespace imresh::tests;
 
         cudaEvent_t start, stop;
@@ -230,8 +231,8 @@ namespace algorithms
             pData[i].x = (float) rand() / RAND_MAX;
             pData[i].y = (float) rand() / RAND_MAX;
         }
-        CUDA_ERROR( cudaMalloc( (void**) &dpData  , nMaxElements * sizeof( dpData  [0] ) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpResult, nMaxElements * sizeof( dpResult[0] ) ) );
+        mallocCudaArray( &dpData  , nMaxElements );
+        mallocCudaArray( &dpResult, nMaxElements );
         CUDA_ERROR( cudaMemcpy( dpData, pData,     nMaxElements * sizeof( dpData  [0] ), cudaMemcpyHostToDevice ) );
 
         #ifdef USE_FFTW

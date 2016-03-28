@@ -178,6 +178,8 @@ namespace cuda
         cudaStream_t rStream
     )
     {
+        using imresh::libs::mallocCudaArray;
+
         const unsigned nThreads = 128;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         //printf( "nThreads = %i, nBlocks = %i\n", nThreads, nBlocks );
@@ -193,7 +195,7 @@ namespace cuda
         T_PREC * dpReducedValue;
         T_PREC initValue = rInitValue;
 
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );
+        mallocCudaArray( &dpReducedValue, 1 );
         CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(T_PREC),
                                      cudaMemcpyHostToDevice, rStream ) );
 
@@ -364,6 +366,8 @@ namespace cuda
         float * const rpnMaskedPixels
     )
     {
+        using imresh::libs::mallocCudaArray;
+
         const unsigned nThreads = 256;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         const unsigned nBlocks  = 256;
@@ -372,8 +376,8 @@ namespace cuda
         float     totalError,     nMaskedPixels;
         float * dpTotalError, * dpnMaskedPixels;
 
-        CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
+        mallocCudaArray( &dpTotalError   , 1 );
+        mallocCudaArray( &dpnMaskedPixels, 1 );
         CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 

@@ -121,6 +121,8 @@ namespace cuda
         /* not thread-safe! call mBuffersMutex.lock(); prior to calling this */
         DeviceGaussianKernels & getDeviceBuffer ( void )
         {
+            using imresh::libs::mallocCudaArray;
+
             int curDevice;
             CUDA_ERROR( cudaGetDevice( &curDevice ) );
 
@@ -135,8 +137,7 @@ namespace cuda
 
             DeviceGaussianKernels buffer;
             buffer.dpKernelBuffer = NULL;
-            CUDA_ERROR( cudaMalloc( &buffer.dpKernelBuffer, mnMaxKernels *
-                mMaxKernelSize * sizeof( buffer.dpKernelBuffer[0] ) ) );
+            mallocCudaArray( &buffer.dpKernelBuffer, mnMaxKernels * mMaxKernelSize );
             buffer.firstFree = 0;
             assert( mnMaxKernels <= buffer.kernelSigmas.max_size() );
 
