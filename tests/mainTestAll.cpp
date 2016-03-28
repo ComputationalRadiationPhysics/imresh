@@ -38,8 +38,8 @@ int main( void )
     using namespace imresh::libs;
     using namespace imresh::io;
 
-    TestGaussian testGaussian; testGaussian();
     testFft();
+    TestGaussian testGaussian; testGaussian();
     testShrinkWrap();
     #ifdef USE_PNG
         testPng();

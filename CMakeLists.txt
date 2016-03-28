@@ -48,11 +48,12 @@ add_definitions( ${cupla_DEFINITIONS} )
 # find HaLT
 find_path(
     _HALT_ROOT_DIR
-    NAMES "include/cuda_to_cupla.hpp"
-    HINTS "${HALT_ROOT}" ENV HALT_ROOT
+    NAMES "include/foobar/FFT.hpp"
+    HINTS ENV HALT_ROOT
     DOC "HaLT location"
 )
-if( NOT _HALT_ROOT_DIR)
+set( _HALT_ROOT_DIR "${PROJECT_SOURCE_DIR}/halt" )
+if( NOT EXISTS "${_HALT_ROOT_DIR}/include/foobar/FFT.hpp" )
     message(FATAL_ERROR "HaLT could not be found! Please set $HALT_ROOT to the correct directory.")
 endif()
 
@@ -177,7 +178,6 @@ set( SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/checkCufftError.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/CudaKernelConfig.cpp
     # makes use of cufft and only cufft, therefore could be a nice test example for a cufft_to_cupla.hpp test

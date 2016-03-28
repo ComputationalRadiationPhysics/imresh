@@ -43,7 +43,6 @@
 #   include "io/writeOutFuncs/writeOutFuncs.hpp"
 #endif
 #include "libs/cudacommon.hpp"  // CUDA_ERROR
-#include "libs/checkCufftError.hpp"
 #include "libs/CudaKernelConfig.hpp"
 #include "cudaVectorElementwise.hpp"
 
@@ -75,7 +74,6 @@ namespace cuda
         /* load libraries and functions which we need */
         using namespace imresh::algorithms;
 
-#if false
         rKernelConfig.check();
         auto const & nBlocks  = rKernelConfig.nBlocks;
         auto const & nThreads = rKernelConfig.nThreads;
@@ -111,10 +109,11 @@ namespace cuda
         CUDA_ERROR( cudaMalloc( (void**)&dpIsMasked , sizeof(dpIsMasked [0])*nElements ) );
         CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIoData, sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
 
+#if false
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
-        CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
-        CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
+        cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C );
+        cufftSetStream( ftPlan, rStream );
 
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see
@@ -122,7 +121,7 @@ namespace cuda
         cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
         CUDA_ERROR( cudaPeekAtLastError() );
 
-        CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
+        cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
         cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream >>>( dpIsMasked, dpCurData, nElements );
         CUDA_ERROR( cudaPeekAtLastError() );
         cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream,
@@ -172,14 +171,14 @@ namespace cuda
                 CUDA_ERROR( cudaPeekAtLastError() );
 
                 /* Transform new guess g for f back into frequency space G' */
-                CUFFT_ERROR( cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD ) );
+                cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD );
 
                 /* Replace absolute of G' with measured absolute |F| */
                 cudaKernelApplyComplexModulus<<<nBlocks,nThreads,0,rStream>>>
                     ( dpCurData, dpCurData, dpIntensity, nElements );
                 CUDA_ERROR( cudaPeekAtLastError() );
 
-                CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
+                cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE );
             } // HIO loop
 
             /* check if we are done */
@@ -203,12 +202,13 @@ namespace cuda
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
         /* free buffers and plans */
-//        CUFFT_ERROR( cufftDestroy( ftPlan ) );
+        cufftDestroy( ftPlan );
+#endif
         CUDA_ERROR( cudaFree( dpCurData   ) );
         CUDA_ERROR( cudaFree( dpgPrevious ) );
         CUDA_ERROR( cudaFree( dpIntensity ) );
         CUDA_ERROR( cudaFree( dpIsMasked  ) );
-#endif
+
         return 0;
     }
 

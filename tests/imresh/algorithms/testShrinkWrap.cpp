@@ -46,7 +46,6 @@
 #include "benchmarkHelper.hpp"  // getLogSpacedSamplingPoints
 #include "examples/createTestData/createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
-#include "libs/checkCufftError.hpp"
 #include "libs/cudacommon.hpp"
 
 
@@ -219,8 +218,87 @@ namespace algorithms
     }
 
 
+    void print2dArray
+    (
+        cufftComplex * const data,
+        unsigned int const Nx,
+        unsigned int const Ny
+    )
+    {
+        for ( auto iy = 0u; iy < Ny; ++iy )
+        {
+            for ( auto ix = 0u; ix < Nx; ++ix )
+            {
+                std::cout << "( " << data[ iy * Nx + ix ].x << ", "
+                                  << data[ iy * Nx + ix ].y << " ) ";
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    void testFftCheckerboard( void )
+    {
+        /* allocate */
+        unsigned int constexpr Nx = 4;
+        unsigned int constexpr Ny = 4;
+        auto pData = new cufftComplex[ Nx*Ny ];
+        cufftComplex * dpData, *dpResult;
+        CUDA_ERROR( cudaMalloc( (void**) &dpData  , Nx*Ny * sizeof( dpData  [0] ) ) );
+        CUDA_ERROR( cudaMalloc( (void**) &dpResult, Nx*Ny * sizeof( dpResult[0] ) ) );
+
+        /* create plan and wrap data */
+        using GpuFftPlanFwd = FFT_Definition<
+            FFT_Kind::Complex2Complex,
+            2 /* dims */,
+            float,
+            std::true_type /* forward */,
+            false /* not in-place */
+        >;
+        auto dpDataWrapped = GpuFftPlanFwd::wrapInput(
+                                 foobar::mem::wrapPtr<
+                                     true /* is complex */,
+                                     true /* is device pointer */
+                                 >(
+                                     ( types::Complex<float>* ) dpData,
+                                     types::Vec2{ Ny, Nx }
+                                 )
+                             );
+        auto dpResultWrapped = GpuFftPlanFwd::wrapOutput(
+                                   foobar::mem::wrapPtr<
+                                       true /* is complex */,
+                                       true /* is device pointer */
+                                   >(
+                                       ( types::Complex<float>* ) dpResult,
+                                       types::Vec2{ Ny, Nx }
+                                   )
+                               );
+
+        /* initialize */
+        for ( auto i = 0u; i < Nx*Ny/2; ++i )
+        {
+            pData[ 2*i+0 ].x = 1;
+            pData[ 2*i+0 ].y = 0;
+            pData[ 2*i+1 ].x = 0;
+            pData[ 2*i+1 ].y = 0;
+        }
+        print2dArray( pData, Nx, Ny );
+        std::cout << std::endl;
+        CUDA_ERROR( cudaMemcpy( dpData, pData, Nx*Ny * sizeof( dpData  [0] ), cudaMemcpyHostToDevice ) );
+
+        auto fftForward = makeFftPlan( dpDataWrapped, dpResultWrapped );
+        fftForward( dpDataWrapped, dpResultWrapped );
+
+        CUDA_ERROR( cudaMemcpy( pData, dpResult, Nx*Ny * sizeof( dpData  [0] ), cudaMemcpyDeviceToHost ) );
+        print2dArray( pData, Nx, Ny );
+
+        CUDA_ERROR( cudaFree( dpData  ) );
+        CUDA_ERROR( cudaFree( dpResult) );
+    }
+
     void testFft( void )
     {
+        testFftCheckerboard();
+
         using namespace std::chrono;
         using namespace imresh::algorithms;
         using namespace imresh::algorithms::cuda;
@@ -250,8 +328,6 @@ namespace algorithms
         #ifdef USE_FFTW
             auto pResult = new fftwf_complex[ nMaxElements ];
         #endif
-#if false
-        cufftHandle gpuFtPlan;
 
         std::cout << "\n";
         std::cout << "FFT comparison timings in milliseconds:\n";
@@ -268,7 +344,33 @@ namespace algorithms
             #ifdef USE_FFTW
                 auto cpuFtPlan = fftwf_plan_dft_2d( Ny, Nx, (fftwf_complex*) pData, pResult, FFTW_FORWARD, FFTW_ESTIMATE );
             #endif
-            CUFFT_ERROR( cufftPlan2d( &gpuFtPlan, Ny /* nRows */, Nx /* nColumns */, CUFFT_C2C ) );
+
+            using GpuFftPlanFwd = FFT_Definition<
+                FFT_Kind::Complex2Complex,
+                2 /* dims */,
+                float,
+                std::true_type /* forward */,
+                false /* not in-place */
+            >;
+            auto inputData = GpuFftPlanFwd::wrapInput(
+                                 foobar::mem::wrapPtr<
+                                     true /* is complex */,
+                                     true /* is device pointer */
+                                 >(
+                                     ( types::Complex<float>* ) dpData,
+                                     types::Vec2{ Ny, Nx }
+                                 )
+                             );
+            auto outputData = GpuFftPlanFwd::wrapOutput(
+                                  foobar::mem::wrapPtr<
+                                      true /* is complex */,
+                                      true /* is device pointer */
+                                  >(
+                                      ( types::Complex<float>* ) dpResult,
+                                      types::Vec2{ Ny, Nx }
+                                  )
+                              );
+            auto fftForward = makeFftPlan( inputData, outputData );
 
             std::cout << "(" << std::setw(5) << Nx << ","
                              << std::setw(5) << Ny << ") : ";
@@ -282,30 +384,26 @@ namespace algorithms
                     clock0 = clock::now();
                         fftwf_execute( cpuFtPlan );
                     clock1 = clock::now();
-                    seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                    seconds = duration_cast< duration<float> >( clock1 - clock0 );
                     timeCpuFft.push_back( seconds.count() * 1000 );
                 #endif
 
                 /* cuFFT */
-                cudaEventRecord( start );
-                    CUFFT_ERROR( cufftExecC2C( gpuFtPlan, dpData, dpResult, CUFFT_FORWARD ) );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-                float milliseconds;
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                timeGpuFft.push_back( milliseconds );
+                clock0 = clock::now();
+                    fftForward( inputData, outputData );
+                clock1 = clock::now();
+                seconds = duration_cast< duration<float> >( clock1 - clock0 );
+                timeCpuFft.push_back( seconds.count() * 1000 );
             }
             std::cout << std::setprecision(4);
             std::cout << std::setw(10) << mean( timeCpuFft ) << " +- " << std::setw(10) << stddev( timeCpuFft ) << " | ";
             std::cout << std::setw(10) << mean( timeGpuFft ) << " +- " << std::setw(10) << stddev( timeGpuFft ) << " | ";
             std::cout << std::endl;
 
-            CUFFT_ERROR( cufftDestroy( gpuFtPlan ) );
             #ifdef USE_FFTW
                 fftwf_destroy_plan( cpuFtPlan );
             #endif
         }
-#endif
 
         CUDA_ERROR( cudaFree( dpData  ) );
         CUDA_ERROR( cudaFree( dpResult) );

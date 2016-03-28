@@ -397,10 +397,6 @@ namespace cuda
     )
     {
         auto const & rStream = rKernelConfig.iStream;
-        const unsigned nThreads = 256;
-        //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
-        const unsigned nBlocks  = 256;
-        assert( nBlocks < 65536 );
 
         float     totalError,     nMaskedPixels;
         float * dpTotalError, * dpnMaskedPixels;

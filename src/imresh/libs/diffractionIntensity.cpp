@@ -32,7 +32,6 @@
 #   include <cuda_to_cupla.hpp>
 #   include <cufft_to_cupla.hpp>
 #   include "libs/cudacommon.hpp"
-#   include "libs/checkCufftError.hpp"
 #   include "algorithms/cuda/cudaVectorElementwise.hpp"
 #endif
 #include "libs/vectorIndex.hpp"
@@ -104,10 +103,10 @@ namespace libs
                                            cudaMemcpyHostToDevice, rStream ) );
 
             cufftHandle ftPlan;
-            CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
-            CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
-            CUFFT_ERROR( cufftExecC2C( ftPlan, dpTmp, dpTmp, CUFFT_FORWARD ) );
-            CUFFT_ERROR( cufftDestroy( ftPlan ) );
+            cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C );
+            cufftSetStream( ftPlan, rStream );
+            cufftExecC2C( ftPlan, dpTmp, dpTmp, CUFFT_FORWARD );
+            cufftDestroy( ftPlan );
 
             imresh::algorithms::cuda::cudaComplexNormElementwise( dpTmp, dpTmp, nElements, rStream, true );
 
