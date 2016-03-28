@@ -26,8 +26,9 @@
 #pragma once
 
 
-#include <cuda_to_cupla.hpp>
+#include <cuda_to_cupla.hpp>    // cudaMalloc, cudaError_t
 #include "CudaKernelConfig.hpp"
+#include <cassert>
 
 
 #define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
@@ -39,6 +40,22 @@ namespace libs
 
 
     void checkCudaError(const cudaError_t rValue, const char * file, int line );
+
+    template< typename T >
+    inline void mallocCudaArray( T * const rPtr, unsigned int const rnElements )
+    {
+        assert( rnElements > 0 );
+        CUDA_ERROR( cudaMalloc( (void**) &rPtr, sizeof(T) * rnElements ) );
+        assert( rPtr != NULL );
+    }
+
+    template< typename T >
+    inline void mallocPinnedArray( T * const rPtr, unsigned int const rnElements )
+    {
+        assert( rnElements > 0 );
+        CUDA_ERROR( cudaMallocHost( (void**) &rPtr, sizeof(T) * rnElements ) );
+        assert( rPtr != NULL );
+    }
 
 
 } // namespace libs

@@ -28,7 +28,7 @@
 #include <cstdlib>   // srand, rand
 #include <cuda_runtime.h>
 #include "algorithms/cuda/cudaVectorReduce.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 #define USE_PINNED_MEMORY 0
 #define MALLOC_BEFORE_MEMCPY 0 // if 0 program takes 1.4s instead of 0.9s O_O!? in nvvp the difference looks even worse for some reason (1.25s vs 0.125s), only difference visible if not using pinned memory!
@@ -43,16 +43,18 @@
 
 int main( void )
 {
+    using namespace imresh::libs; // mallocCudaArray, mallocPinnedArray
+
     const unsigned nElements = 64*1024*1024;  // ~4000x4000 pixel
 
     /* using cudaMallocHost (pinned memory) instead of paged memory, increased
      * cudaMemcpy bandwidth from 4.7GB/s to 6.7GB/s! */
     float * pData, * dpData;
     #if MALLOC_BEFORE_MEMCPY == 0
-        CUDA_ERROR( cudaMalloc( (void**)&dpData, nElements*sizeof(dpData[0]) ) );
+        mallocCudaArray( &dpData, nElements );
     #endif
     #if USE_PINNED_MEMORY != 0
-        CUDA_ERROR( cudaMallocHost( (void**)&pData, nElements*sizeof(pData[0]) ) );
+        mallocPinnedArray( &pData, nElements );
     #else
         pData = new float[nElements];
     #endif
@@ -65,7 +67,7 @@ int main( void )
     pData[iObviousValuePos] = obviousMaximum;
 
     #if MALLOC_BEFORE_MEMCPY != 0
-        CUDA_ERROR( cudaMalloc( (void**)&dpData, nElements*sizeof(dpData[0]) ) );
+        mallocCudaArray( &dpData, nElements );
     #endif
     CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 

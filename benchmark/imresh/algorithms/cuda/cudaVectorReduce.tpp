@@ -334,6 +334,8 @@ namespace cuda
         T_PREC const rInitValue                                                \
     )                                                                          \
     {                                                                          \
+        using ::imresh::libs::mallocCudaArray;                                   \
+                                                                               \
         auto const & rStream = rKernelConfig.iStream;                          \
         /* the more threads we have the longer the reduction will be           \
          * done inside shared memory instead of global memory */               \
@@ -342,7 +344,7 @@ namespace cuda
         T_PREC * dpReducedValue;                                               \
         T_PREC initValue = rInitValue;                                         \
                                                                                \
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );  \
+        mallocCudaArray( &dpReducedValue, 1 );                                 \
         CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue,               \
                                      sizeof(T_PREC),                           \
                                      cudaMemcpyHostToDevice,                   \
@@ -494,13 +496,15 @@ namespace cuda
         float * const rpnMaskedPixels
     )
     {
+        using ::imresh::libs::mallocCudaArray;
+
         auto const & rStream = rKernelConfig.iStream;
 
         float     totalError,     nMaskedPixels;
         float * dpTotalError, * dpnMaskedPixels;
 
-        CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
+        mallocCudaArray( &dpTotalError   , 1 );
+        mallocCudaArray( &dpnMaskedPixels, 1 );
         CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
