@@ -9,8 +9,6 @@ cmake ..                                        \
     -DIMRESH_DEBUG=ON                           \
     -DBUILD_EXAMPLES=ON                         \
     -DRUN_TESTS=ON                              \
-    -DBUILD_EXAMPLES=OFF                        \
-    -DRUN_TESTS=ON                              \
     -DUSE_PNG=ON                                \
     -DUSE_SPLASH=ON                             \
     -DUSE_TIFF=ON                               \

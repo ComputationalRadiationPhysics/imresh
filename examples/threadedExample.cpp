@@ -28,7 +28,7 @@
 #include <sstream>
 #include <cstring>          // memcpy
 
-#include "io/taskQueue.cu"
+#include "io/taskQueue.hpp"
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
@@ -40,8 +40,6 @@
 
 int main( void )
 {
-    using ImageDimensions = std::pair<unsigned int,unsigned int>;
-
     // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
@@ -50,6 +48,8 @@ int main( void )
         auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
+
+        /* using 'file' here in order to be compliant with USE_SPLASH version */
         ImageDimensions imageSize { 300, 300 };
         std::pair<float *,ImageDimensions> file
         {
@@ -86,12 +86,12 @@ int main( void )
                      << i << "_cycles.png";
 
             std::cout << "[threadedExample] Starting Task " << i << std::endl;
-            imresh::io::addTask( tmpTestImage,
-                                 file.second,
-                                 // writeOutAndFreePNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
-                                 imresh::io::writeOutFuncs::justFree,
-                                 filename.str(),
-                                 32 /* sets the number of iterations */ );
+            imresh::io::addTask(
+                // writeOutAndFreePNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
+                imresh::io::writeOutFuncs::justFree,
+                filename.str(),
+                tmpTestImage, imageWidth, imageHeight,
+                32 /* sets the number of iterations */ );
         }
 #   endif
 
@@ -102,10 +102,13 @@ int main( void )
         file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
         // Again, this step is only needed because we have no real images
         imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
-        imresh::io::addTask( file.first,
-                             file.second,
-                             imresh::io::writeOutFuncs::writeOutAndFreeHDF5,
-                             "imresh_out" );
+        imresh::io::addTask(
+            imresh::io::writeOutFuncs::writeOutAndFreeHDF5,
+            "imresh_out",
+            file.first,
+            file.second.first,
+            file.second.second
+        );
 #   endif
 
     // The last step is always deinitializing the library.
