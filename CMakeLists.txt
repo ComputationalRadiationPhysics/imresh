@@ -24,7 +24,7 @@ endif()
 # Find cupla
 SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING "The location of the cupla library" FORCE )
 if( NOT EXISTS "${cupla_ROOT}" )
-    set( cupla_ROOT "${PROJECT_SOURCE_DIR}/pngwriter" )
+    set( cupla_ROOT "${PROJECT_SOURCE_DIR}/cupla" )
     if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" OR
         NOT EXISTS "${cupla_ROOT}/include/cufft_to_cupla.hpp"
     )
