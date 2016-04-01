@@ -103,7 +103,6 @@ namespace io
                     pData[i] = (float) rand() / RAND_MAX;
 
                 writeOutAndFreePNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
-                delete[] pData;
 
                 file = readPNG( tmpFileName );
                 assert( file.second.first == Nx );
