@@ -111,12 +111,13 @@ int main( int argc, char ** argv )
     #else
         imresh::algorithms::cuda::cudaShrinkWrap
         (
+            imresh::libs::CudaKernelConfig(
+                96  /* nBlocks  */,
+                256 /* nThreads */
+            ),
             pData,
             imageWidth,
             imageHeight,
-            cudaStream_t(0),
-            96      /* nBlocks      */,
-            256     /* nThreads     */,
             64      /* cycles       */,
             1e-6    /* targetError  */
         );

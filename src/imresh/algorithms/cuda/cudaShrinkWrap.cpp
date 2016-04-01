@@ -149,9 +149,9 @@ namespace cuda
         auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wcdp( dpCurData ) );
         auto fft_GPrimeTogPrime = makeFftPlan( dpCurDataIn );
 
-        #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
-            cufftSetStream( ftPlan, rStream );
-        #endif
+        //#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+        //    cufftSetStream( ftPlan, rStream );
+        //#endif
 
         /* create first guess for mask from autocorrelation (fourier transform
          * of the intensity @see

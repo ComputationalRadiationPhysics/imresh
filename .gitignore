@@ -63,6 +63,7 @@ Geany
 .*
 !/.git*
 .*~
+*~
 *.old
 
 *.old

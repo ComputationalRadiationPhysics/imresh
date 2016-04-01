@@ -18,15 +18,16 @@ To compile this library you need
 
 * [FFTW3](http://www.fftw.org/) (single precision build)
 
-* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
-    (for reading and writing HDF5)
-
-* [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
-    reconstructed images as PNGs)
-
 * CUDA (`7.0+`)
 
 * OpenMP capable compiler
+
+* [libSplash](https://github.com/ComputationalRadiationPhysics/libSplash)
+    (for reading and writing HDF5) Note that a git submodule exists for this.
+
+* [PNGwriter](https://github.com/pngwriter/pngwriter) (for storing
+    reconstructed images as PNGs) Note that a git submodule exists for this.
+
 
 ### Build options
 
@@ -59,6 +60,30 @@ To compile this library you need
     Enable HDF5 in- and output.
 
 ### Building
+
+In short to download and build this branch:
+```Shell
+cd ~
+git clone https://github.com/ComputationalRadiationPhysics/imresh.git
+cd imresh
+git checkout alpaka
+git submodule update --init --recursive
+mkdir -p build
+cd build
+cmake ..                                        \
+    -DALPAKA_ACC_CPU_B_SEQ_T_OMP2_ENABLE=ON     \
+#   -DALPAKA_ACC_GPU_CUDA_ENABLE=ON             \
+    -DIMRESH_DEBUG=ON                           \
+    -DBUILD_EXAMPLES=ON                         \
+    -DRUN_TESTS=ON                              \
+    -DUSE_PNG=ON                                \
+    -DUSE_SPLASH=ON                             \
+    -DUSE_TIFF=ON
+make -j 3
+./outputExampleCreation
+./miniExample atomCluster_1200x1000.png O
+./miniExample atomCluster_1200x1000.png-diffraction.png
+```
 
 1. Create a build directory
 

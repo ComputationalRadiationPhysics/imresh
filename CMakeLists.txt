@@ -235,17 +235,17 @@ target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} ${_cupla_LINK_LIBRARI
 
 if(BUILD_EXAMPLES OR RUN_TESTS)
     file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
-    add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
+    alpaka_add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
     target_link_libraries( examples )
 endif()
 if(BUILD_EXAMPLES)
-    add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
+    alpaka_add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
     target_link_libraries( "threadedExample" examples ${PROJECT_NAME} )
 
-    add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
+    alpaka_add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
     target_link_libraries( "miniExample" examples ${PROJECT_NAME} )
 
-    add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
+    alpaka_add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
     target_link_libraries( "outputExampleCreation" examples ${PROJECT_NAME} )
 endif()
 
