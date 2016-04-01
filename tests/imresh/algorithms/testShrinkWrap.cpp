@@ -257,7 +257,7 @@ namespace algorithms
             false /* not in-place */
         >;
         auto dpDataWrapped = GpuFftPlanFwd::wrapInput(
-                                 foobar::mem::wrapPtr<
+                                 mem::wrapPtr<
                                      true /* is complex */,
                                      true /* is device pointer */
                                  >(
@@ -266,7 +266,7 @@ namespace algorithms
                                  )
                              );
         auto dpResultWrapped = GpuFftPlanFwd::wrapOutput(
-                                   foobar::mem::wrapPtr<
+                                   mem::wrapPtr<
                                        true /* is complex */,
                                        true /* is device pointer */
                                    >(
@@ -356,7 +356,7 @@ namespace algorithms
                 false /* not in-place */
             >;
             auto inputData = GpuFftPlanFwd::wrapInput(
-                                 foobar::mem::wrapPtr<
+                                 mem::wrapPtr<
                                      true /* is complex */,
                                      true /* is device pointer */
                                  >(
@@ -365,7 +365,7 @@ namespace algorithms
                                  )
                              );
             auto outputData = GpuFftPlanFwd::wrapOutput(
-                                  foobar::mem::wrapPtr<
+                                  mem::wrapPtr<
                                       true /* is complex */,
                                       true /* is device pointer */
                                   >(

@@ -26,7 +26,7 @@
 #include "cudaVectorElementwise.hpp"
 #include "cudaVectorElementwise.tpp"
 
-#include <foobar/FFT.hpp>    // foobar::types::Complex<float>
+#include <cufft_to_cupla.hpp>    // cufftComplex
 
 
 namespace imresh

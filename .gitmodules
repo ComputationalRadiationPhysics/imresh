@@ -6,7 +6,7 @@
 	url = https://github.com/ComputationalRadiationPhysics/libSplash.git
 [submodule "halt"]
 	path = halt
-	url = https://github.com/mxmlnkn/halt.git
+	url = https://github.com/ComputationalRadiationPhysics/halt.git
 [submodule "cupla"]
 	path = cupla
 	url = https://github.com/mxmlnkn/cupla.git

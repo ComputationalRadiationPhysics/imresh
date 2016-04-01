@@ -74,7 +74,7 @@ namespace cuda
         /* load libraries and functions which we need */
         using namespace imresh::algorithms;
         using imresh::libs::mallocCudaArray;
-        using namespace foobar; // types::Vec2, types::Complex, FFT_Definition, ...
+        using namespace haLT; // types::Vec2, types::Complex, FFT_Definition, ...
 
         rKernelConfig.check();
         auto const & rStream  = rKernelConfig.iStream;
@@ -119,7 +119,7 @@ namespace cuda
                                     rImageHeight /* Ny, nRows */,
                                     rImageWidth  /* Nx, nCols */
                                  };
-                return foobar::mem::wrapPtr
+                return mem::wrapPtr
                        <
                            true /* is complex */,
                            true /* is device pointer */
