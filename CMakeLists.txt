@@ -48,12 +48,12 @@ add_definitions( ${cupla_DEFINITIONS} )
 # find HaLT
 find_path(
     _HALT_ROOT_DIR
-    NAMES "include/foobar/FFT.hpp"
+    NAMES "include/haLT/FFT.hpp"
     HINTS ENV HALT_ROOT
     DOC "HaLT location"
 )
 set( _HALT_ROOT_DIR "${PROJECT_SOURCE_DIR}/halt" )
-if( NOT EXISTS "${_HALT_ROOT_DIR}/include/foobar/FFT.hpp" )
+if( NOT EXISTS "${_HALT_ROOT_DIR}/include/haLT/FFT.hpp" )
     message(FATAL_ERROR "HaLT could not be found! Please set $HALT_ROOT to the correct directory.")
 endif()
 
