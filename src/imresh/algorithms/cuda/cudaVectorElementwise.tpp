@@ -374,9 +374,9 @@ namespace cuda
     void cudaCopyToRealPart
     (
         libs::CudaKernelConfig const rKernelConfig,
-            T_COMPLEX        * const rTargetComplexArray,
-            T_PREC           * const rSourceRealArray,
-            unsigned int       const rnElements
+        T_COMPLEX            * const rTargetComplexArray,
+        T_PREC               * const rSourceRealArray,
+        unsigned int           const rnElements
     )
     {
         CUPLA_KERNEL
@@ -396,9 +396,9 @@ namespace cuda
     void cudaCopyFromRealPart
     (
         libs::CudaKernelConfig const rKernelConfig,
-            T_PREC           * const rTargetComplexArray,
-            T_COMPLEX        * const rSourceRealArray,
-            unsigned int       const rnElements
+        T_PREC               * const rTargetComplexArray,
+        T_COMPLEX            * const rSourceRealArray,
+        unsigned int           const rnElements
     )
     {
         CUPLA_KERNEL
@@ -418,9 +418,9 @@ namespace cuda
     void cudaComplexNormElementwise
     (
         libs::CudaKernelConfig const rKernelConfig,
-            T_PREC           * const rdpDataTarget,
-            T_COMPLEX  const * const rdpDataSource,
-            unsigned int       const rnElements
+        T_PREC               * const rdpDataTarget,
+        T_COMPLEX      const * const rdpDataSource,
+        unsigned int           const rnElements
     )
     {
         CUPLA_KERNEL
@@ -440,10 +440,10 @@ namespace cuda
     void cudaApplyComplexModulus
     (
         libs::CudaKernelConfig const rKernelConfig,
-            T_COMPLEX        * const rdpDataTarget,
-            T_COMPLEX  const * const rdpDataSource,
-            T_PREC     const * const rdpComplexModulus,
-            unsigned int       const rnElements
+        T_COMPLEX            * const rdpDataTarget,
+        T_COMPLEX      const * const rdpDataSource,
+        T_PREC         const * const rdpComplexModulus,
+        unsigned int           const rnElements
     )
     {
         CUPLA_KERNEL
@@ -464,11 +464,11 @@ namespace cuda
     void cudaCutOff
     (
         libs::CudaKernelConfig const rKernelConfig,
-            T_PREC           * const rData,
-            unsigned int       const rnElements,
-            T_PREC             const rThreshold,
-            T_PREC             const rLowerValue,
-            T_PREC             const rUpperValue
+        T_PREC               * const rData,
+        unsigned int           const rnElements,
+        T_PREC                 const rThreshold,
+        T_PREC                 const rLowerValue,
+        T_PREC                 const rUpperValue
     )
     {
         CUPLA_KERNEL

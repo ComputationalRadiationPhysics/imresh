@@ -14,12 +14,8 @@ option(USE_FFTW       "If true a CPU reference version is compiled also. It is u
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Finding packages, calling FindX.cmake and so on
-#find_package(CUDA 7.0 REQUIRED)
 find_package(OpenMP)
-#find_package(Threads REQUIRED)
-if(USE_FFTW)
-    find_package(FFTW REQUIRED)
-endif()
+find_package(Threads REQUIRED)
 
 # Find cupla
 SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING "The location of the cupla library" FORCE )
@@ -44,6 +40,12 @@ endif()
 list( APPEND CMAKE_MODULE_PATH "${cupla_ROOT}" )  # add findCupla.cmake
 find_package( "cupla" REQUIRED )
 add_definitions( ${cupla_DEFINITIONS} )
+
+# Depending on chose alpaka-configuration decide if FFTW needs to be loaded
+if(USE_FFTW OR NOT ALPAKA_ACC_GPU_CUDA_ENABLE)
+    find_package(FFTW REQUIRED)
+    message( "find_package(FFTW) = ${FFTW_LIBRARIES}" )
+endif()
 
 # find HaLT
 find_path(
@@ -221,16 +223,24 @@ alpaka_add_library(
     ${cupla_SOURCE_FILES}
 )
 set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
-    ${PNGwriter_LIBRARIES}
-    ${Splash_LIBRARIES}
-    ${CUDA_LIBRARIES}
+    # abstraction layers
+    ${_cupla_LINK_LIBRARIES_PUBLIC}
+    ${HaLT_LIBRARIES}
+    # runtime libraries (note that normal only either FFTW_LIBRARIES or CUDA_CUFFT_LIBRARIES needs to be set
+    ${FFTW_LIBRARIES}
     ${CUDA_CUFFT_LIBRARIES}
+    ${CUDA_LIBRARIES}
+    # image reading and writing libraries
+    ${Splash_LIBRARIES}
+    ${PNGwriter_LIBRARIES}
+    ${TIFF_LIBRARIES}
+    # OS relevant libraries
     ${OpenMP_LIBRARIES}
     ${CMAKE_THREAD_LIBS_INIT}
-    ${TIFF_LIBRARIES}
-    ${HaLT_LIBRARIES}
 )
-target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} ${_cupla_LINK_LIBRARIES_PUBLIC} )
+message( "{FFTW_LIBRARIES} = ${FFTW_LIBRARIES}" )
+target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED}  )
+set( IMRESH_LIBS ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 if(BUILD_EXAMPLES OR RUN_TESTS)
@@ -240,13 +250,13 @@ if(BUILD_EXAMPLES OR RUN_TESTS)
 endif()
 if(BUILD_EXAMPLES)
     alpaka_add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
-    target_link_libraries( "threadedExample" examples ${PROJECT_NAME} )
+    target_link_libraries( "threadedExample" examples ${IMRESH_LIBS} )
 
     alpaka_add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
-    target_link_libraries( "miniExample" examples ${PROJECT_NAME} )
+    target_link_libraries( "miniExample" examples ${IMRESH_LIBS} )
 
     alpaka_add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
-    target_link_libraries( "outputExampleCreation" examples ${PROJECT_NAME} )
+    target_link_libraries( "outputExampleCreation" examples ${IMRESH_LIBS} )
 endif()
 
 # Tests and Benchmarks
@@ -258,7 +268,7 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.tpp
     )
     alpaka_add_library( "benchmark" ${BENCHMARK_SOURCE_FILES} STATIC )
-    target_link_libraries("benchmark" ${PROJECT_NAME})
+    target_link_libraries("benchmark" ${})
 
     # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
     set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wunused-parameter -g ${OpenMP_CXX_FLAGS}")
@@ -286,10 +296,10 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
     )
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
-    target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
+    target_link_libraries("tests" ${IMRESH_LIBS} "benchmark")
 
     alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp )
-    target_link_libraries("mainTestAll" ${PROJECT_NAME} "tests" "benchmark" "examples" )
+    target_link_libraries("mainTestAll" ${IMRESH_LIBS} "tests" "benchmark" "examples" )
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)
@@ -301,8 +311,8 @@ if(RUN_TESTS)
     #set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
     #
     #add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
-    #target_link_libraries("profileVectorReduce" ${PROJECT_NAME} )
+    #target_link_libraries("profileVectorReduce" ${IMRESH_LIBS} )
     #
     #add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
-    #target_link_libraries("profileGaussian" ${PROJECT_NAME} )
+    #target_link_libraries("profileGaussian" ${IMRESH_LIBS} )
 endif()

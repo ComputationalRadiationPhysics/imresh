@@ -40,17 +40,6 @@ namespace cuda
     /* kernel call wrappers in order for this to be usable from source files
      * not compiled with nvcc */
 
-    template< class T_PREC, class T_COMPLEX >
-    void cudaComplexNormElementwise
-    (
-        T_PREC          * const rdpDataTarget,
-        T_COMPLEX const * const rdpDataSource,
-        unsigned int      const rnElements,
-        cudaStream_t      const rStream = cudaStream_t(0),
-        bool              const rAsync  = true
-    );
-
-
     template< class T_COMPLEX, class T_PREC >
     void cudaApplyHioDomainConstraints
     (

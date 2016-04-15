@@ -67,4 +67,4 @@ Geany
 *.old
 
 *.old
-/build/
+/build*/

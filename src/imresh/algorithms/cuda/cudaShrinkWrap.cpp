@@ -149,6 +149,7 @@ namespace cuda
         auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wcdp( dpCurData ) );
         auto fft_GPrimeTogPrime = makeFftPlan( dpCurDataIn );
 
+        /* problem: don't know how to get ftPlan from lifft */
         //#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
         //    cufftSetStream( ftPlan, rStream );
         //#endif

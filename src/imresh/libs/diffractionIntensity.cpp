@@ -89,7 +89,8 @@ namespace libs
             bool rAsync
         )
         {
-            using imresh::libs::cudaMallocArray;
+            using namespace imresh::libs; // mallocCudaArray, CudaKernelConfig
+            using namespace imresh::algorithms::cuda;  // cudaComplexNormElementwise
 
             const unsigned int nElements = rImageWidth * rImageHeight;
 
@@ -103,15 +104,39 @@ namespace libs
                                            rIoData, sizeof( rIoData[0] ),
                                            sizeof( rIoData[0] ), nElements,
                                            cudaMemcpyHostToDevice, rStream ) );
+            /* FT[dpTemp] -> dpTmp */
+            /* shorthand for HaLT wrapper */
+            auto wcdp /* wrapComplexDevicePointer */ =
+                [ &rImageHeight,  &rImageWidth ]( cufftComplex * const & rdp )
+                {
+                    auto arraySize = types::Vec2
+                                     {
+                                        rImageHeight /* Ny, nRows */,
+                                        rImageWidth  /* Nx, nCols */
+                                     };
+                    return mem::wrapPtr
+                           <
+                               true /* is complex */,
+                               true /* is device pointer */
+                           >( (types::Complex<float> *) rdp, arraySize );
+                };
+            using PlanForward = FFT_Definition<
+                FFT_Kind::Complex2Complex,
+                2              , /* dims      */
+                float          , /* precision */
+                std::true_type , /* inverse   */
+                true             /* in-place  */
+            >;
+            auto dpInOut = PlanForward::wrapInput ( wcdp( dpTmp ) );
+            auto fftForward = makeFftPlan( dpInOut );
+            /* problem: don't know how to get ftPlan from lifft */
+            //#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+            //    cufftSetStream( ftPlan, rStream );
+            //#endif
+            fftForward( dpInOut );
 
-            cufftHandle ftPlan;
-            cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C );
-            cufftSetStream( ftPlan, rStream );
-            cufftExecC2C( ftPlan, dpTmp, dpTmp, CUFFT_FORWARD );
-            cufftDestroy( ftPlan );
-
-            imresh::algorithms::cuda::cudaComplexNormElementwise( dpTmp, dpTmp, nElements, rStream, true );
-
+            cudaComplexNormElementwise( CudaKernelConfig( 0,0,0, rStream ), dpTmp, dpTmp, nElements );
+            /* move GPU -> CPU */
             CUDA_ERROR( cudaMemcpy2DAsync( rIoData, sizeof( rIoData[0] ),
                                            dpTmp  , sizeof( dpTmp  [0] ),
                                            sizeof( rIoData[0] ), nElements,
