@@ -56,13 +56,16 @@ namespace libs
         int nMaxBlocks, nMaxThreads;
 
         #if defined( ALPAKA_ACC_CPU_B_SEQ_T_OMP2_ENABLED    ) || \
-            defined( ALPAKA_ACC_CPU_B_OMP2_T_SEQ_ENABLED    ) || \
             defined( ALPAKA_ACC_CPU_B_SEQ_T_THREADS_ENABLED ) || \
             defined( ALPAKA_ACC_CPU_B_SEQ_T_SEQ_ENABLED     )
             nMaxBlocks  = 1; // number of cores?
             nMaxThreads = 4;
         #endif
-        #ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
+        #if defined( ALPAKA_ACC_CPU_B_OMP2_T_SEQ_ENABLED )
+            nMaxBlocks  = 4; // number of cores?
+            nMaxThreads = 1;
+        #endif
+        #if defined( ALPAKA_ACC_GPU_CUDA_ENABLED )
             /* E.g. GTX 760 can only handle 12288 runnin concurrently,
              * everything else will be run after some threads finished. The
              * number of CUDA cores is only 1152, but they are oversubscribed */
