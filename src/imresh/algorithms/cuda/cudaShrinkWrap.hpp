@@ -32,7 +32,7 @@
 #ifndef NDEBUG
 #   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
 #else
-#   define DEBUG_CUDASHRINKWRAP 2  // leave this as it is
+#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
 #endif
 
 

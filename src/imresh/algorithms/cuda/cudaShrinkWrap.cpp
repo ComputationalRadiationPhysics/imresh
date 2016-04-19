@@ -29,18 +29,13 @@
 #include <iostream>
 #include <cstddef>              // NULL
 #include <cassert>
-//#include <cmath>
 #include <cuda_to_cupla.hpp>    // atomicCAS, cudaMemcpy
 #include <cufft_to_cupla.hpp>   // cufftComplex
 #include "algorithms/cuda/cudaGaussian.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
 #if DEBUG_CUDASHRINKWRAP == 1
-#    include <fftw3.h>          // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
-#    include "algorithms/vectorReduce.hpp"
-#    include "algorithms/vectorElementwise.hpp"
-#endif
-#if DEBUG_CUDASHRINKWRAP == 2
 #   include "io/writeOutFuncs/writeOutFuncs.hpp"
+#   define WRITE_OUT_SHRINKWRAP_DEBUG 1
 #endif
 #include "libs/cudacommon.hpp"  // CUDA_ERROR
 #include "libs/CudaKernelConfig.hpp"
@@ -126,6 +121,12 @@ namespace cuda
                        >( (types::Complex<float> *) rdp, arraySize );
             };
 
+        #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            /* allocate 2*nElements to hold if necessary nElements
+             * cufftComplex elements */
+            float * pHostToWrite = new float[2*nElements];
+        #endif
+
         /* create plan and wrap data g->G (dpgPrevious->dpCurData) */
         using Plan_gToG = FFT_Definition<
             FFT_Kind::Complex2Complex,
@@ -149,7 +150,6 @@ namespace cuda
         auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wcdp( dpCurData ) );
         auto fft_GPrimeTogPrime = makeFftPlan( dpCurDataIn );
 
-        /* problem: don't know how to get ftPlan from lifft */
         //#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
         //    cufftSetStream( ftPlan, rStream );
         //#endif
@@ -158,11 +158,87 @@ namespace cuda
          * of the intensity @see
          * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
         cudaCopyToRealPart( rKernelConfig, dpCurData, dpIntensity, nElements );
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_original-object.png";
+                CUDA_ERROR( cudaMemcpy2D(
+                    pHostToWrite,              /* dest addr */
+                    sizeof( pHostToWrite[0] ), /* dest pitch */
+                    dpCurData,                 /* src addr */
+                    sizeof( dpCurData[0] ),    /* src pitch */
+                    sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                    nElements,                 /* number of columns */
+                    cudaMemcpyDeviceToHost
+                ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
         fft_GPrimeTogPrime( dpCurDataIn );
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_original-object-fft.png";
+                CUDA_ERROR( cudaMemcpy2D(
+                    pHostToWrite,              /* dest addr */
+                    sizeof( pHostToWrite[0] ), /* dest pitch */
+                    dpCurData,                 /* src addr */
+                    sizeof( dpCurData[0] ),    /* src pitch */
+                    sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                    nElements,                 /* number of columns */
+                    cudaMemcpyDeviceToHost
+                ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
+
         cudaComplexNormElementwise( rKernelConfig, dpIsMasked, dpCurData, nElements );
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_original-object-fft-norm.png";
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
+
         cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream,
                           true /* don't call cudaDeviceSynchronize */ );
 
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_first-mask-blurred.png";
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_first-mask-blurred-log-scale.png";
+
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                #pragma omp parallel for
+                for ( auto i = 0u; i < nElements; ++i )
+                    pHostToWrite[i] = logf( pHostToWrite[i] );
+
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
         /* apply threshold to make binary mask */
         float const maskedAbsMax = cudaVectorMax( rKernelConfig, dpIsMasked, nElements );
         float const maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
@@ -187,13 +263,54 @@ namespace cuda
             cudaComplexNormElementwise( rKernelConfig, dpIsMasked, dpCurData, nElements );
             cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
 
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask-blurred.png";
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask-blurred-log-scale.png";
+
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                #pragma omp parallel for
+                for ( auto i = 0u; i < nElements; ++i )
+                    pHostToWrite[i] = logf( pHostToWrite[i] );
+
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
+
             /* apply threshold to make binary mask */
-            const float absMax = cudaVectorMax( rKernelConfig, dpIsMasked, nElements );
-            const float threshold = rIntensityCutOff * absMax;
+            float const absMax = cudaVectorMax( rKernelConfig, dpIsMasked, nElements );
+            float const threshold = rIntensityCutOff * absMax;
             cudaCutOff( rKernelConfig, dpIsMasked, nElements, threshold, 1.0f, 0.0f );
 
             /* update the blurring sigma */
             sigma = fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-mask.png";
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
 
             for ( unsigned iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
             {
@@ -206,7 +323,47 @@ namespace cuda
                 /* Replace absolute of G with measured absolute |F| to get G' */
                 cudaApplyComplexModulus( rKernelConfig, dpCurData, dpCurData, dpIntensity, nElements );
 
+                #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-intensity.png";
+
+                    CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, 2*nElements *
+                        sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                    #pragma omp parallel for
+                    for ( auto i = 0u; i < nElements; ++i )
+                        pHostToWrite[i] = sqrtf( pHostToWrite[2*i+0]*pHostToWrite[2*i+0] + pHostToWrite[2*i+1]*pHostToWrite[2*i+1] );
+
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                    );
+                }
+                #endif
+
                 fft_GPrimeTogPrime( dpCurDataIn );
+
+                #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-object.png";
+
+                    CUDA_ERROR( cudaMemcpy2D(
+                        pHostToWrite,              /* dest addr */
+                        sizeof( pHostToWrite[0] ), /* dest pitch */
+                        dpCurData,                 /* src addr */
+                        sizeof( dpCurData[0] ),    /* src pitch */
+                        sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                        nElements,                 /* number of columns */
+                        cudaMemcpyDeviceToHost
+                    ) );
+
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                    );
+                }
+                #endif
             } // HIO loop
 
             /* check if we are done */
@@ -221,6 +378,28 @@ namespace cuda
                 break;
             if ( iCycleShrinkWrap >= rnCycles )
                 break;
+
+            #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
+                      << "-object.png";
+
+                CUDA_ERROR( cudaMemcpy2D(
+                    pHostToWrite,              /* dest addr */
+                    sizeof( pHostToWrite[0] ), /* dest pitch */
+                    dpCurData,                 /* src addr */
+                    sizeof( dpCurData[0] ),    /* src pitch */
+                    sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                    nElements,                 /* number of columns */
+                    cudaMemcpyDeviceToHost
+                ) );
+
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
         } // shrink wrap loop
         cudaCopyFromRealPart( rKernelConfig, dpIntensity, dpCurData, nElements );
 
@@ -233,6 +412,10 @@ namespace cuda
         CUDA_ERROR( cudaFree( dpgPrevious ) );
         CUDA_ERROR( cudaFree( dpIntensity ) );
         CUDA_ERROR( cudaFree( dpIsMasked  ) );
+
+        #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
+            delete[] pHostToWrite;
+        #endif
 
         return 0;
     }
