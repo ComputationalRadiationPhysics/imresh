@@ -46,12 +46,16 @@ namespace libs
          *
          * Note thate CudaKernelConfig( 1,1,0, cudaStream_t(0) ) is still
          * possible, because dim3( int ) is declared.
+         *
+         * Blocks and threads can be set to -1 to choose a fitting size
+         * automatically. Note that nBytesSharedMem can't be -1, because there
+         * is no way to find out automatically what amount is needed.
          */
         CudaKernelConfig
         (
             dim3         rnBlocks         = dim3{ 0, 0, 0 },
             dim3         rnThreads        = dim3{ 0, 0, 0 },
-            int          rnBytesSharedMem = -1                ,
+            int          rnBytesSharedMem = 0              ,
             cudaStream_t riStream         = cudaStream_t(0)
         );
 
