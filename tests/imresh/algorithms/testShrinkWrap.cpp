@@ -36,7 +36,7 @@
 #include <cassert>
 #include <vector>
 #include <cuda_to_cupla.hpp>    // cudaMalloc, cudaMemcpy, cudaEventRecord, ...
-#include <cufft_to_cupla.hpp>
+#include "libs/cufft_to_cupla.hpp"
 #ifdef USE_FFTW
 #   include <fftw3.h>
 #endif

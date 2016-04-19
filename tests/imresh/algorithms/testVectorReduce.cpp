@@ -37,7 +37,7 @@
 #include <cfloat>           // FLT_MAX
 #include <bitset>
 #include <cuda_to_cupla.hpp>
-#include <cufft_to_cupla.hpp>          // cufftComplex
+#include "libs/cufft_to_cupla.hpp"  // cufftComplex
 #ifdef USE_FFTW
 #   include <fftw3.h>
 #   include "libs/hybridInputOutput.hpp"

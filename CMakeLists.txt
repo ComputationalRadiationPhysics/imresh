@@ -21,9 +21,7 @@ find_package(Threads REQUIRED)
 SET( cupla_ROOT "$ENV{CUPLA_ROOT}" CACHE STRING "The location of the cupla library" FORCE )
 if( NOT EXISTS "${cupla_ROOT}" )
     set( cupla_ROOT "${PROJECT_SOURCE_DIR}/cupla" )
-    if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" OR
-        NOT EXISTS "${cupla_ROOT}/include/cufft_to_cupla.hpp"
-    )
+    if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" )
         execute_process(
             COMMAND git submodule update --init -- ./cupla
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
@@ -31,9 +29,6 @@ if( NOT EXISTS "${cupla_ROOT}" )
     endif()
     if( NOT EXISTS "${cupla_ROOT}/include/cuda_to_cupla.hpp" )
         message( FATAL_ERROR "Couldn't find '${cupla_ROOT}/include/cuda_to_cupla.hpp" )
-    endif()
-    if( NOT EXISTS "${cupla_ROOT}/include/cufft_to_cupla.hpp" )
-        message( FATAL_ERROR "Couldn't find '${cupla_ROOT}/include/cufft_to_cupla.hpp" )
     endif()
     set( ENV{CUPLA_ROOT} "${cupla_ROOT}")
 endif()

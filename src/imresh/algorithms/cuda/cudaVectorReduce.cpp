@@ -26,7 +26,7 @@
 #include "cudaVectorReduce.hpp"
 #include "cudaVectorReduce.tpp"
 
-#include <cufft_to_cupla.hpp>   // cuComplex
+#include "libs/cufft_to_cupla.hpp"  // cuComplex
 
 
 namespace imresh

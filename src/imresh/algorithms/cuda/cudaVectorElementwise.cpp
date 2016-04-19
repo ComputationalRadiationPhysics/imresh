@@ -26,7 +26,7 @@
 #include "cudaVectorElementwise.hpp"
 #include "cudaVectorElementwise.tpp"
 
-#include <cufft_to_cupla.hpp>    // cufftComplex
+#include "libs/cufft_to_cupla.hpp"  // cufftComplex
 
 
 namespace imresh

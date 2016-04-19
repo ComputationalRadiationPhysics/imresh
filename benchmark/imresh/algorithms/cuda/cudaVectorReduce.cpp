@@ -30,7 +30,7 @@
 #include <cstdint>    // uint64_t
 #include <limits>     // numeric_limits
 #include <cuda_to_cupla.hpp>     // atomicCAS, atomicAdd
-#include <cufft_to_cupla.hpp>    // cufftComplex, cufftDoubleComplex
+#include "libs/cufft_to_cupla.hpp"    // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.hpp"
 /**
  * Gives only compile errors, e.g.

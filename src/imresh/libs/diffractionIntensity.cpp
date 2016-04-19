@@ -30,7 +30,7 @@
 #   include <fftw3.h>  // we only need fftw_complex from this and don't want to confuse the compiler if cufftw is being used, so include it here instead of in the header
 #else
 #   include <cuda_to_cupla.hpp>
-#   include <cufft_to_cupla.hpp>
+#   include "libs/cufft_to_cupla.hpp"
 #   include "libs/cudacommon.hpp"
 #   include "algorithms/cuda/cudaVectorElementwise.hpp"
 #endif

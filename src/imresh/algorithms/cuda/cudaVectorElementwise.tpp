@@ -32,7 +32,7 @@
 #include <cmath>                    // sqrtf
 #include <cstdint>                  // uint32_t
 #include <cuda_to_cupla.hpp>
-#include <cufft_to_cupla.hpp>       // cufftComplex, cufftDoubleComplex
+#include "libs/cufft_to_cupla.hpp"  // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.hpp"
 #include "libs/CudaKernelConfig.hpp"
 
