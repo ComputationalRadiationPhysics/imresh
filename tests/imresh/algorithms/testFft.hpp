@@ -23,37 +23,14 @@
  */
 
 
-#include <iostream>
-#include "imresh/algorithms/testGaussian.hpp"
-#include "imresh/algorithms/testVectorReduce.hpp"
-#include "imresh/algorithms/testVectorElementwise.hpp"
-#include "imresh/libs/testVectorIndex.hpp"
-#include "imresh/io/testReadWrite.hpp"
-#include "imresh/algorithms/testShrinkWrap.hpp"
-#include "imresh/algorithms/testFft.hpp"
-
-
-int main( void )
+namespace imresh
 {
-    using namespace imresh::algorithms;
-    using namespace imresh::libs;
-    using namespace imresh::io;
+namespace algorithms
+{
 
-    testFft();
-    TestGaussian testGaussian; testGaussian();
-    testShrinkWrap();
-    #ifdef USE_PNG
-        testPng();
-    #endif
 
-    testVectorIndex();
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
-    testVectorElementwise();
+    void testFft( void );
 
-    std::cout << "All tests OK.\n";
 
-    return 0;
-}
-
+} // namespace algorithms
+} // namespace imresh

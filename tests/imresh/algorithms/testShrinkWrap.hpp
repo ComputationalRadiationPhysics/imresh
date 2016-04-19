@@ -30,7 +30,6 @@ namespace algorithms
 
 
     void testShrinkWrap( void );
-    void testFft( void );
 
 
 } // namespace algorithms

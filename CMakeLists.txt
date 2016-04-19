@@ -275,19 +275,13 @@ if(RUN_TESTS)
 
     file( GLOB_RECURSE TEST_SOURCE_FILES
         ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.cpp
-        ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.hpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.hpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.hpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testFft.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.hpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
         ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.hpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
         ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
     )
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
