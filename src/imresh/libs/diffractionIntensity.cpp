@@ -95,7 +95,6 @@ namespace libs
             const unsigned int nElements = rImageWidth * rImageHeight;
 
             cufftComplex * dpTmp;
-            const unsigned int tmpSize = nElements * sizeof( dpTmp[0] );
             mallocCudaArray( &dpTmp, nElements );
             /* what we want to do is copy the float input array to the real
              * part of the cufftComplex array and set the imaginary part to 0 */
