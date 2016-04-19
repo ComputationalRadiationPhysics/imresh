@@ -210,6 +210,26 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
     |       +-- libs
     +-- tests: Unit tests and benchmarks.
 
+## How to debug
+
+When using valgrind unfortunately `Boost`, `libpng` and `libz` and even `valgrind` itself will yield (false?) positives. The shortest way to filter those out is this sed script:
+
+    valgrind ./miniExample 2&>1 > valgrind.log
+    sed -E '/==[0-9]+== /!d;
+            /==[0-9]+==    at/,+1{
+                /mersenne_twister/,+1d;
+                /libz\.so/,+1d;
+                /libpng12\.so/,+1d;
+                /vgpreload_memcheck-amd64-linux\.so/,+1d;
+                /pngwriter::/,+1d;
+            }
+            /==[0-9]+==    by.*libgomp\.so/,+2d;
+            /==[0-9]+==    by/d;
+            /==[0-9]+== Thread [0-9]+/d;
+    ' <(tac ../valgrind.log) | tac
+
+If there are valid errors in the output of the above command you can then search `valgrind.log` for that error to get the whole backtrace.
+
 ## Authors
 
 * Maximilian Knespel (m.knespel at hzdr dot de)
