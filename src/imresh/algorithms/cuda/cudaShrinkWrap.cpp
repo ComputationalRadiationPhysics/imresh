@@ -105,22 +105,6 @@ namespace cuda
         CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIoData,
             sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
 
-        /* shorthand for HaLT wrapper */
-        auto wcdp /* wrapComplexDevicePointer */ =
-            [ &rImageHeight,  &rImageWidth ]( cufftComplex * const & rdp )
-            {
-                auto arraySize = types::Vec2
-                                 {
-                                    rImageHeight /* Ny, nRows */,
-                                    rImageWidth  /* Nx, nCols */
-                                 };
-                return mem::wrapPtr
-                       <
-                           true /* is complex */,
-                           true /* is device pointer */
-                       >( (types::Complex<float> *) rdp, arraySize );
-            };
-
         #ifdef WRITE_OUT_SHRINKWRAP_DEBUG
             /* allocate 2*nElements to hold if necessary nElements
              * cufftComplex elements */
@@ -135,8 +119,8 @@ namespace cuda
             std::true_type,  /* forward      */
             false            /* not in-place */
         >;
-        auto dpgPreviousIn = Plan_gToG::wrapInput ( wcdp( dpgPrevious ) );
-        auto dpCurDataOut  = Plan_gToG::wrapOutput( wcdp( dpCurData   ) );
+        auto dpgPreviousIn = Plan_gToG::wrapInput ( wrapComplexDevicePointer( dpgPrevious, rImageWidth, rImageHeight ) );
+        auto dpCurDataOut  = Plan_gToG::wrapOutput( wrapComplexDevicePointer( dpCurData, rImageWidth, rImageHeight ) );
         auto fft_gToG = makeFftPlan( dpgPreviousIn, dpCurDataOut );
 
         /* create plan and wrap data G'->g' (dpCurData->dpCurData) */
@@ -147,9 +131,10 @@ namespace cuda
             std::false_type, /* inverse      */
             true             /* in-place     */
         >;
-        auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wcdp( dpCurData ) );
+        auto dpCurDataIn = Plan_GPrimeTogPrime::wrapInput ( wrapComplexDevicePointer( dpCurData, rImageWidth, rImageHeight ) );
         auto fft_GPrimeTogPrime = makeFftPlan( dpCurDataIn );
 
+        /* problem: don't know how to get ftPlan from lifft */
         //#ifdef ALPAKA_ACC_GPU_CUDA_ENABLED
         //    cufftSetStream( ftPlan, rStream );
         //#endif
