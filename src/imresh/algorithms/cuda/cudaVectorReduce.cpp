@@ -58,8 +58,10 @@ namespace cuda
     );
     INSTANTIATE_TMP( cudaVectorMin, float  );
     INSTANTIATE_TMP( cudaVectorMin, double );
+    INSTANTIATE_TMP( cudaVectorMin, int    );
     INSTANTIATE_TMP( cudaVectorMax, float  );
     INSTANTIATE_TMP( cudaVectorMax, double );
+    INSTANTIATE_TMP( cudaVectorMax, int    );
     INSTANTIATE_TMP( cudaVectorSum, float  );
     INSTANTIATE_TMP( cudaVectorSum, double );
     #undef INSTANTIATE_TMP

@@ -148,6 +148,18 @@ namespace cuda
         atomicMax( rdpTarget, rValue );
     }
 
+    template<typename T_ACC>
+    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    (
+        T_ACC const & acc,
+        int * const rdpTarget,
+        int   const rValue,
+        MinFunctor<int> f
+    )
+    {
+        atomicMin( rdpTarget, rValue );
+    }
+
 
     /*
     // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
