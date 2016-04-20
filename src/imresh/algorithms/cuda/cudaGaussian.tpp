@@ -245,12 +245,21 @@ namespace cuda
             /* if kernel not found in buffer, then calculate and upload it */
             if ( inserted.second == true )
             {
-                //printf("sigma = %f not found, uploading to global memory\n", rSigma );
+                #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                    printf("sigma = %f not found, uploading to global memory\n", rSigma );
+                #endif
 
                 /* calc kernel to pKernel */
                 T_PREC pKernel[mMaxKernelSize];
                 kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, mMaxKernelSize );
                 assert( kernelSize > 0 );
+
+                #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                    printf("pkernel : ");
+                    for ( auto i = 0u; i < kernelSize; ++i )
+                        printf( "%.3f ", pKernel[i] );
+                    printf("\n");
+                #endif
 
                 /* if kernel fits into buffer */
                 if ( kernelSize <= mMaxKernelSize )
@@ -597,7 +606,7 @@ namespace cuda
             if ( blockIdx.x == 0 and threadIdx.x == 0 )
             {
                 printf( "================ cudaGaussianApplyKernel ================\n" );
-                printf( "\gridDim = (%i,%i,%i), blockDim = (%i,%i,%i)\n",
+                printf( "gridDim = (%i,%i,%i), blockDim = (%i,%i,%i)\n",
                         gridDim.x, gridDim.y, gridDim.z,
                         blockDim.x, blockDim.y, blockDim.z );
                 printf( "rImageWidth = %u\n", rImageWidth );
@@ -700,9 +709,21 @@ namespace cuda
          * size)
          **/
 
-        unsigned kernelSize;
-        T_PREC * dpKernel;
+        unsigned int kernelSize = 0;
+        T_PREC * dpKernel = nullptr;
         GaussianKernelGpuBuffer<T_PREC>::getInstance().getGpuPointer( rSigma, &dpKernel, &kernelSize, rStream, true /* async, goes to same stream */ );
+        assert( dpKernel != nullptr );
+        assert( kernelSize > 0 );
+
+        #if DEBUG_CUDAGAUSSIAN_CPP == 1
+        #if not defined( ALPAKA_ACC_GPU_CUDA_ENABLED )
+            CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+            printf( "dpKernel = %p : ", (void*) dpKernel );
+            for ( auto i = 0u; i < kernelSize; ++i )
+                printf( "%.3f ", dpKernel[i] );
+            printf("\n");
+        #endif
+        #endif
 
         /* the image must be at least nThreads threads wide, else many threads
          * will only sleep. The number of blocks is equal to the image height.
