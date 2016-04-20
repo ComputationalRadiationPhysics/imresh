@@ -83,7 +83,7 @@ namespace libs
 
         void diffractionIntensity
         (
-            float * const rIoData,
+            float * const rpIoData,
             unsigned int const rImageWidth,
             unsigned int const rImageHeight,
             cudaStream_t const rStream,
@@ -98,11 +98,17 @@ namespace libs
             /* what we want to do is copy the float input array to the real
              * part of the cufftComplex array and set the imaginary part to 0 */
             CUDA_ERROR( cudaMemsetAsync( dpTmp, 0, tmpSize, rStream ) );
-            CUDA_ERROR( cudaMemcpy2DAsync( dpTmp  , sizeof( dpTmp  [0] ),
-                                           rIoData, sizeof( rIoData[0] ),
-                                           sizeof( rIoData[0] ), nElements,
-                                           cudaMemcpyHostToDevice, rStream ) );
 
+            CUDA_ERROR( cudaMemcpy2DAsync(
+                dpTmp,                  /* destination address */
+                sizeof( dpTmp[0] ),     /* destination pitch */
+                rpIoData,               /* source address */
+                sizeof( rpIoData[0] ),  /* source pitch */
+                sizeof( rpIoData[0] ),  /* width of matrix in bytes */
+                nElements,              /* height of matrix (count of coulmns) */
+                cudaMemcpyHostToDevice,
+                rStream
+            ) );
             cufftHandle ftPlan;
             CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
             CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
@@ -111,10 +117,17 @@ namespace libs
 
             imresh::algorithms::cuda::cudaComplexNormElementwise( dpTmp, dpTmp, nElements, rStream, true );
 
-            CUDA_ERROR( cudaMemcpy2DAsync( rIoData, sizeof( rIoData[0] ),
-                                           dpTmp  , sizeof( dpTmp  [0] ),
-                                           sizeof( rIoData[0] ), nElements,
-                                           cudaMemcpyDeviceToHost, rStream ) );
+            CUDA_ERROR( cudaMemcpy2DAsync(
+                rpIoData,               /* destination address */
+                sizeof( rpIoData[0] ),  /* destination pitch */
+                dpTmp,                  /* source address */
+                sizeof( dpTmp[0] ),     /* source pitch */
+                sizeof( rpIoData[0] ),  /* width of matrix in bytes */
+                nElements,              /* height of matrix (count of coulmns) */
+                cudaMemcpyDeviceToHost,
+                rStream
+            ) );
+
             if ( not rAsync )
                 CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         }
