@@ -44,11 +44,39 @@
 #include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
+#define DEBUG_TESTGAUSSIAN 0
+
 
 namespace imresh
 {
 namespace algorithms
 {
+
+
+    void print2dArray
+    (
+        float * const rpData,
+        unsigned int const Nx,
+        unsigned int const Ny,
+        const char * rName = nullptr
+    )
+    {
+        if ( Nx > 80 / 5 or Ny > 40 )
+            return;
+
+        std::cout << std::setw(80) << std::setfill('=') << "=" << std::endl << std::setfill(' ');
+        if ( rName != nullptr )
+            std::cout << rName << " : " << std::endl;
+        for ( unsigned iy = 0; iy < Ny; ++iy )
+        {
+            for ( unsigned ix = 0; ix < Nx; ++ix )
+            {
+                std::cout << std::setw(5) << std::setprecision(3) << rpData[ iy*Nx + ix ] << " ";
+            }
+            std::cout << std::endl;
+        }
+        std::cout << std::setw(80) << std::setfill('=') << "=" << std::endl << std::setfill(' ');
+    }
 
     void TestGaussian::compareFloatArray
     ( float * rpData, float * rpResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
@@ -200,7 +228,7 @@ namespace algorithms
                       << "elements = ";
             for ( unsigned i = 0; i < rnData; ++i )
                 std::cout << rpData[i] << " ";
-            std::cout << "\n" << std::flush;
+            std::cout << std::endl;
         }
         assert( sumDiff == 0 );
     }
@@ -232,46 +260,56 @@ namespace algorithms
         std::cout << "Test gaussian blur of dirac deltas" << std::flush;
         for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.3,1.7,2,3,4 } )
         {
-            constexpr int nKernelElements = 64;
+            int constexpr nKernelElements = 64;
             float pKernel[nKernelElements];
-            const unsigned kernelSize = calcGaussianKernel( sigma, (float*) pKernel, nKernelElements );
-            const unsigned kernelHalf = (kernelSize-1)/2;
+            unsigned int const kernelSize = calcGaussianKernel( sigma, (float*) pKernel, nKernelElements );
+            unsigned int const kernelHalf = (kernelSize-1)/2;
 
             std::cout << "." << std::flush;
 
-            /*
-            std::cout << "kernelSize = " << kernelSize << ", ";
-            std::cout << "weights = ";
-            for ( int iW = 0; iW < kernelSize; ++iW )
-                std::cout << pKernel[iW] << " ";
-            std::cout << "\n";
-            */
+            #if DEBUG_TESTGAUSSIAN == 1
+                std::cout << "kernelSize = " << kernelSize << ", ";
+                std::cout << "weights = ";
+                for ( int iW = 0; iW < kernelSize; ++iW )
+                    std::cout << pKernel[iW] << " ";
+                std::cout << "\n";
+            #endif
 
             for ( auto nCols : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
             for ( auto nRows : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
             {
-                const unsigned nElements = nRows*nCols;
+                auto const nElements = nRows*nCols;
                 if ( nElements > nMaxElements )
                 {
                     std::cout << "Skipping Image Size " << nRows << " x " << nCols << ", because not enough memory allocated, check test image sizes and nMaxElements in source code!\n";
                     continue;
                 }
 
+                #if DEBUG_TESTGAUSSIAN == 1
+                    if ( nRows == 1 )
+                        std::cout << std::endl;
+                    std::cout << "(" << nCols << "," << nRows << "), " << std::flush;
+                #endif
+
                 if ( nCols >= kernelSize )
                 {
                     /* initialize data */
                     memset( pData, 0, nElements*sizeof( pData[0] ) );
-                    for ( unsigned iRow = 0; iRow < nRows; ++iRow )
-                    for ( unsigned iCol = kernelHalf; iCol < nCols - kernelHalf; iCol += kernelSize )
+                    for ( auto iRow = 0u; iRow < nRows; ++iRow )
+                    for ( auto iCol = kernelHalf; iCol < nCols - kernelHalf; iCol += kernelSize )
                         pData[ iRow*nCols + iCol ] = 1;
 
+                    /*#if DEBUG_TESTGAUSSIAN == 1
+                        print2dArray( pData, nCols, nRows, "pData" );
+                    #endif*/
+
                     /* write down expected solution */
-                    for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+                    for ( auto iRow = 0u; iRow < nRows; ++iRow )
                     {
-                        unsigned iCol = 0;
+                        auto iCol = 0u;
                         for ( ; iCol + kernelSize-1 < nCols; iCol += kernelSize )
                         {
-                            for ( unsigned iW = 0; iW < kernelSize; ++iW )
+                            for ( auto iW = 0u; iW < kernelSize; ++iW )
                                 pSolution[ iRow*nCols + iCol+iW ] = pKernel[ iW ];
                         }
                         for ( ; iCol < nCols; ++iCol )
@@ -279,7 +317,6 @@ namespace algorithms
                     }
 
                     /* execute Gaussian blur and test if values unchanged */
-                    //std::cout << "cudaGaussianBlurHorizontal\n" << std::flush;
                     CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof( dpData[0] ), cudaMemcpyHostToDevice ) );
                     cudaGaussianBlurHorizontal( dpData, nCols, nRows, sigma );
                     CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof( dpData[0] ), cudaMemcpyDeviceToHost ) );
@@ -291,7 +328,6 @@ namespace algorithms
                     compareFloatArray( pResult, pSolution, nCols, nRows, sigma, __LINE__ );
 
                     /* execute Gaussian blur and test if values unchanged */
-                    //std::cout << "gaussianBlurHorizontal\n" << std::flush;
                     memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
                     gaussianBlurHorizontal( pResultCpu, nCols, nRows, sigma );
                     compareFloatArray( pResultCpu, pSolution, nCols, nRows, sigma, __LINE__ );
@@ -322,7 +358,6 @@ namespace algorithms
                         pSolution[ iRow*nCols + iCol ] = 0;
 
                     /* execute Gaussian blur and test if values unchanged */
-                    //std::cout << "cudaGaussianBlurVertical\n" << std::flush;
                     CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof( dpData[0] ), cudaMemcpyHostToDevice ) );
                     cudaGaussianBlurVertical( dpData, nCols, nRows, sigma );
                     CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
@@ -331,21 +366,19 @@ namespace algorithms
                     /*** repeat the same checks for CPU ***/
 
                     /* execute Gaussian blur and test if values unchanged */
-                    //std::cout << "gaussianBlurVertical\n" << std::flush;
                     memcpy( pResultCpu, pData, nElements*sizeof(pData[0]) );
                     gaussianBlurVertical( pResultCpu, nCols, nRows, sigma );
                     compareFloatArray( pResult, pSolution, nCols, nRows, sigma, __LINE__ );
                 }
             }
         }
-        std::cout << "OK\n";
+        std::cout << "OK" << std::endl;
     }
 
 
     void TestGaussian::testGaussianRandomSingleData( void )
     {
         using namespace imresh::algorithms::cuda;
-        //using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::libs;
 
         /* Test for array of length 1. In this case the values shouldn't change
@@ -354,12 +387,16 @@ namespace algorithms
         for ( auto nRows : std::vector<int>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
         for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.3,1.7,2,3,4 } )
         {
-            //std::cout << "nRows=" << nRows << ", sigma=" << sigma << "\n";
+            #if DEBUG_TESTGAUSSIAN == 1
+                std::cout << "nRows=" << nRows << ", sigma=" << sigma << "\n";
+            #endif
             if ( sigma == 1 )
                 std::cout << "." << std::flush;
 
             /* execute Gaussian blur and test if values unchanged */
-            //std::cout << "cudaGaussianBlurHorizontal\n" << std::flush;
+            #if DEBUG_TESTGAUSSIAN == 1
+                std::cout << "cudaGaussianBlurHorizontal" << std::endl;
+            #endif
             fillWithRandomValues( dpData, pData, nRows );
             cudaGaussianBlurHorizontal( dpData, 1, nRows, sigma );
             CUDA_ERROR( cudaMemcpy( pResult, dpData, nRows*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
@@ -372,7 +409,9 @@ namespace algorithms
             /*** repeat the same checks for vertical blur ***/
 
             /* execute Gaussian blur and test if values unchanged */
-            //std::cout << "cudaGaussianBlurVertical\n" << std::flush;
+            #if DEBUG_TESTGAUSSIAN == 1
+                std::cout << "cudaGaussianBlurVertical" << std::endl;
+            #endif
             fillWithRandomValues( dpData, pData, nRows );
             cudaGaussianBlurVertical( dpData, nRows/*nCols*/, 1, sigma );
             CUDA_ERROR( cudaMemcpy( pResult, dpData, nRows*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
@@ -381,7 +420,9 @@ namespace algorithms
             /*** repeat the same checks for CPU ***/
 
             /* execute Gaussian blur and test if values unchanged */
-            //std::cout << "gaussianBlurHorizontal\n" << std::flush;
+            #if DEBUG_TESTGAUSSIAN == 1
+                std::cout << "gaussianBlurHorizontal" << std::endl;
+            #endif
             memcpy( pResultCpu, pData, nRows*sizeof(pData[0]) );
             gaussianBlurHorizontal( pResultCpu, 1, nRows, sigma );
             compareFloatArray( pData, pResult, 1, nRows, sigma );
@@ -391,7 +432,9 @@ namespace algorithms
             /* CPU kernel doesn't work for too small image sizes yet! TODO */
             if ( calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < 1 /* rnDataY */ )
             {
-                //std::cout << "gaussianBlurVertical\n" << std::flush;
+                #if DEBUG_TESTGAUSSIAN == 1
+                    std::cout << "gaussianBlurVertical" << std::endl;
+                #endif
                 memcpy( pResultCpu, pData, nRows*sizeof(pData[0]) );
                 gaussianBlurVerticalUncached( pResultCpu, nRows/*nCols*/, 1, sigma );
                 compareFloatArray( pData, pResult, nRows, 1, sigma, __LINE__ );
