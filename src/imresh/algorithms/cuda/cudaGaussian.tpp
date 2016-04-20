@@ -250,7 +250,9 @@ namespace cuda
                 #endif
 
                 /* calc kernel to pKernel */
-                T_PREC pKernel[mMaxKernelSize];
+                /* if not static, then it would be freed why cudaMemcpyAsync
+                 * may not have ended yet! */
+                T_PREC static pKernel[mMaxKernelSize];
                 kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, mMaxKernelSize );
                 assert( kernelSize > 0 );
 
@@ -283,8 +285,26 @@ namespace cuda
                     *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
                     CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
                         kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
-                    if ( not rAsync )
-                        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    /* for now asynchronous buffer copying is not supported,
+                     * because of the buffer on host form which the kernel is
+                     * copied to GPU.
+                     *  - when using static the function may not be called
+                     *    a second time if cudaMemcpyAsync has not finished yet
+                     *  - when using new we don't know when we can free the
+                     *    buffer, thereby creating memory leaks ...
+                     * @TODO!!!
+                     */
+                    //if ( not rAsync )
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                        printf( "*rdppKernel = %p : ", (void*) *rdppKernel );
+                        for ( auto i = 0u; i < kernelSize; ++i )
+                            printf( "%.3f ", (*rdppKernel)[i] );
+                        printf("\n");
+                    #endif
+
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
