@@ -49,7 +49,7 @@ endif()
 if(IMRESH_DEBUG)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
     add_definitions("-DIMRESH_DEBUG")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo -Xptxas=-v")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo") # -Xptxas=-v
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -std=c++11 -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
@@ -83,6 +83,11 @@ if(USE_PNG)
     add_definitions( "-DUSE_PNG" ${PNGwriter_DEFINITIONS} )
 endif()
 
+if(USE_TIFF)
+    find_package(TIFF REQUIRED)
+    add_definitions( "-DUSE_TIFF" )
+endif()
+
 if(USE_SPLASH)
     # if PNGWRITER_ROOT not set, then get and compile submodule
     if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
@@ -106,15 +111,16 @@ if(USE_SPLASH)
         set( ENV{SPLASH_ROOT} "${SPLASH_ROOT}")
     endif()
 
-    find_package(Splash REQUIRED)
-    add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
+    find_package( Splash REQUIRED )
+    add_definitions( "-DUSE_SPLASH" ${Splash_DEFINITIONS} )
 endif()
 
 if(USE_FFTW)
     include_directories( ${FFTW_INCLUDES} )
     set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${FFTW_LIBRARIES} )
-    add_definitions("-DUSE_FFTW" ${FFTW_DEFINITIONS})
+    add_definitions( "-DUSE_FFTW" ${FFTW_DEFINITIONS} )
 endif()
+
 
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
 include_directories(
@@ -126,6 +132,7 @@ include_directories(
     ${PNGwriter_INCLUDE_DIRS}
     ${Splash_INCLUDE_DIRS}
     ${OpenMP_INCLUDE_DIRS}
+    ${TIFF_INCLUDE_DIRS}
 )
 cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)

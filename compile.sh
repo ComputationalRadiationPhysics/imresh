@@ -10,5 +10,5 @@ cmake ..                                        \
     -DRUN_TESTS=ON                              \
     -DUSE_PNG=ON                                \
     -DUSE_SPLASH=ON                             \
-    -DUSE_FFTW=OFF
-#    -DUSE_TIFF=ON
+    -DUSE_FFTW=OFF                              \
+    -DUSE_TIFF=ON
