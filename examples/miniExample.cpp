@@ -93,18 +93,26 @@ int main( int argc, char ** argv )
     #if USE_FFTW
         imresh::algorithms::shrinkWrap(
             pData,
-            imageSize[0], imageSize[1],
-            64 /*cycles*/,
-            1e-6 /* targetError */
+            imageSize[0],
+            imageSize[1],
+            64      /*cycles*/,
+            1e-6    /* targetError */
         );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap(
             pData,
-            imageSize[0], imageSize[1],
+            imageSize[0],
+            imageSize[1],
             cudaStream_t(0),
-            96 /* nBlocks */,
-            256 /* nThreads */,
-            64 /*cycles*/, 1e-6 /* targetError */
+            96      /* nBlocks          */,
+            256     /* nThreads         */,
+            64      /* cycles           */,
+            1e-6    /* targetError      */,
+            0       /* HioBeta (auto)   */,
+            0       /* rIntensityCutOffAutoCorel (auto) */,
+            0       /* rIntensityCutOff */,
+            0       /* rSigma0          */,
+            0       /* rSigmaChange     */
         );
     #endif
     /* pData now holds the original image again (with some deviation)

@@ -26,7 +26,7 @@
 
 #ifndef NDEBUG // change the following, if you want to turn on debugging
 #   define DEBUG_CUDASHRINKWRAP 1
-#   define WRITE_OUT_SHRINKWRAP_DEBUG 1
+#   define WRITE_OUT_SHRINKWRAP_DEBUG 0
 #else   // leave this as it is
 #   define DEBUG_CUDASHRINKWRAP 0
 #   define WRITE_OUT_SHRINKWRAP_DEBUG 0
@@ -163,20 +163,20 @@ namespace cuda
 
     int cudaShrinkWrap
     (
-        float * const rIntensity,
-        unsigned const rImageWidth,
-        unsigned const rImageHeight,
-        cudaStream_t const rStream,
-        unsigned int nBlocks,
-        unsigned int nThreads,
-        unsigned int rnCycles,
-        float rTargetError,
-        float rHioBeta,
-        float rIntensityCutOffAutoCorel,
-        float rIntensityCutOff,
-        float rSigma0,
-        float rSigmaChange,
-        unsigned int rnHioCycles
+        float *      const  rIntensity               ,
+        unsigned int const  rImageWidth              ,
+        unsigned int const  rImageHeight             ,
+        cudaStream_t const  rStream                  ,
+        unsigned int        nBlocks                  ,
+        unsigned int        nThreads                 ,
+        unsigned int        rnCycles                 ,
+        float               rTargetError             ,
+        float               rHioBeta                 ,
+        float               rIntensityCutOffAutoCorel,
+        float               rIntensityCutOff         ,
+        float               rSigma0                  ,
+        float               rSigmaChange             ,
+        unsigned int        rnHioCycles
     )
     {
         /* load libraries and functions which we need */
@@ -190,13 +190,14 @@ namespace cuda
         /* this makes it possible to specifiy new values for e.g. rSigma0,
          * while still using the default values for rHioBeta, rTargetError,
          * ... */
+        if ( rnCycles                  == 0 ) rnCycles                  = 20  ;
         if ( rTargetError              <= 0 ) rTargetError              = 1e-5;
-        if ( rnHioCycles               == 0 ) rnHioCycles               = 20;
-        if ( rHioBeta                  <= 0 ) rHioBeta                  = 0.9;
-        if ( rIntensityCutOffAutoCorel <= 0 ) rIntensityCutOffAutoCorel = 0.04;
-        if ( rIntensityCutOff          <= 0 ) rIntensityCutOff          = 0.2;
-        if ( rSigma0                   <= 0 ) rSigma0                   = 3.0;
+        if ( rHioBeta                  <= 0 ) rHioBeta                  = 0.9 ;
+        if ( rIntensityCutOffAutoCorel <= 0 ) rIntensityCutOffAutoCorel = 0.02; /* better: choose a value such that the mask contains 50% of the image, or some over scheme -> try making a histogram @TODO!!! */
+        if ( rIntensityCutOff          <= 0 ) rIntensityCutOff          = 0.2 ;
+        if ( rSigma0                   <= 0 ) rSigma0                   = 3.0 ;
         if ( rSigmaChange              <= 0 ) rSigmaChange              = 0.01;
+        if ( rnHioCycles               == 0 ) rnHioCycles               = 20  ;
 
         float sigma = rSigma0;
         auto const nElements = rImageWidth * rImageHeight;
@@ -218,34 +219,31 @@ namespace cuda
             float * pHostToWrite = new float[ 2*nElements ];
         #endif
 
+        #define RUN(x) cudaKernel##x<<<nBlocks,nThreads,0,rStream>>>
+
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
         CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
         CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
 
-        cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
+        RUN(CopyToRealPart)( dpCurData, dpIntensity, nElements );
         CUDA_ERROR( cudaPeekAtLastError() );
-
-        /* in the first step the last value for g is to be approximated
-         * by g'. The last value for g, called g_k is needed, because
-         * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
-         * because the fft is needed */
-        cudaMemcpyAsync( dpgPrevious, dpCurData, sizeof(dpCurData[0]) * nElements,
-                    cudaMemcpyDeviceToDevice, rStream );
+        /* intensity -> autocorrelation / G (current guess for object) */
+        CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
 
         /* repeatedly call HIO algorithm and change mask */
         for ( auto iCycleShrinkWrap = 0u; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
 
-            /* blur |g'| (normally g' should be real!, so |.| not necessary) */
-            cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );
+            /* blur |g'| (normally g' should be real!, so |.| not necessary, only copy from real part to dpIsMasked) */
+            RUN(ComplexNormElementwise)( dpIsMasked, dpCurData, nElements );
             CUDA_ERROR( cudaPeekAtLastError() );
             cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
             #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
             {
                 std::stringstream fname;
-                fname << "shrinkWrap_first-mask-blurred.png";
+                fname << "shrinkWrap_a_first-mask-blurred.png";
                 CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
                     sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
@@ -255,7 +253,7 @@ namespace cuda
             }
             {
                 std::stringstream fname;
-                fname << "shrinkWrap_first-mask-blurred-log-scale.png";
+                fname << "shrinkWrap_a_first-mask-blurred-log-scale.png";
                 CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
                     sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
@@ -276,13 +274,13 @@ namespace cuda
             const float absMax = cudaVectorMax( dpIsMasked, nElements, rStream );
             const float threshold = ( iCycleShrinkWrap == 0 ?
                 rIntensityCutOffAutoCorel : rIntensityCutOff ) * absMax;
-            cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
+            RUN(CutOff)( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
             CUDA_ERROR( cudaPeekAtLastError() );
             #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
             {
                 std::stringstream fname;
-                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
-                      << "-mask.png";
+                fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                      << "-a_mask.png";
                 CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
                     sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
@@ -294,11 +292,26 @@ namespace cuda
 
             /* update the blurring sigma */
             sigma = fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
+            /************************ Update Mask End *************************/
+
+            /* in first step add random phase to intensity by filling
+             * unmasked area with ranfom uniform noise with mean value
+             * equal to zero frequency / highest value in diffraction pattern */
+            /* in the first step the last value for g is to be approximated
+             * by g'. The last value for g, called g_k is needed, because
+             * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
+             * because the fft is needed -> dpgPrevious */
+            if ( iCycleShrinkWrap == 0 )
+            {
+                //RUN(ApplyComplexModulus)( dpCurData, dpCurData, dpIntensity, nElements );
+                cudaMemcpyAsync( dpgPrevious, dpCurData, sizeof(dpCurData[0]) * nElements,
+                            cudaMemcpyDeviceToDevice, rStream );
+            }
 
             for ( auto iHioCycle = 0u; iHioCycle < rnHioCycles; ++iHioCycle )
             {
                 /* apply domain constraints to g' to get g */
-                cudaKernelApplyHioDomainConstraints<<<nBlocks,nThreads,0,rStream >>>
+                RUN(ApplyHioDomainConstraints)
                     ( dpgPrevious, dpCurData, dpIsMasked, nElements, rHioBeta );
                 CUDA_ERROR( cudaPeekAtLastError() );
 
@@ -306,14 +319,13 @@ namespace cuda
                 CUFFT_ERROR( cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD ) );
 
                 /* Replace absolute of G' with measured absolute |F| */
-                cudaKernelApplyComplexModulus<<<nBlocks,nThreads,0,rStream>>>
-                    ( dpCurData, dpCurData, dpIntensity, nElements );
+                RUN(ApplyComplexModulus)( dpCurData, dpCurData, dpIntensity, nElements );
                 CUDA_ERROR( cudaPeekAtLastError() );
                 #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
                 {
                     std::stringstream fname;
-                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
-                          << "_iHio-" << iHioCycle << "-intensity.png";
+                    fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-b_intensity.png";
                     CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                     CUDA_ERROR( cudaMemcpy( pHostToWrite, dpCurData, 2*nElements *
                         sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
@@ -332,8 +344,8 @@ namespace cuda
                 #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
                 {
                     std::stringstream fname;
-                    fname << "shrinkWrap_iC-" << iCycleShrinkWrap
-                          << "_iHio-" << iHioCycle << "-object.png";
+                    fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-c_object.png";
                     CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                     CUDA_ERROR( cudaMemcpy2D(
                         pHostToWrite,              /* dest addr */
@@ -367,8 +379,8 @@ namespace cuda
             #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
             {
                 std::stringstream fname;
-                fname << "shrinkWrap_iC-" << iCycleShrinkWrap
-                      << "-object.png";
+                fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                      << "-d_object.png";
                 CUDA_ERROR( cudaStreamSynchronize( rStream ) );
                 CUDA_ERROR( cudaMemcpy2D(
                     pHostToWrite,              /* dest addr */
@@ -386,9 +398,10 @@ namespace cuda
             }
             #endif
         } // shrink wrap loop
-        cudaKernelCopyFromRealPart<<<nBlocks,nThreads,0,rStream>>>( dpIntensity, dpCurData, nElements );
+        RUN(CopyFromRealPart)( dpIntensity, dpCurData, nElements );
         CUDA_ERROR( cudaPeekAtLastError() );
         CUDA_ERROR( cudaMemcpyAsync( rIntensity, dpIntensity, sizeof(rIntensity[0])*nElements, cudaMemcpyDeviceToHost, rStream ) );
+        #undef RUN
 
         /* wait for everything to finish */
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
