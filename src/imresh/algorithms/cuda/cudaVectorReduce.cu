@@ -200,6 +200,7 @@ namespace cuda
         /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
         kernelVectorReduce<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
@@ -379,6 +380,7 @@ namespace cuda
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
         cudaKernelCalculateHioError<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
+        CUDA_ERROR( cudaPeekAtLastError() );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
         CUDA_ERROR( cudaMemcpyAsync( &totalError   , dpTotalError   , sizeof(float), cudaMemcpyDeviceToHost, rStream ) );

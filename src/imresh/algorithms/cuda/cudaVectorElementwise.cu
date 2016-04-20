@@ -240,6 +240,7 @@ namespace cuda
         const int nBlocks = ( nThreads + 256-1 ) / 256;
         cudaKernelComplexNormElementwise<<< nBlocks, 256, 0, rStream >>>
             ( rdpDataTarget, rdpDataSource, rnElements );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );

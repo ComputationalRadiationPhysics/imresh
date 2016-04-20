@@ -698,6 +698,7 @@ namespace cuda
             sizeof(T_PREC)*( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, dpKernel, N );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -1012,6 +1013,7 @@ namespace cuda
             sizeof( dpKernel[0] ) * ( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
