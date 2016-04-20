@@ -170,12 +170,11 @@ namespace algorithms
                     memcpy( tmpDataArray + i*Nx*Ny, pData, Nx*Ny * sizeof( pData[0] ) );
                 clock0 = clock::now();
                 {
-                    using ImageDim = std::pair<unsigned int,unsigned int>;
                     imresh::io::taskQueueInit( );
                     for( auto i = 0u; i < nConcurrentTasks; i++ )
                     {
-                        imresh::io::addTask( tmpDataArray + i*Nx*Ny, ImageDim{ Nx, Ny },
-                                             []( float * a, ImageDim const b, std::string const c ){},
+                        imresh::io::addTask( tmpDataArray + i*Nx*Ny, Nx, Ny,
+                                             []( float *, unsigned const, unsigned const, std::string const ){},
                                              "", nShrinkWrapCycles );
                     }
                     imresh::io::taskQueueDeinit( ); // synchronizes device

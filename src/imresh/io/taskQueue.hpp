@@ -35,6 +35,13 @@ namespace io
 {
 
 
+    using WriteOutCallBack = std::function<
+                                 void ( float *,
+                                        unsigned int const,
+                                        unsigned int const,
+                                        std::string )
+                             >;
+
     /**
      * Calls imresh::io::addTaskAsync() in a thread.
      *
@@ -47,21 +54,18 @@ namespace io
      */
     void addTask(
         float * const ioData,
-        std::pair<unsigned int,unsigned int> size,
-        std::function<
-            void ( float *,
-                   std::pair<unsigned int,unsigned int>,
-                   std::string )
-        >            writeOutFunc                   ,
-        std::string  fileName                       ,
-        unsigned int nCycles                  = 20  ,
-        unsigned int nHioCycles               = 20  ,
-        float        targetError              = 1e-5,
-        float        hioBeta                  = 0.9f,
-        float        intensityCutOffAutoCorel = 0.04,
-        float        intensityCutOff          = 0.2 ,
-        float        sigma0                   = 3.0 ,
-        float        sigmaChange              = 0.01
+        unsigned int const imageWidth                   ,
+        unsigned int const imageHeight                  ,
+        WriteOutCallBack writeOutFunc                   ,
+        std::string      fileName                       ,
+        unsigned int     nCycles                  = 20  ,
+        unsigned int     nHioCycles               = 20  ,
+        float            targetError              = 1e-5,
+        float            hioBeta                  = 0.9f,
+        float            intensityCutOffAutoCorel = 0.04,
+        float            intensityCutOff          = 0.2 ,
+        float            sigma0                   = 3.0 ,
+        float            sigmaChange              = 0.01
     );
 
     /**

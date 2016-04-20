@@ -40,7 +40,6 @@
 int main( int argc, char ** argv )
 {
     using namespace imresh::io::writeOutFuncs;
-    using ImageDimensions = std::pair<unsigned int, unsigned int>;
 
     std::vector<unsigned> imageSize{ 600, 300 };
     float * pData;
@@ -64,7 +63,7 @@ int main( int argc, char ** argv )
             for ( int i = 0; i < 10; ++i )
                 std::cout << 65535*pData[i] << " ";
             std::cout << std::endl;
-            writeOutPNG( pData, ImageDimensions{ imageSize[0], imageSize[1] },
+            writeOutPNG( pData, imageSize[0], imageSize[1],
                 std::string( argv[1] ) + std::string( "-diffraction.png" ) );
             fftShift( pData, imageSize[0], imageSize[1] );
         #else
@@ -77,14 +76,14 @@ int main( int argc, char ** argv )
         using namespace examples::createTestData;
         pData = createAtomCluster( imageSize[0], imageSize[1] );
         #if USE_PNG
-            writeOutPNG( pData, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+            writeOutPNG( pData, imageSize[0], imageSize[1], "atomCluster-object.png" );
         #endif
 
         imresh::libs::diffractionIntensity( pData, imageSize[0], imageSize[1] );
         #if USE_PNG
             using imresh::libs::fftShift;
             fftShift( pData, imageSize[0], imageSize[1] );
-            writeOutPNG( pData, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
+            writeOutPNG( pData, imageSize[0], imageSize[1], "atomCluster-diffractionIntensity.png" );
             fftShift( pData, imageSize[0], imageSize[1] );
         #endif
     }
@@ -118,7 +117,7 @@ int main( int argc, char ** argv )
     else
         fileName = std::string( "atomCluster-reconstructed.png" );
     #if USE_PNG
-        writeOutAndFreePNG( pData, ImageDimensions{ imageSize[0], imageSize[1] }, fileName.c_str() );
+        writeOutAndFreePNG( pData, imageSize[0], imageSize[1], fileName.c_str() );
     #else
         delete[] pData;
         std::cout << "[note] can't output the result if not compiled with the CMake-option 'USE_PNG'\n";

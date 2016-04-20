@@ -90,9 +90,9 @@ namespace io
      */
     void addTaskAsync(
         float * _h_mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float *,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc ,
+        unsigned int const rImageWidth  ,
+        unsigned int const rImageHeight ,
+        WriteOutCallBack _writeOutFunc  ,
         std::string _filename           ,
         unsigned int _numberOfCycles    ,
         unsigned int _numberOfHIOCycles ,
@@ -127,8 +127,8 @@ namespace io
 
         // Call shrinkWrap in the selected stream on the selected device.
         imresh::algorithms::cuda::cudaShrinkWrap( _h_mem,
-                                              _size.first,
-                                              _size.second,
+                                              rImageWidth,
+                                              rImageHeight,
                                               str,
                                               nBlocks,
                                               nThreadsPerBlock,
@@ -141,14 +141,14 @@ namespace io
                                               _sigmaChange,
                                               _numberOfHIOCycles );
 
-        _writeOutFunc( _h_mem, _size, _filename );
+        _writeOutFunc( _h_mem, rImageWidth, rImageHeight, _filename );
     }
 
     void addTask(
         float * _h_mem,
-        std::pair<unsigned int,unsigned int> _size,
-        std::function<void(float *,std::pair<unsigned int,unsigned int>,
-            std::string)> _writeOutFunc ,
+        unsigned int const rImageWidth  ,
+        unsigned int const rImageHeight ,
+        WriteOutCallBack _writeOutFunc  ,
         std::string _filename           ,
         unsigned int _numberOfCycles    ,
         unsigned int _numberOfHIOCycles ,
@@ -173,18 +173,22 @@ namespace io
         }
 
         /* start new thread and save thread id in threadPool */
-        threadPool.push_back( std::thread( addTaskAsync, _h_mem,
-                                                         _size,
-                                                         _writeOutFunc,
-                                                         _filename,
-                                                         _numberOfCycles,
-                                                         _numberOfHIOCycles,
-                                                         _targetError,
-                                                         _HIOBeta,
-                                                         _intensityCutOffAutoCorel,
-                                                         _intensityCutOff,
-                                                         _sigma0,
-                                                         _sigmaChange ) );
+        threadPool.push_back( std::thread(
+            addTaskAsync,
+            _h_mem,
+            rImageWidth,
+            rImageHeight,
+            _writeOutFunc,
+            _filename,
+            _numberOfCycles,
+            _numberOfHIOCycles,
+            _targetError,
+            _HIOBeta,
+            _intensityCutOffAutoCorel,
+            _intensityCutOff,
+            _sigma0,
+            _sigmaChange
+        ) );
 
     }
 
@@ -198,19 +202,11 @@ namespace io
      */
     unsigned fillStreamList( )
     {
-#       ifdef IMRESH_DEBUG
-            std::cout << "imresh::io::fillStreamList(): Starting stream creation."
-                << std::endl;
-#       endif
         int deviceCount = 0;
         CUDA_ERROR( cudaGetDeviceCount( & deviceCount ) );
 
         if( deviceCount <= 0 )
         {
-#           ifdef IMRESH_DEBUG
-                std::cout << "imresh::io::fillStreamList(): No devices found. Aborting."
-                    << std::endl;
-#           endif
             exit( EXIT_FAILURE );
         }
 
@@ -226,10 +222,6 @@ namespace io
                 str.device = i;
                 CUDA_ERROR( cudaStreamCreate( & str.str ) );
                 streamList.push_back( str );
-#               ifdef IMRESH_DEBUG
-                    std::cout << "imresh::io::fillStreamList(): Created stream "
-                        << j << " on device " << i << std::endl;
-#               endif
             }
         }
 

@@ -61,7 +61,6 @@ namespace io
         using namespace imresh::io::readInFuncs;
         using namespace imresh::io::writeOutFuncs;
         using namespace imresh::tests;
-        using ImageDim = std::pair<unsigned int, unsigned int>;
 
         /**
          * The test consists of writing out some data and reading it again
@@ -102,7 +101,7 @@ namespace io
                 for ( auto i = 0; i < nElements; ++i )
                     pData[i] = (float) rand() / RAND_MAX;
 
-                writeOutAndFreePNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
+                writeOutAndFreePNG( pData, Nx, Ny, tmpFileName );
 
                 file = readPNG( tmpFileName );
                 assert( file.second.first == Nx );
@@ -132,7 +131,7 @@ namespace io
             {
                 /* write */
                 clock0 = clock::now();
-                    writeOutAndFreePNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
+                    writeOutAndFreePNG( file.first, Nx, Ny, tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeRead.push_back( seconds.count() * 1000 );

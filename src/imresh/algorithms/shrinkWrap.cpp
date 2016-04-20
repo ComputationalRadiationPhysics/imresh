@@ -211,9 +211,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-mask-blurred.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    isMasked,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    isMasked, Nx, Ny, fname.str().c_str()
                 );
             }
             {
@@ -227,9 +225,7 @@ namespace algorithms
                     logMask[i] = logf( isMasked[i] );
 
                 imresh::io::writeOutFuncs::writeOutAndFreePNG(
-                    logMask,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    logMask, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif
@@ -254,9 +250,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-mask.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    isMasked,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    isMasked, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif
@@ -299,9 +293,7 @@ namespace algorithms
                         curIntensity[i] = sqrtf( curData[i][0]*curData[i][0] + curData[i][1]*curData[i][1] );
 
                     imresh::io::writeOutFuncs::writeOutPNG(
-                        curIntensity,
-                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                        fname.str().c_str()
+                        curIntensity, Nx, Ny, fname.str().c_str()
                     );
                 }
                 #endif
@@ -320,9 +312,7 @@ namespace algorithms
                         curObject[i] = curData[i][0];
 
                     imresh::io::writeOutFuncs::writeOutPNG(
-                        curObject,
-                        std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                        fname.str().c_str()
+                        curObject, Nx, Ny, fname.str().c_str()
                     );
                 }
                 #endif
@@ -350,9 +340,7 @@ namespace algorithms
                 fname << "shrinkWrap_iC-" << iCycleShrinkWrap
                       << "-object.png";
                 imresh::io::writeOutFuncs::writeOutPNG(
-                    tmpData,
-                    std::pair< unsigned int, unsigned int >{ Nx, Ny },
-                    fname.str().c_str()
+                    tmpData, Nx, Ny, fname.str().c_str()
                 );
             }
             #endif
