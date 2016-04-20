@@ -144,14 +144,18 @@ namespace io
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeWrite.push_back( seconds.count() * 1000 );
 
-                for ( auto i = 0u; i < Nx*Ny; ++i )
-                {
-                    if( not ( file.first[i] == tmpSaved0[i] ) )
+                #ifdef IMRESH_DEBUG
+                    for ( auto i = 0u; i < Nx*Ny; ++i )
                     {
-                        printf( "read from png pixel %i: %f != %f read initially\n", i, file.first[i], tmpSaved[i] );
-                        assert( file.first[i] == tmpSaved0[i] );
+                        if( not ( file.first[i] == tmpSaved0[i] ) )
+                        {
+                            std::cout << "read from png pixel " << i << ": "
+                                      << file.first[i] << " != " << tmpSaved[i]
+                                      << " read initially." << std::endl;
+                            assert( file.first[i] == tmpSaved0[i] );
+                        }
                     }
-                }
+                #endif
             }
             std::cout << std::setprecision(4);
             std::cout << std::setw(8) << mean( timeMemcpy ) << " +- " << std::setw(8) << stddev( timeMemcpy ) << " | " << std::flush;
