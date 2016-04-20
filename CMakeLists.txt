@@ -57,11 +57,55 @@ endif()
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -arch=sm_30")
 
 if(USE_PNG)
-    find_package(PNGwriter REQUIRED)
-    add_definitions("-DUSE_PNG ${PNGwriter_DEFINITIONS}")
+    # if PNGWRITER_ROOT not set, then get and compile submodule
+    if( "$ENV{PNGWRITER_ROOT}" STREQUAL "" )
+        set( PNGWRITER_ROOT "${PROJECT_SOURCE_DIR}/pngwriter" )
+        if( NOT EXISTS "${PNGWRITER_ROOT}/include/pngwriter.h" OR
+            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.a"  OR
+            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.so"
+        )
+            # every command own execute process because of this bug:
+            execute_process(
+                COMMAND sh -c "\
+                git submodule update --init -- ./pngwriter && \
+                mkdir -p ./pngwriter/build                 && \
+                cd ./pngwriter/build                       && \
+                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
+                make install -j 4                             \
+                "
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+        endif()
+        set( ENV{PNGWRITER_ROOT} "${PNGWRITER_ROOT}")
+    endif()
+
+    find_package( PNGwriter REQUIRED )
+    add_definitions( "-DUSE_PNG" ${PNGwriter_DEFINITIONS} )
 endif()
 
 if(USE_SPLASH)
+    # if PNGWRITER_ROOT not set, then get and compile submodule
+    if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
+        set( SPLASH_ROOT "${PROJECT_SOURCE_DIR}/libsplash" )
+        if( NOT EXISTS "${SPLASH_ROOT}/include/splash/splash.h" OR
+            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.a" OR
+            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.so"
+        )
+            # every command own execute process because of this bug:
+            execute_process(
+                COMMAND sh -c "
+                git submodule update --init -- ./libsplash && \
+                mkdir -p  ./libsplash/build                && \
+                cd ./libsplash/build                       && \
+                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
+                make install -j 4                             \
+                "
+                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+            )
+        endif()
+        set( ENV{SPLASH_ROOT} "${SPLASH_ROOT}")
+    endif()
+
     find_package(Splash REQUIRED)
     add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
 endif()
@@ -73,10 +117,31 @@ if(USE_FFTW)
 endif()
 
 file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
-include_directories(${PROJECT_SOURCE_DIR}/src/imresh SYSTEM ${CUDA_INCLUDE_DIRS} ${PNGwriter_INCLUDE_DIRS} ${Splash_INCLUDE_DIRS} ${OpenMP_INCLUDE_DIRS})
+include_directories(
+    ${PROJECT_SOURCE_DIR}/src/imresh
+)
+include_directories(
+    SYSTEM
+    ${CUDA_INCLUDE_DIRS}
+    ${PNGwriter_INCLUDE_DIRS}
+    ${Splash_INCLUDE_DIRS}
+    ${OpenMP_INCLUDE_DIRS}
+)
 cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
 cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)
-set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${PNGwriter_LIBRARIES} ${Splash_LIBRARIES} ${CUDA_LIBRARIES} ${CUDA_CUFFT_LIBRARIES} ${OpenMP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
+    # runtime libraries (note that normal only either FFTW_LIBRARIES or CUDA_CUFFT_LIBRARIES needs to be set
+    ${FFTW_LIBRARIES}
+    ${CUDA_CUFFT_LIBRARIES}
+    ${CUDA_LIBRARIES}
+    # image reading and writing libraries
+    ${Splash_LIBRARIES}
+    ${PNGwriter_LIBRARIES}
+    ${TIFF_LIBRARIES}
+    # OS relevant libraries
+    ${OpenMP_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
