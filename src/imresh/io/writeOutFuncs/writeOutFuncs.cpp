@@ -97,15 +97,17 @@ namespace writeOutFuncs
                     auto const index = iy * _size.first + ix;
                     assert( index < _size.first * _size.second );
                     auto const value = _mem[index] / max;
+#                   ifdef IMRESH_DEBUG
                     if ( isnan(value) or isinf(value) or value < 0 )
                     {
                         /* write out red  pixel to alert user that something is wrong */
                         png.plot( 1+ix, 1+iy,
-                                  65535*isnan(value), /* red */
-                                  65535*isinf(value), /* green */
-                                  65536*(value < 0)   /* blue */ );
+                                  65535 * isnan( value ), /* red */
+                                  65535 * isinf( value ), /* green */
+                                  65536 * ( value < 0 )   /* blue */ );
                     }
                     else
+#                   endif
                     {
                         /* calling the double overloaded version with float
                          * values is problematic and will fail the unit test

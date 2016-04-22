@@ -25,15 +25,9 @@
 
 #pragma once
 
+
 #include <cuda_to_cupla.hpp>            // cudaStream_t
 #include "libs/CudaKernelConfig.hpp"    // CudaKernelConfig
-
-
-#ifndef NDEBUG
-#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
-#else
-#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
-#endif
 
 
 namespace imresh
@@ -110,18 +104,18 @@ namespace cuda
      **/
     int cudaShrinkWrap
     (
-        libs::CudaKernelConfig rKernelConfig                    ,
-        float *      const     rIoData                          ,
-        unsigned int const     rImageWidth                      ,
-        unsigned int const     rImageHeight                     ,
-        unsigned int           rnCycles                  = 20   ,
-        float                  rTargetError              = 1e-5 ,
-        float                  rHioBeta                  = 0.9  ,
-        float                  rIntensityCutOffAutoCorel = 0.04 ,
-        float                  rIntensityCutOff          = 0.20 ,
-        float                  rSigma0                   = 3.0  ,
-        float                  rSigmaChange              = 0.01 ,
-        unsigned int           rnHioCycles               = 20
+        libs::CudaKernelConfig rKernelConfig                ,
+        float *      const     rIoData                      ,
+        unsigned int const     rImageWidth                  ,
+        unsigned int const     rImageHeight                 ,
+        unsigned int           rnCycles                  = 0,
+        float                  rTargetError              = 0,
+        float                  rHioBeta                  = 0,
+        float                  rIntensityCutOffAutoCorel = 0,
+        float                  rIntensityCutOff          = 0,
+        float                  rSigma0                   = 0,
+        float                  rSigmaChange              = 0,
+        unsigned int           rnHioCycles               = 0
     );
 
 

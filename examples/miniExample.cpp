@@ -97,31 +97,32 @@ int main( int argc, char ** argv )
         #endif
     }
 
-    /* unfortunately there is a difference in the interface between
+    /* unfortunately there is a small difference in the interface between
      * shrinkWrap and cudaShrinkWrap because of cuda streams */
     #if USE_FFTW
         imresh::algorithms::shrinkWrap
         (
-            pData,
-            imageWidth,
-            imageHeight,
-            64      /* cycles      */,
-            1e-6    /* targetError */
-        );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap
         (
-            imresh::libs::CudaKernelConfig(
-                96  /* nBlocks  */,
-                256 /* nThreads */
-            ),
+                imresh::libs::CudaKernelConfig(
+                    96  /* nBlocks  */,
+                    256 /* nThreads */
+                ),
+    #endif
+            /* if a parameter is 0, then the default value will be used */
             pData,
             imageWidth,
             imageHeight,
-            64      /* cycles       */,
-            1e-6    /* targetError  */
+            64      /* shrink-wrap cycles */,
+            1e-6    /* targetError        */,
+            0       /* HioBeta (auto)     */,
+            0.001   /* rIntensityCutOffAutoCorel */,
+            0.01    /* rIntensityCutOff   */,
+            0       /* rSigma0            */,
+            0       /* rSigmaChange       */,
+            0       /* HIO cycles         */
         );
-    #endif
     /* pData now holds the original image again (with some deviation)
      * you could compare the current state with the data returned by
      * createAtomCluster now */

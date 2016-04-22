@@ -13,5 +13,5 @@ cmake ..                                        \
     -DUSE_SPLASH=ON                             \
     -DUSE_TIFF=ON                               \
     -DUSE_FFTW=OFF
+#    -DALPAKA_ACC_GPU_CUDA_ENABLE=ON
 #make -j 3
-#    -DALPAKA_ACC_GPU_CUDA_ENABLE=ON            \
