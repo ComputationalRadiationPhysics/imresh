@@ -34,7 +34,6 @@
 #include <limits>     // lowest
 #include <cmath>
 #include <cuda_to_cupla.hpp>        // atomicCAS
-#include "libs/cufft_to_cupla.hpp"  // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.hpp"
 
 

@@ -30,7 +30,6 @@
 #include <cstdint>    // uint64_t
 #include <limits>     // numeric_limits
 #include <cuda_to_cupla.hpp>     // atomicCAS, atomicAdd
-#include "libs/cufft_to_cupla.hpp"    // cufftComplex, cufftDoubleComplex
 #include "libs/cudacommon.hpp"
 /**
  * Gives only compile errors, e.g.
@@ -72,20 +71,6 @@ namespace cuda
     INSTANTIATE_TMP( SharedMemory )
     INSTANTIATE_TMP( SharedMemoryWarps )
     #undef INSTANTIATE_TMP
-
-
-    template
-    float cudaCalculateHioErrorBitPacked<cufftComplex>
-    (
-        CudaKernelConfig           rKernelConfig,
-        cufftComplex const * const rdpData      ,
-        uint32_t     const * const rdpIsMasked  ,
-        unsigned int         const rnElements   ,
-        bool                 const rInvertMask  ,
-        float              * const rpTotalError ,
-        float              * const rpnMaskedPixels
-    );
-
 
 } // namespace cuda
 } // namespace algorithms

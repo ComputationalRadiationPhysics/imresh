@@ -26,8 +26,6 @@
 #include "cudaVectorReduce.hpp"
 #include "cudaVectorReduce.tpp"
 
-#include "libs/cufft_to_cupla.hpp"  // cuComplex
-
 
 namespace imresh
 {
@@ -66,24 +64,6 @@ namespace cuda
     INSTANTIATE_TMP( cudaVectorSum, double );
     #undef INSTANTIATE_TMP
 
-
-    #define INSTANTIATE_TMP( T_COMPLEX, T_MASK )    \
-    template                                        \
-    float cudaCalculateHioError                     \
-    <T_COMPLEX, T_MASK>                             \
-    (                                               \
-        CudaKernelConfig rKernelConfig,             \
-        cufftComplex const * rdpData,               \
-        T_MASK const * rdpIsMasked,                 \
-        unsigned int rnElements,                    \
-        bool rInvertMask,                           \
-        float * rdpTotalError,                      \
-        float * rdpnMaskedPixels                    \
-    );
-    INSTANTIATE_TMP( cufftComplex, float );
-    INSTANTIATE_TMP( cufftComplex, bool );
-    INSTANTIATE_TMP( cufftComplex, unsigned char );
-    #undef INSTANTIATE_TMP
 
     #undef inline
     #undef T_ACC

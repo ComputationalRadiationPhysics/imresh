@@ -42,18 +42,6 @@ if(USE_FFTW OR NOT ALPAKA_ACC_GPU_CUDA_ENABLE)
     message( "find_package(FFTW) = ${FFTW_LIBRARIES}" )
 endif()
 
-# find HaLT
-find_path(
-    _HALT_ROOT_DIR
-    NAMES "include/haLT/FFT.hpp"
-    HINTS ENV HALT_ROOT
-    DOC "HaLT location"
-)
-set( _HALT_ROOT_DIR "${PROJECT_SOURCE_DIR}/halt" )
-if( NOT EXISTS "${_HALT_ROOT_DIR}/include/haLT/FFT.hpp" )
-    message(FATAL_ERROR "HaLT could not be found! Please set $HALT_ROOT to the correct directory.")
-endif()
-
 find_package( Boost 1.56.0 COMPONENTS system REQUIRED ) # 1.56 needed for boost_unused_parameter
 list( APPEND HaLT_INCLUDE_DIRS ${Boost_INCLUDE_DIRS} )
 list( APPEND HaLT_INCLUDE_DIRS "${_HALT_ROOT_DIR}/include" )
@@ -69,25 +57,6 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     endif()
 endif()
 
-if(BUILD_DOC)
-    find_package(Doxygen)
-    if(DOXYGEN_FOUND)
-        set(DOXYGEN_INPUT_PRE ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
-        set(DOXYGEN_INPUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-        set(DOXYGEN_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/html)
-        set(DOXY_MAIN_PAGE ${PROJECT_SOURCE_DIR}/README.md)
-        configure_file(${DOXYGEN_INPUT_PRE} ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
-        add_custom_command(OUTPUT ${DOXYGEN_OUTPUT}
-                           COMMAND ${CMAKE_COMMAND} -E echo_append "Building API Documentation..."
-                           COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_INPUT}
-                           COMMAND ${CMAKE_COMMAND} -E echo "Done."
-                           WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                           DEPENDS ${DOXYGEN_INPUT} ${DOXY_MAIN_PAGE})
-        add_custom_target(doc ALL DEPENDS ${DOXYGEN_OUTPUT})
-        install(DIRECTORY ${DOXYGEN_OUTPUT} DESTINATION share/doc)
-    endif()
-endif()
-
 if(IMRESH_DEBUG)
     # don't set -std=c++11 here! @see
     # https://github.com/ComputationalRadiationPhysics/alpaka/issues/186
@@ -100,117 +69,23 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -fPIC -pthread ${OpenMP_CXX_FLAGS}")
 endif()
 
-if(USE_PNG)
-    # if PNGWRITER_ROOT not set, then get and compile submodule
-    if( "$ENV{PNGWRITER_ROOT}" STREQUAL "" )
-        set( PNGWRITER_ROOT "${PROJECT_SOURCE_DIR}/pngwriter" )
-        if( NOT EXISTS "${PNGWRITER_ROOT}/include/pngwriter.h" OR
-            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.a"  OR
-            NOT EXISTS "${PNGWRITER_ROOT}/lib/libpngwriter.so"
-        )
-            # every command own execute process because of this bug:
-            execute_process(
-                COMMAND sh -c "\
-                git submodule update --init -- ./pngwriter && \
-                mkdir -p ./pngwriter/build                 && \
-                cd ./pngwriter/build                       && \
-                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
-                make install -j 4                             \
-                "
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-        endif()
-        set( ENV{PNGWRITER_ROOT} "${PNGWRITER_ROOT}")
-    endif()
-
-    find_package( PNGwriter REQUIRED )
-    add_definitions( "-DUSE_PNG" ${PNGwriter_DEFINITIONS} )
-endif()
-
-if(USE_TIFF)
-    find_package(TIFF REQUIRED)
-    add_definitions( "-DUSE_TIFF" )
-endif()
-
-if(USE_SPLASH)
-    # if PNGWRITER_ROOT not set, then get and compile submodule
-    if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
-        set( SPLASH_ROOT "${PROJECT_SOURCE_DIR}/libsplash" )
-        if( NOT EXISTS "${SPLASH_ROOT}/include/splash/splash.h" OR
-            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.a" OR
-            NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.so"
-        )
-            # every command own execute process because of this bug:
-            execute_process(
-                COMMAND sh -c "
-                git submodule update --init -- ./libsplash && \
-                mkdir -p  ./libsplash/build                && \
-                cd ./libsplash/build                       && \
-                cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
-                make install -j 4                             \
-                "
-                WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-            )
-        endif()
-        set( ENV{SPLASH_ROOT} "${SPLASH_ROOT}")
-    endif()
-
-    find_package(Splash REQUIRED)
-    add_definitions("-DUSE_SPLASH" ${Splash_DEFINITIONS})
-endif()
-
-if(USE_FFTW)
-    include_directories( ${FFTW_INCLUDES} )
-    set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED} ${FFTW_LIBRARIES} )
-    add_definitions("-DUSE_FFTW" ${FFTW_DEFINITIONS})
-endif()
-
 # add files and compile
 set( SOURCE_FILES
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/shrinkWrap.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaShrinkWrap.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
     ${PROJECT_SOURCE_DIR}/src/imresh/libs/CudaKernelConfig.cpp
-    # makes use of cufft and only cufft, therefore could be a nice test example for a cufft_to_cupla.hpp test
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/ReadTiff.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/taskQueue.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.cpp
 )
 include_directories(
     ${PROJECT_SOURCE_DIR}/src/imresh
 )
 include_directories(
     SYSTEM
-    ${CUDA_INCLUDE_DIRS}
-    ${PNGwriter_INCLUDE_DIRS}
-    ${Splash_INCLUDE_DIRS}
-    ${OpenMP_INCLUDE_DIRS}
     ${cupla_INCLUDE_DIRS}
-    ${TIFF_INCLUDE_DIRS}
-    ${HaLT_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
+    ${OpenMP_INCLUDE_DIRS}
 )
-message( STATUS "CUDA_INCLUDE_DIRS      = ${CUDA_INCLUDE_DIRS}"      )
-message( STATUS "PNGwriter_INCLUDE_DIRS = ${PNGwriter_INCLUDE_DIRS}" )
-message( STATUS "Splash_INCLUDE_DIRS    = ${Splash_INCLUDE_DIRS}"    )
-message( STATUS "OpenMP_INCLUDE_DIRS    = ${OpenMP_INCLUDE_DIRS}"    )
-message( STATUS "cupla_INCLUDE_DIRS     = ${cupla_INCLUDE_DIRS}"     )
-message( STATUS "TIFF_INCLUDE_DIRS      = ${TIFF_INCLUDE_DIRS}"      )
-message( STATUS "HaLT_INCLUDE_DIRS      = ${HaLT_INCLUDE_DIRS}"      )
 
-#cuda_include_directories(${PROJECT_SOURCE_DIR}/src/imresh)
-#cuda_add_library(${PROJECT_NAME} ${SOURCE_FILES} STATIC)
 # Always add all files to the target executable build call to add them to the build project.
 alpaka_add_library(
     ${PROJECT_NAME}
@@ -220,39 +95,14 @@ alpaka_add_library(
 set( LIBRARIES_NEEDED ${LIBRARIES_NEEDED}
     # abstraction layers
     ${_cupla_LINK_LIBRARIES_PUBLIC}
-    ${HaLT_LIBRARIES}
     # runtime libraries (note that normal only either FFTW_LIBRARIES or CUDA_CUFFT_LIBRARIES needs to be set
-    ${FFTW_LIBRARIES}
-    ${CUDA_CUFFT_LIBRARIES}
     ${CUDA_LIBRARIES}
-    # image reading and writing libraries
-    ${Splash_LIBRARIES}
-    ${PNGwriter_LIBRARIES}
-    ${TIFF_LIBRARIES}
     # OS relevant libraries
     ${OpenMP_LIBRARIES}
-    ${CMAKE_THREAD_LIBS_INIT}
 )
-message( "{FFTW_LIBRARIES} = ${FFTW_LIBRARIES}" )
 target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED}  )
 set( IMRESH_LIBS ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
-
-if(BUILD_EXAMPLES OR RUN_TESTS)
-    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
-    alpaka_add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
-    target_link_libraries( examples )
-endif()
-if(BUILD_EXAMPLES)
-    alpaka_add_executable( "threadedExample" ${PROJECT_SOURCE_DIR}/examples/threadedExample.cpp )
-    target_link_libraries( "threadedExample" examples ${IMRESH_LIBS} )
-
-    alpaka_add_executable( "miniExample" ${PROJECT_SOURCE_DIR}/examples/miniExample.cpp )
-    target_link_libraries( "miniExample" examples ${IMRESH_LIBS} )
-
-    alpaka_add_executable( "outputExampleCreation" ${PROJECT_SOURCE_DIR}/examples/outputExampleCreation.cpp )
-    target_link_libraries( "outputExampleCreation" examples ${IMRESH_LIBS} )
-endif()
 
 # Tests and Benchmarks
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
@@ -275,33 +125,17 @@ if(RUN_TESTS)
 
     file( GLOB_RECURSE TEST_SOURCE_FILES
         ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testFft.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.cpp
-        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
         ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
     )
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
     target_link_libraries("tests" ${IMRESH_LIBS} "benchmark")
 
     alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp )
-    target_link_libraries("mainTestAll" ${IMRESH_LIBS} "tests" "benchmark" "examples" )
+    target_link_libraries("mainTestAll" ${IMRESH_LIBS} "tests" "benchmark" )
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)
 
     add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND}
                   DEPENDS mainTestAll)
-
-    # the following are very small executable units for the use with nvvp as too complex programs are difficult to profile (threadMainExample makes nvvp use 6+GB RAM)
-    #set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -lineinfo")
-    #
-    #add_executable("profileVectorReduce" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp)
-    #target_link_libraries("profileVectorReduce" ${IMRESH_LIBS} )
-    #
-    #add_executable("profileGaussian" ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp)
-    #target_link_libraries("profileGaussian" ${IMRESH_LIBS} )
 endif()
