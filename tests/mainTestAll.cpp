@@ -13,19 +13,19 @@
 #include "algorithms/cuda/cudaVectorReduce.hpp"
 #include "benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp"
 #include "libs/cudacommon.hpp"
-#include "benchmarkHelper.hpp"
 
 
 unsigned int constexpr nRepetitions = 20;
 
 
-void testVectorReduce( void )
+int main(void)
 {
     using namespace std::chrono;
     using namespace benchmark::imresh::algorithms::cuda;
     using namespace imresh::algorithms;
     using namespace imresh::algorithms::cuda;
     using namespace imresh::libs;
+    using clock = std::chrono::high_resolution_clock;
 
     const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
     auto pData = new float[nMaxElements];
@@ -37,7 +37,8 @@ void testVectorReduce( void )
     mallocCudaArray( &dpData, nMaxElements );
     CUDA_ERROR( cudaMemcpy( dpData, pData, nMaxElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-    /* Test for array of length 1 */
+    /* When commenting one or some of these 6 calls out, the program doesn't
+     * seem to deadlock anymore */
     assert( vectorMin( pData, 1 ) == pData[0] );
     assert( vectorMax( pData, 1 ) == pData[0] );
     assert( vectorSum( pData, 1 ) == pData[0] );
@@ -47,38 +48,20 @@ void testVectorReduce( void )
 
     /* do some checks with longer arrays and obvious results */
     float obviousMaximum = 7.37519;
-    float obviousMinimum =-7.37519;
-    /* in order to filter out page time outs or similarily long random wait
-     * times, we repeat the measurement nRepetitions times and choose the
-     * shortest duration measured */
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    using clock = std::chrono::high_resolution_clock;
+    std::vector< unsigned int > values = { 2, 3, 4, 5, 7, 11, 15, 22, 31, 45, 63, 90, 127, 181, 255, 362, 511, 724, 1023, 1448, 2047, 2896, 4095, 5792, 8191, 11585, 16383, 23170, 32767, 46340, 65535, 92681, 131071, 185363, 262143, 370727, 524287, 741455, 1048575, 1482910, 2097151, 2965820, 4194303, 5931641, 8388607, 11863282, 16777214, 23726564, 33554428, 67108864 };
 
-    std::cout << "# Timings are in milliseconds, but note that measurements are repeated " << nRepetitions << " times, meaning they take that much longer than the value displayed\n";
-    std::cout <<
-        "# vector : cudaVec-| cudaVec- | cudaVec-| cudaVec-| cudaVec-| CPU vec-|\n"
-        "# length : torMax  | torMax   | torMax  | torMax  | torMax  | torMax  |\n"
-        "#        : global  | global   | shared  | shared  | __shfl_ |         |\n"
-        "#        : atomic  | atomic2  | memory  | + warp  |   down  |         |\n";
-        /*
-               90 :  1.03741 | 1.03846 | 1.03817 | 1.03809 | 1.04916 |0.006181 |
-        */
-
-    using namespace imresh::tests;
-    for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
+    for ( auto nElements : values )
     {
         std::cout << std::setw(8) << nElements << " : ";
         float milliseconds, minTime;
         decltype( clock::now() ) clock0, clock1;
 
         int iObviousValuePos = rand() % nElements;
-        // std::cout << "iObviousValuePos = " << iObviousValuePos << "\n";
-        // std::cout << "nElements        = " << nElements << "\n";
-
 
         /* Maximum */
         pData[iObviousValuePos] = obviousMaximum;
@@ -101,14 +84,9 @@ void testVectorReduce( void )
             }                                                            \
             std::cout << std::setw(8) << minTime << " |" << std::flush;  \
         }
-
-        //TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
-        TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
-        //TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
-        //TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
-        TIME_GPU( cudaVectorMax                 , obviousMaximum )
-
-        /* time CPU */
+        TIME_GPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        /* When using TIME_CPU insteasd of TIME_GPU the program doesn't
+         * seem to hang either ... */
         #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
         {                                                                \
             minTime = FLT_MAX;                                           \
@@ -116,7 +94,7 @@ void testVectorReduce( void )
                   ++iRepetition )                                        \
             {                                                            \
                 clock0 = clock::now();                                   \
-                auto cpuMax = FUNC( pData, nElements );                  \
+                auto cpuMax = FUNC( CudaKernelConfig(), dpData, nElements ); \
                 clock1 = clock::now();                                   \
                 auto seconds = duration_cast<duration<float>>(           \
                                     clock1 - clock0 );                   \
@@ -125,29 +103,12 @@ void testVectorReduce( void )
             }                                                            \
             std::cout << std::setw(8) << minTime << " |" << std::flush;  \
         }
-        TIME_CPU( vectorMax, obviousMaximum )
-
-        /* Minimum *//*
-        pData[iObviousValuePos] = obviousMinimum;
-        CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
-
-        TIME_GPU( cudaVectorMin, obviousMinimum )*/
-        //TIME_CPU( vectorMin, obviousMinimum )
-
-        /* set obvious value back to random value */
-        pData[iObviousValuePos] = (float) rand() / RAND_MAX;
-        std::cout << "\n";
-
-        #undef TIME_GPU
-        #undef TIME_CPU
+        //TIME_CPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        std::cout << std::endl;
     }
 
     CUDA_ERROR( cudaFree( dpData ) );
     delete[] pData;
-}
 
-int main(void)
-{
-    testVectorReduce();
     return 0;
 }
