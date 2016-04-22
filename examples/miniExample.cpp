@@ -109,8 +109,8 @@ int main( int argc, char ** argv )
             64      /* cycles           */,
             1e-6    /* targetError      */,
             0       /* HioBeta (auto)   */,
-            0       /* rIntensityCutOffAutoCorel (auto) */,
-            0       /* rIntensityCutOff */,
+            0.001   /* rIntensityCutOffAutoCorel (auto) */,
+            0.01    /* rIntensityCutOff */,
             0       /* rSigma0          */,
             0       /* rSigmaChange     */
         );
