@@ -121,6 +121,8 @@ namespace cuda
         /* not thread-safe! call mBuffersMutex.lock(); prior to calling this */
         DeviceGaussianKernels & getDeviceBuffer ( void )
         {
+            using imresh::libs::mallocCudaArray;
+
             int curDevice;
             CUDA_ERROR( cudaGetDevice( &curDevice ) );
 
@@ -135,8 +137,7 @@ namespace cuda
 
             DeviceGaussianKernels buffer;
             buffer.dpKernelBuffer = NULL;
-            CUDA_ERROR( cudaMalloc( &buffer.dpKernelBuffer, mnMaxKernels *
-                mMaxKernelSize * sizeof( buffer.dpKernelBuffer[0] ) ) );
+            mallocCudaArray( &buffer.dpKernelBuffer, mnMaxKernels * mMaxKernelSize );
             buffer.firstFree = 0;
             assert( mnMaxKernels <= buffer.kernelSigmas.max_size() );
 
@@ -233,7 +234,9 @@ namespace cuda
                 //printf("sigma = %f not found, uploading to global memory\n", rSigma );
 
                 /* calc kernel to pKernel */
-                T_PREC pKernel[mMaxKernelSize];
+                /* if not static, then it would be freed why cudaMemcpyAsync
+                 * may not have ended yet! */
+                T_PREC static pKernel[mMaxKernelSize];
                 kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, mMaxKernelSize );
                 assert( kernelSize > 0 );
 
@@ -259,8 +262,26 @@ namespace cuda
                     *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
                     CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
                         kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
-                    if ( not rAsync )
-                        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    /* for now asynchronous buffer copying is not supported,
+                     * because of the buffer on host form which the kernel is
+                     * copied to GPU.
+                     *  - when using static the function may not be called
+                     *    a second time if cudaMemcpyAsync has not finished yet
+                     *  - when using new we don't know when we can free the
+                     *    buffer, thereby creating memory leaks ...
+                     * @TODO!!!
+                     */
+                    //if ( not rAsync )
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                        printf( "*rdppKernel = %p : ", (void*) *rdppKernel );
+                        for ( auto i = 0u; i < kernelSize; ++i )
+                            printf( "%.3f ", (*rdppKernel)[i] );
+                        printf("\n");
+                    #endif
+
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
@@ -698,6 +719,7 @@ namespace cuda
             sizeof(T_PREC)*( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, dpKernel, N );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -1012,6 +1034,7 @@ namespace cuda
             sizeof( dpKernel[0] ) * ( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );

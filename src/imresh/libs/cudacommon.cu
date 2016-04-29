@@ -45,6 +45,14 @@ namespace libs
                     file, line, cudaGetErrorString(rValue) );
             exit( EXIT_FAILURE );
         }
+
+        auto value = cudaPeekAtLastError();
+        if ( value != cudaSuccess )
+        {
+            printf( "CUDA error in %s line:%i : %s\n",
+                    file, line, cudaGetErrorString(value) );
+            exit( EXIT_FAILURE );
+        }
     }
 
 

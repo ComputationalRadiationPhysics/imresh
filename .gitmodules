@@ -1,0 +1,6 @@
+[submodule "pngwriter"]
+	path = pngwriter
+	url = https://github.com/pngwriter/pngwriter.git
+[submodule "libsplash"]
+	path = libsplash
+	url = https://github.com/ComputationalRadiationPhysics/libSplash.git

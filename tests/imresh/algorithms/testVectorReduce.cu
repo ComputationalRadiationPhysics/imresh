@@ -78,6 +78,7 @@ namespace algorithms
         using namespace benchmark::imresh::algorithms::cuda;
         using namespace imresh::algorithms::cuda;
         using namespace imresh::algorithms;
+        using namespace imresh::libs;
 
         const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
         auto pData = new float[nMaxElements];
@@ -86,7 +87,7 @@ namespace algorithms
         for ( unsigned i = 0; i < nMaxElements; ++i )
             pData[i] = ( (float) rand() / RAND_MAX ) - 0.5f;
         float * dpData;
-        CUDA_ERROR( cudaMalloc( (void**)&dpData, nMaxElements*sizeof(dpData[0]) ) );
+        mallocCudaArray( &dpData, nMaxElements );
         CUDA_ERROR( cudaMemcpy( dpData, pData, nMaxElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
         /* Test for array of length 1 */
@@ -249,7 +250,7 @@ namespace algorithms
         using namespace std::chrono;
         using namespace benchmark::imresh::algorithms::cuda;   // cudaCalculateHioErrorBitPacked
         using namespace imresh::algorithms::cuda;   // cudaKernelCalculateHioError
-        using namespace imresh::libs;               // calculateHioError
+        using namespace imresh::libs;               // calculateHioError, mallocCudaArray
         using namespace imresh::tests;              // getLogSpacedSamplingPoints
 
         const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
@@ -260,10 +261,10 @@ namespace algorithms
         float         * dpIsMasked    , * pIsMasked;
         unsigned      * dpBitMasked   , * pBitMasked;
         auto const nBitMaskedElements = ceilDiv( nMaxElements, 8 * sizeof( dpBitMasked[0] ) );
-        CUDA_ERROR( cudaMalloc( &dpIsMaskedChar, nMaxElements       * sizeof( dpIsMaskedChar[0] ) ) );
-        CUDA_ERROR( cudaMalloc( &dpData        , nMaxElements       * sizeof( dpData        [0] ) ) );
-        CUDA_ERROR( cudaMalloc( &dpIsMasked    , nMaxElements       * sizeof( dpIsMasked    [0] ) ) );
-        CUDA_ERROR( cudaMalloc( &dpBitMasked   , nBitMaskedElements * sizeof( dpBitMasked   [0] ) ) );
+        mallocCudaArray( &dpIsMaskedChar, nMaxElements       );
+        mallocCudaArray( &dpData        , nMaxElements       );
+        mallocCudaArray( &dpIsMasked    , nMaxElements       );
+        mallocCudaArray( &dpBitMasked   , nBitMaskedElements );
         pData         = new cufftComplex [ nMaxElements ];
         pIsMaskedChar = new unsigned char[ nMaxElements ];
         pIsMasked     = new float        [ nMaxElements ];
@@ -272,8 +273,8 @@ namespace algorithms
          * kernel call */
         float nMaskedPixels, * dpnMaskedPixels;
         float totalError   , * dpTotalError;
-        CUDA_ERROR( cudaMalloc( &dpnMaskedPixels, sizeof(float) ) );
-        CUDA_ERROR( cudaMalloc( &dpTotalError   , sizeof(float) ) );
+        mallocCudaArray( &dpnMaskedPixels, 1 );
+        mallocCudaArray( &dpTotalError   , 1 );
 
         /* initialize mask randomly */
         assert( sizeof(int) == 4 );
