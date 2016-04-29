@@ -49,7 +49,7 @@ namespace cuda
 
 
     template< class T_ACC, class T_PREC, class T_FUNC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         T_PREC * rdpTarget,
@@ -58,7 +58,7 @@ namespace cuda
     );
 
     template< class T_ACC, class T_FUNC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         float * rdpTarget,
@@ -67,7 +67,7 @@ namespace cuda
     );
 
     template< class T_ACC, class T_FUNC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         double * rdpTarget,
@@ -81,25 +81,25 @@ namespace cuda
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b )
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b )
         { if (a>b) return a; else return b; }
     };
     template<> struct MaxFunctor<float> {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline float operator() ( float a, float b )
+        ALPAKA_FN_ACC_CUDA_ONLY inline float operator() ( float a, float b )
         { return fmax(a,b); }
     };
 
 
     template< class T_ACC, class T_FUNC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         float * const rdpTarget,
@@ -120,7 +120,7 @@ namespace cuda
     }
 
     template< class T_ACC, class T_FUNC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         double * const rdpTarget,
@@ -142,7 +142,7 @@ namespace cuda
 
     /*
     template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline
+    ALPAKA_FN_ACC_CUDA_ONLY inline
     void atomicFunc< T_ACC, int, MaxFunctor<int> >
     (
         T_ACC const & acc,
@@ -159,7 +159,7 @@ namespace cuda
     struct kernelVectorReduceGlobalAtomic2
     {
         template< class T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -188,7 +188,7 @@ namespace cuda
     struct kernelVectorReduceGlobalAtomic
     {
         template< class T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -221,7 +221,7 @@ namespace cuda
     struct kernelVectorReduceSharedMemory
     {
         template< class T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -268,7 +268,7 @@ namespace cuda
     struct kernelVectorReduceSharedMemoryWarps
     {
         template< class T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -387,7 +387,7 @@ namespace cuda
     WARP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
     #undef WARP_REDUCE_WITH_FUNCTOR
 
-    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t getLaneId( void )
+    inline ALPAKA_FN_ACC_CUDA_ONLY uint32_t getLaneId( void )
     {
         uint32_t id;
         asm("mov.u32 %0, %%laneid;" : "=r"(id));
@@ -398,7 +398,7 @@ namespace cuda
     /**
      * returns nBits starting from offset of src. Bit 0 is the lowest value.
      **/
-    inline ALPAKA_FN_NO_INLINE_ACC uint32_t bfe
+    inline ALPAKA_FN_ACC uint32_t bfe
     (
         uint32_t src,
         uint32_t offset,
@@ -422,7 +422,7 @@ namespace cuda
     struct cudaKernelCalculateHioErrorBitPacked
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,

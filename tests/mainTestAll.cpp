@@ -74,17 +74,19 @@ int main(void)
                   ++iRepetition )                                        \
             {                                                            \
                 cudaEventRecord( start );                                \
-                auto cudaReduced = FUNC( CudaKernelConfig(), dpData,     \
-                                         nElements );                    \
+                auto cudaReduced = FUNC( CudaKernelConfig(),             \
+                                   dpData, nElements );                  \
                 cudaEventRecord( stop );                                 \
                 cudaEventSynchronize( stop );                            \
                 cudaEventElapsedTime( &milliseconds, start, stop );      \
                 minTime = std::fmin( minTime, milliseconds );            \
-                assert( cudaReduced == OBVIOUS_VALUE );                  \
+                if ( cudaReduced != OBVIOUS_VALUE )                      \
+                    assert( cudaReduced == OBVIOUS_VALUE );              \
             }                                                            \
             std::cout << std::setw(8) << minTime << " |" << std::flush;  \
         }
-        TIME_GPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        //TIME_GPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        //TIME_GPU( cudaVectorMax, obviousMaximum )
         /* When using TIME_CPU insteasd of TIME_GPU the program doesn't
          * seem to hang either ... */
         #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
@@ -99,11 +101,34 @@ int main(void)
                 auto seconds = duration_cast<duration<float>>(           \
                                     clock1 - clock0 );                   \
                 minTime = std::fmin( minTime, seconds.count() * 1000 );  \
-                assert( cpuMax == OBVIOUS_VALUE );                       \
+                if ( cpuMax != OBVIOUS_VALUE )                           \
+                    assert( cpuMax == OBVIOUS_VALUE );                   \
             }                                                            \
             std::cout << std::setw(8) << minTime << " |" << std::flush;  \
         }
-        //TIME_CPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        TIME_CPU( cudaVectorMaxGlobalAtomic, obviousMaximum )
+        #undef TIME_CPU
+
+        #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
+        {                                                                \
+            minTime = FLT_MAX;                                           \
+            for ( unsigned iRepetition = 0; iRepetition < nRepetitions;  \
+                  ++iRepetition )                                        \
+            {                                                            \
+                clock0 = clock::now();                                   \
+                auto cpuMax = FUNC( pData, nElements );                  \
+                clock1 = clock::now();                                   \
+                auto seconds = duration_cast<duration<float>>(           \
+                                    clock1 - clock0 );                   \
+                minTime = std::fmin( minTime, seconds.count() * 1000 );  \
+                if( cpuMax == OBVIOUS_VALUE )                            \
+                    assert( cpuMax == OBVIOUS_VALUE );                   \
+            }                                                            \
+            std::cout << std::setw(8) << minTime << " |" << std::flush;  \
+        }
+
+        TIME_CPU( vectorMax, obviousMaximum )
+
         std::cout << std::endl;
     }
 
