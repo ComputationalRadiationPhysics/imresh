@@ -49,33 +49,10 @@ list( APPEND HaLT_LIBRARIES    ${Boost_LIBRARIES} )
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-######
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-    if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7)
-        message(FATAL_ERROR "GCC version must be at least 4.7 for -std=c++11 option!")
-    endif()
-endif()
+add_definitions("-DIMRESH_DEBUG")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -lineinfo") #  -Xptxas=-v
 
-if(IMRESH_DEBUG)
-    # don't set -std=c++11 here! @see
-    # https://github.com/ComputationalRadiationPhysics/alpaka/issues/186
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wshadow -Wno-unused-parameter -O2 -g -fPIC -pthread ${OpenMP_CXX_FLAGS}")
-    add_definitions("-DIMRESH_DEBUG")
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -Xcompiler -Wall,-Wextra,-Wshadow -G -lineinfo") #  -Xptxas=-v
-else()
-    # don't set -std=c++11 here! @see
-    # https://github.com/ComputationalRadiationPhysics/alpaka/issues/186
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -DNDEBUG -fPIC -pthread ${OpenMP_CXX_FLAGS}")
-endif()
-
-# add files and compile
-set( SOURCE_FILES
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cpp
-    ${PROJECT_SOURCE_DIR}/src/imresh/libs/CudaKernelConfig.cpp
-)
 include_directories(
     ${PROJECT_SOURCE_DIR}/src/imresh
 )
@@ -107,16 +84,8 @@ set( IMRESH_LIBS ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 # Tests and Benchmarks
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
-    file( GLOB_RECURSE BENCHMARK_SOURCE_FILES
-        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.cpp
-        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp
-        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.tpp
-    )
-    alpaka_add_library( "benchmark" ${BENCHMARK_SOURCE_FILES} STATIC )
-    target_link_libraries("benchmark" ${})
-
     # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
-    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wunused-parameter -g ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wunused-parameter ${OpenMP_CXX_FLAGS}")
     # for includes of #include "benchmarks/...". Note that
     #    clude_directories(${PROJECT_SOURCE_DIR})
     # would lead to ambiguous includes
@@ -128,10 +97,10 @@ if(RUN_TESTS)
         ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp
     )
     alpaka_add_library( "tests" ${TEST_SOURCE_FILES} STATIC )
-    target_link_libraries("tests" ${IMRESH_LIBS} "benchmark")
+    target_link_libraries("tests" ${IMRESH_LIBS})
 
     alpaka_add_executable("mainTestAll" ${PROJECT_SOURCE_DIR}/tests/mainTestAll.cpp )
-    target_link_libraries("mainTestAll" ${IMRESH_LIBS} "tests" "benchmark" )
+    target_link_libraries("mainTestAll" ${IMRESH_LIBS} "tests" )
 
     enable_testing()
     add_test(NAME mainTestAll COMMAND mainTestAll)
