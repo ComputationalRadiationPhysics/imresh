@@ -52,25 +52,25 @@ namespace cuda
      * vectorMin or vectorMax
      **/
     template<class T> struct SumFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { return a+b; }
     };
     template<class T> struct MinFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { if (a<b) return a; else return b; } // std::min not possible, can't call host function from device!
     };
     template<class T> struct MaxFunctor {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline T operator() ( T a, T b ) const
         { if (a>b) return a; else return b; }
     };
     template<> struct MaxFunctor<float> {
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline float operator() ( float a, float b ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline float operator() ( float a, float b ) const
         { return fmax(a,b); }
     };
 
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         float * const rdpTarget,
@@ -115,7 +115,7 @@ namespace cuda
 
 
     template<class T_ACC, class T_FUNC>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         double * const rdpTarget,
@@ -137,7 +137,7 @@ namespace cuda
 
 
     template<typename T_ACC>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         int * const rdpTarget,
@@ -149,7 +149,7 @@ namespace cuda
     }
 
     template<typename T_ACC>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc
     (
         T_ACC const & acc,
         int * const rdpTarget,
@@ -164,7 +164,7 @@ namespace cuda
     /*
     // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
     template<>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void atomicFunc<float,MaxFunctor<float>>
+    ALPAKA_FN_ACC_CUDA_ONLY inline void atomicFunc<float,MaxFunctor<float>>
     (
         float * const rdpTarget,
         const float rValue,
@@ -202,7 +202,7 @@ namespace cuda
     struct kernelVectorReduce
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,
@@ -303,7 +303,7 @@ namespace cuda
         return cudaReduce( rKernelConfig, rdpData, rnElements, sumFunctor, T_PREC(0) );
     }
 
-    inline ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY uint32_t getLaneId( void )
+    inline ALPAKA_FN_ACC_CUDA_ONLY uint32_t getLaneId( void )
     {
         uint32_t id;
         asm("mov.u32 %0, %%laneid;" : "=r"(id));
@@ -337,7 +337,7 @@ namespace cuda
     struct cudaKernelCalculateHioError
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC
+        ALPAKA_FN_ACC
         void operator()
         (
             T_ACC const & acc,

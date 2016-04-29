@@ -324,7 +324,7 @@ namespace cuda
 
 
     template<class T>
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T * ptrMin ( T * const a, T * const b )
+    ALPAKA_FN_ACC_CUDA_ONLY inline T * ptrMin ( T * const a, T * const b )
     {
         return a < b ? a : b;
     }
@@ -344,14 +344,14 @@ namespace cuda
         unsigned int const & nThreads;
         unsigned int const & nKernelHalf;
 
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline T_PREC & operator[]( unsigned i ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline T_PREC & operator[]( unsigned i ) const
         {
             return smBuffer[i];
         }
 
         #ifndef NDEBUG
         #if DEBUG_CUDAGAUSSIAN_CPP == 1
-            ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY void printCache( void ) const
+            ALPAKA_FN_ACC_CUDA_ONLY void printCache( void ) const
             {
                 if ( threadIdx.x != 0 or blockIdx.x != 0 )
                     return;
@@ -364,7 +364,7 @@ namespace cuda
         #endif
         #endif
 
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void initializeCache( void ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline void initializeCache( void ) const
         {
             #ifndef NDEBUG
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -415,7 +415,7 @@ namespace cuda
             #endif
         }
 
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY inline void loadCacheLine( T_PREC const * const curDataRow ) const
+        ALPAKA_FN_ACC_CUDA_ONLY inline void loadCacheLine( T_PREC const * const curDataRow ) const
         {
             /* move last N elements to the front of the buffer */
             __syncthreads();
@@ -564,7 +564,7 @@ namespace cuda
     struct cudaKernelApplyKernelSharedWeights
     {
     template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC
+    ALPAKA_FN_ACC
     void operator()
     (
         T_ACC const & acc,
@@ -818,7 +818,7 @@ namespace cuda
     struct cudaKernelApplyKernelVertically
     {
     template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC
+    ALPAKA_FN_ACC
     void operator()
     (
         T_ACC const & acc,

@@ -49,7 +49,7 @@ namespace cuda
     struct cudaKernelApplyHioDomainConstraints
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -89,7 +89,7 @@ namespace cuda
     struct cudaKernelCopyToRealPart
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -118,7 +118,7 @@ namespace cuda
     struct cudaKernelCopyFromRealPart
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -146,7 +146,7 @@ namespace cuda
     struct cudaKernelComplexNormElementwise
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -177,7 +177,7 @@ namespace cuda
     struct cudaKernelComplexNormElementwise< T_COMPLEX, T_COMPLEX >
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -190,7 +190,7 @@ namespace cuda
 
     template< class T_COMPLEX >
     template< class T_ACC >
-    ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+    ALPAKA_FN_ACC_CUDA_ONLY
     void cudaKernelComplexNormElementwise<T_COMPLEX,T_COMPLEX>
     ::template operator()
     (
@@ -220,7 +220,7 @@ namespace cuda
     struct cudaKernelApplyComplexModulus
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
@@ -256,7 +256,7 @@ namespace cuda
     struct cudaKernelCutOff
     {
         template< typename T_ACC >
-        ALPAKA_FN_NO_INLINE_ACC_CUDA_ONLY
+        ALPAKA_FN_ACC_CUDA_ONLY
         void operator()
         (
             T_ACC const & acc,
