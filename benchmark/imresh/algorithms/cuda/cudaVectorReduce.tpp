@@ -156,26 +156,28 @@ namespace cuda
     }
     */
 
-    template< class T_PREC, class T_FUNC >
-    struct kernelVectorReduceGlobalAtomic2
-    {
-        template< class T_ACC >
-        ALPAKA_FN_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC const * const rdpData,
-            unsigned int const rnData,
-            T_PREC * const rdpResult,
-            T_FUNC f,
-            T_PREC const rInitValue
-        ) const
-        {
-            assert( blockDim.y == 1 );
-            assert( blockDim.z == 1 );
-            assert( gridDim.y  == 1 );
+    #define REDUCE_KERNEL_HEADER( NAME )   \
+    template< class T_PREC, class T_FUNC > \
+    struct NAME                            \
+    {                                      \
+        template< class T_ACC >            \
+        ALPAKA_FN_ACC                      \
+        void operator()                    \
+        (                                  \
+            T_ACC const & acc,             \
+            T_PREC const * const rdpData,  \
+            unsigned int const rnData,     \
+            T_PREC * const rdpResult,      \
+            T_FUNC f,                      \
+            T_PREC const rInitValue        \
+        ) const                            \
+        {                                  \
+            assert( blockDim.y == 1 );     \
+            assert( blockDim.z == 1 );     \
+            assert( gridDim.y  == 1 );     \
             assert( gridDim.z  == 1 );
 
+    REDUCE_KERNEL_HEADER( kernelVectorReduceGlobalAtomic2 )
             const int32_t nTotalThreads = gridDim.x * blockDim.x;
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
@@ -185,26 +187,7 @@ namespace cuda
         }
     };
 
-    template<class T_PREC, class T_FUNC>
-    struct kernelVectorReduceGlobalAtomic
-    {
-        template< class T_ACC >
-        ALPAKA_FN_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC const * const rdpData,
-            unsigned int const rnData,
-            T_PREC * const rdpResult,
-            T_FUNC f,
-            T_PREC const rInitValue
-        ) const
-        {
-            assert( blockDim.y == 1 );
-            assert( blockDim.z == 1 );
-            assert( gridDim.y  == 1 );
-            assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( kernelVectorReduceGlobalAtomic )
             const int32_t nTotalThreads = gridDim.x * blockDim.x;
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
@@ -217,27 +200,7 @@ namespace cuda
         }
     };
 
-
-    template<class T_PREC, class T_FUNC>
-    struct kernelVectorReduceSharedMemory
-    {
-        template< class T_ACC >
-        ALPAKA_FN_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC const * const rdpData,
-            unsigned int const rnData,
-            T_PREC * const rdpResult,
-            T_FUNC f,
-            T_PREC const rInitValue
-        ) const
-        {
-            assert( blockDim.y == 1 );
-            assert( blockDim.z == 1 );
-            assert( gridDim.y  == 1 );
-            assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( kernelVectorReduceSharedMemory )
             const int32_t nTotalThreads = gridDim.x * blockDim.x;
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
@@ -265,26 +228,7 @@ namespace cuda
      * benchmarks suggest that this kernel is twice as fast as
      * kernelVectorReduceShared
      **/
-    template<class T_PREC, class T_FUNC>
-    struct kernelVectorReduceSharedMemoryWarps
-    {
-        template< class T_ACC >
-        ALPAKA_FN_ACC
-        void operator()
-        (
-            T_ACC const & acc,
-            T_PREC const * const rdpData,
-            unsigned int const rnData,
-            T_PREC * const rdpResult,
-            T_FUNC f,
-            T_PREC const rInitValue
-        ) const
-        {
-            assert( blockDim.y == 1 );
-            assert( blockDim.z == 1 );
-            assert( gridDim.y  == 1 );
-            assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( kernelVectorReduceSharedMemoryWarps )
             const int32_t nTotalThreads = gridDim.x * blockDim.x;
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
