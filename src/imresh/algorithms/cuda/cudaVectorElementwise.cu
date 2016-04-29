@@ -28,7 +28,7 @@
 #include <cmath>        // sqrtf
 #include <cuda.h>       // atomicCAS
 #include <cufft.h>      // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -236,10 +236,11 @@ namespace cuda
          * thread work on 32 elements. Of course for smaller iamges this
          * could mean that the GPU is not fully utilized. But in that
          * case 1 vs. 32 times doesn't make much of a difference anyways */
-        const int nThreads = rnElements / 32;
-        const int nBlocks = ( nThreads + 256-1 ) / 256;
+        const int nThreads = (rnElements + 32-1 ) / 32; // ceildiv
+        const int nBlocks = ( nThreads + 256-1 ) / 256; // ceildiv
         cudaKernelComplexNormElementwise<<< nBlocks, 256, 0, rStream >>>
             ( rdpDataTarget, rdpDataSource, rnElements );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );

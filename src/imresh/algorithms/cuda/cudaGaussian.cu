@@ -23,7 +23,7 @@
  */
 
 
-#include "cudaGaussian.h"
+#include "cudaGaussian.hpp"
 
 #include <iostream>
 #include <cstdio>           // printf
@@ -36,7 +36,7 @@
 #include <utility>          // pair
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -121,6 +121,8 @@ namespace cuda
         /* not thread-safe! call mBuffersMutex.lock(); prior to calling this */
         DeviceGaussianKernels & getDeviceBuffer ( void )
         {
+            using imresh::libs::mallocCudaArray;
+
             int curDevice;
             CUDA_ERROR( cudaGetDevice( &curDevice ) );
 
@@ -135,8 +137,7 @@ namespace cuda
 
             DeviceGaussianKernels buffer;
             buffer.dpKernelBuffer = NULL;
-            CUDA_ERROR( cudaMalloc( &buffer.dpKernelBuffer, mnMaxKernels *
-                mMaxKernelSize * sizeof( buffer.dpKernelBuffer[0] ) ) );
+            mallocCudaArray( &buffer.dpKernelBuffer, mnMaxKernels * mMaxKernelSize );
             buffer.firstFree = 0;
             assert( mnMaxKernels <= buffer.kernelSigmas.max_size() );
 
@@ -185,18 +186,21 @@ namespace cuda
 
         /**
          * @param[in]  rSigma
-         * @param[out] rdpKernel will contain the pointer to device memory
-         *             containing the kernel
-         * @param[out] rKernelSize will contain the number of elements of the
+         * @param[out] rdppKernel will contain the pointer to the pointer to
+         *             device memory containing the kernel
+         * @param[out] rpKernelSize will contain the number of elements of the
          *             kernel
+         * @param[in]  rStream CUDA stream to use
+         * @param[in]  rAsync if true, then don't wait for the CUDA kernel to
+         *             finish, else call cudaStreamSynchronize on rStream.
          **/
         void getGpuPointer
         (
             T_PREC const & rSigma,
             T_PREC* * rdppKernel,
-            unsigned * rpKernelSize,
+            unsigned int * rpKernelSize,
             cudaStream_t rStream = 0,
-            bool rAsync = true
+            bool const rAsync = true
         )
         {
             #if DEBUG_CUDAGAUSSIAN_CPP == 1
@@ -230,7 +234,9 @@ namespace cuda
                 //printf("sigma = %f not found, uploading to global memory\n", rSigma );
 
                 /* calc kernel to pKernel */
-                T_PREC pKernel[mMaxKernelSize];
+                /* if not static, then it would be freed why cudaMemcpyAsync
+                 * may not have ended yet! */
+                T_PREC static pKernel[mMaxKernelSize];
                 kernelSize = libs::calcGaussianKernel( rSigma, (T_PREC*) pKernel, mMaxKernelSize );
                 assert( kernelSize > 0 );
 
@@ -256,8 +262,26 @@ namespace cuda
                     *rdppKernel = buffer.dpKernelBuffer + iKernel * mMaxKernelSize;
                     CUDA_ERROR( cudaMemcpyAsync( *rdppKernel, pKernel,
                         kernelSize * sizeof( pKernel[0] ), cudaMemcpyHostToDevice, rStream ) );
-                    if ( not rAsync )
-                        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    /* for now asynchronous buffer copying is not supported,
+                     * because of the buffer on host form which the kernel is
+                     * copied to GPU.
+                     *  - when using static the function may not be called
+                     *    a second time if cudaMemcpyAsync has not finished yet
+                     *  - when using new we don't know when we can free the
+                     *    buffer, thereby creating memory leaks ...
+                     * @TODO!!!
+                     */
+                    //if ( not rAsync )
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+
+                    #if DEBUG_CUDAGAUSSIAN_CPP == 1
+                        printf( "*rdppKernel = %p : ", (void*) *rdppKernel );
+                        for ( auto i = 0u; i < kernelSize; ++i )
+                            printf( "%.3f ", (*rdppKernel)[i] );
+                        printf("\n");
+                    #endif
+
                 }
                 /* if the kernel size doesn't fit into the buffer, we need to
                  * upload it unbuffered */
@@ -499,17 +523,18 @@ namespace cuda
      * rest of the array to be filled with new data from global i.e. uncached
      * memory.
      *
-     * @param[in] blockDim.x number of threads will be interpreted as how many
-     *            values are to be calculated in parallel. The internal buffer
-     *            stores then blockDim.x + 2*N values per step
-     * @param[in] blockDim.y number of rows to blur. threadIdx.y == 0 will blur
-     *            rdpData[ 0...rImageWidth-1 ], threadIdx.y == 1 the next
-     *            rImageWidth elements. Beware that you must not start more
-     *            threads in y direction than the image has rows, else a
-     *            segfault will occur!
-     * @param[in] N kernel half size, meaning the kernel is supposed to be
-     *            2*N+1 elements long. N can also be interpreted as the number
-     *            of neighbors in each direction needed to calculate one value.
+     * param[in] blockDim.x number of threads will be interpreted as how many
+     *           values are to be calculated in parallel. The internal buffer
+     *           stores then blockDim.x + 2*N values per step
+     * param[in] blockDim.y number of rows to blur. threadIdx.y == 0 will blur
+     *           rdpData[ 0...rImageWidth-1 ], threadIdx.y == 1 the next
+     *           rImageWidth elements. Beware that you must not start more
+     *           threads in y direction than the image has rows, else a
+     *           segfault will occur!
+     * param[in] nKernelHalf kernel half size, meaning the kernel is supposed
+     *           to be 2*N+1 elements long. N can also be interpreted as the
+     *           number of neighbors in each direction needed to calculate one
+     *           value.
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernelSharedWeights
@@ -694,6 +719,7 @@ namespace cuda
             sizeof(T_PREC)*( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, dpKernel, N );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -732,20 +758,20 @@ namespace cuda
      *
      * @see cudaKernelApplyKernel @see gaussianBlurVertical
      *
-     * @param[in] N kernel half size. rdpWeights is assumed to be 2*N+1
-     *            elements long.
-     * @param[in] blockDim.x number of columns to calculate in parallel.
-     *            this should be a value which makes full use of a cache line,
-     *            i.e. 32 Warps * 4 Byte = 128 Byte for a NVidia GPU (2016)
-     * @param[in] blockDim.y number of rows to calculate in parallel.
-     *            This value shouldn't be too small, because else we are only
-     *            moving the buffer date to and fro without doing much
-     *            calculation. That happens because of the number of neighbors
-     *            N needed to calculate 1 value. If the buffer is 2*N+1
-     *            elements large ( blockDim.y == 1 ), then we can only
-     *            calculate 1 value with that buffer data.
-     *            @todo implement buffer index modulo instead of shifting the
-     *                  values in memory
+     * param[in] N kernel half size. rdpWeights is assumed to be 2*N+1
+     *           elements long.
+     * param[in] blockDim.x number of columns to calculate in parallel.
+     *           this should be a value which makes full use of a cache line,
+     *           i.e. 32 Warps * 4 Byte = 128 Byte for a NVidia GPU (2016)
+     * param[in] blockDim.y number of rows to calculate in parallel.
+     *           This value shouldn't be too small, because else we are only
+     *           moving the buffer date to and fro without doing much
+     *           calculation. That happens because of the number of neighbors
+     *           N needed to calculate 1 value. If the buffer is 2*N+1
+     *           elements large ( blockDim.y == 1 ), then we can only
+     *           calculate 1 value with that buffer data.
+     *           @todo implement buffer index modulo instead of shifting the
+     *                 values in memory
      **/
     template<class T_PREC>
     __global__ void cudaKernelApplyKernelVertically
@@ -1008,6 +1034,7 @@ namespace cuda
             sizeof( dpKernel[0] ) * ( kernelSize + bufferSize ),
             rStream
         >>>( rdpData, rnDataX, rnDataY, dpKernel, kernelHalfSize );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );

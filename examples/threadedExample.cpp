@@ -29,7 +29,7 @@
 #include <cstring>          // memcpy
 
 #include "io/taskQueue.cu"
-#include "io/readInFuncs/readInFuncs.hpp"
+#include "io/readInFuncs/readInFuncs.hpp"   // ImageDimensions
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "libs/fftShift.hpp"
@@ -40,8 +40,6 @@
 
 int main( void )
 {
-    using ImageDimensions = std::pair<unsigned int,unsigned int>;
-
     // First step is to initialize the library.
     imresh::io::taskQueueInit( );
 
@@ -50,6 +48,7 @@ int main( void )
         auto file = imresh::io::readInFuncs::readHDF5( "../examples/testData/imresh" );
 #   else
         using namespace examples::createTestData;
+
         ImageDimensions imageSize { 300, 300 };
         std::pair<float *,ImageDimensions> file
         {
@@ -87,8 +86,9 @@ int main( void )
 
             std::cout << "[threadedExample] Starting Task " << i << std::endl;
             imresh::io::addTask( tmpTestImage,
-                                 file.second,
-                                 // writeOutPNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
+                                 imageWidth,
+                                 imageHeight,
+                                 // writeOutAndFreePNG calls delete[]. pngwriter hangs the whole thing. Writing out to PNG takes almost as long as a kernel, thereby serialising the shrink-wrap calls ...
                                  imresh::io::writeOutFuncs::justFree,
                                  filename.str(),
                                  32 /* sets the number of iterations */ );
@@ -103,8 +103,9 @@ int main( void )
         // Again, this step is only needed because we have no real images
         imresh::libs::diffractionIntensity( file.first, file.second.first, file.second.second );
         imresh::io::addTask( file.first,
-                             file.second,
-                             imresh::io::writeOutFuncs::writeOutHDF5,
+                             file.second.first,
+                             file.second.second,
+                             imresh::io::writeOutFuncs::writeOutAndFreeHDF5,
                              "imresh_out" );
 #   endif
 

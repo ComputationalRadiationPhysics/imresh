@@ -30,7 +30,7 @@
 #include <limits>     // numeric_limits
 #include <cuda.h>     // atomicCAS, atomicAdd
 #include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 /**
  * Gives only compile errors, e.g.
  *    ptxas fatal   : Unresolved extern function '_ZN6imresh10algorithms4cuda10SumFunctorIfEclEff'

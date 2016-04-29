@@ -193,9 +193,17 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
 
 * `/usr/include/fftw3.h(373): error: identifier "__float128" is undefined`
 
-    Update your fftw library or manually apply the patch shown [here](https://github.com/FFTW/fftw3/commit/07ef78dc1b273a40fb4f7db1797d12d3423b1f40),
+    Update your fftw library to something higher than `3.3.4` (not yet released as of this writing) or manually apply the patch shown [here](https://github.com/FFTW/fftw3/commit/07ef78dc1b273a40fb4f7db1797d12d3423b1f40),
     i.e. add `|| defined(__CUDACC__)` to the faulty line in the header.
 
 * `stddef.h(432): error: identifier "nullptr" is undefined`
 
     Your CMake version is too old.
+
+* `/usr/include/host_config.h:105:2: error: #error -- unsupported GNU version! gcc 4.10 and up are not supported! #error -- unsupported GNU version! gcc 4.10 and up are not supported!`
+
+  This is a common problem with debian and maybe its derivatives, because debian sid and stretch have by default GCC 5.x, but `nvidia-cuda-toolkit` 7.0.x. The latter wants GCC 4.10 or lower versions, though.
+
+  **On Debian:**
+  - `apt-get install gcc-4.9`
+  - `cmake .. -DIMRESH_DEBUG=ON -DCMAKE_C_COMPILER=$(which gcc-4.9) -DCMAKE_CXX_COMPILER=$(which g++-4.9)`

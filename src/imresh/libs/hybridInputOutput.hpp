@@ -42,8 +42,8 @@ namespace libs
     (
         T_COMPLEX      const * const __restrict__ gPrime,
         T_MASK_ELEMENT const * const __restrict__ rIsMasked,
-        unsigned const nElements,
-        bool     const rInvertMask = false,
+        unsigned int const nElements,
+        bool const rInvertMask = false,
         float * const __restrict__ rpTotalError    = NULL,
         float * const __restrict__ rpnMaskedPixels = NULL
     );
@@ -63,9 +63,14 @@ namespace libs
      *             except for rounding errors or if the algorithm did not
      *             converge sufficiently.
      * @param[in]  rSize width, height, depth, ... of rIoData and rMask
-     * @param[in]  rnHioCycles maximum cycles to calculate. Use with care,
+     * @param[in]  rnCycles maximum cycles to calculate. Use with care,
      *             because the returned 'solution' may not have converged
      *             enough!
+     * @param[in]  rTargetError if the absolute maximum of the masked values
+     *             is smaller than this, then the masked value will be treated
+     *             as zero meaning the algorithm is finished.
+     * @param[in]  rBeta this is a parameter for the hybrid input output
+     *             algorithm. Note that if 0, then the algorithm can't proceed
      * @param[in]  rnCores Number of Cores to utilize in parallel.
      *             If 0, then the value returned by omp_get_num_procs will
      *             be used.
@@ -75,13 +80,13 @@ namespace libs
      **/
     int hybridInputOutput
     (
-        float * const & rIoData,
-        const uint8_t * const & rMask,
-        const std::vector<unsigned> & rSize,
-        unsigned rnCycles = UINT_MAX,
-        float rTargetErr = 1e-6,
+        float * const rIoData,
+        uint8_t const * const rMask,
+        std::vector<unsigned int> const rSize,
+        unsigned int rnCycles = UINT_MAX,
+        float rTargetError = 1e-6,
         float rBeta = 0.9,
-        unsigned rnCores = 0
+        unsigned int rnCores = 0
     );
 
 

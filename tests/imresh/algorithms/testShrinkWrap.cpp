@@ -41,13 +41,13 @@
 #   include <fftw3.h>
 #endif
 #include "algorithms/shrinkWrap.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "io/taskQueue.hpp"
 #include "benchmarkHelper.hpp"  // getLogSpacedSamplingPoints
 #include "examples/createTestData/createAtomCluster.hpp"
 #include "libs/diffractionIntensity.hpp"
 #include "libs/checkCufftError.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -64,8 +64,27 @@ namespace algorithms
     unsigned int constexpr nShrinkWrapCycles = 4;
 
 
+    void testShrinkWrapExampleImages( void )
+    {
+        /**
+         * test in and out of examples also seen in outputCreation
+         * also add some fuzzing, like:
+         *   - shifting the center
+         *   - cropping
+         *   - extending
+         *   - blacking out border values
+         *   - whitening out center pixels
+         *   - scaling
+         *   - distortions if possible
+         *   - noise
+         **/
+    }
+
+
     void testShrinkWrap( void )
     {
+        testShrinkWrapExampleImages();
+
         using namespace std::chrono;
         using namespace imresh::algorithms;
         using namespace imresh::algorithms::cuda;
@@ -151,12 +170,11 @@ namespace algorithms
                     memcpy( tmpDataArray + i*Nx*Ny, pData, Nx*Ny * sizeof( pData[0] ) );
                 clock0 = clock::now();
                 {
-                    using ImageDim = std::pair<unsigned int,unsigned int>;
                     imresh::io::taskQueueInit( );
                     for( auto i = 0u; i < nConcurrentTasks; i++ )
                     {
-                        imresh::io::addTask( tmpDataArray + i*Nx*Ny, ImageDim{ Nx, Ny },
-                                             []( float * a, ImageDim const b, std::string const c ){},
+                        imresh::io::addTask( tmpDataArray + i*Nx*Ny, Nx, Ny,
+                                             []( float *, unsigned const, unsigned const, std::string const ){},
                                              "", nShrinkWrapCycles );
                     }
                     imresh::io::taskQueueDeinit( ); // synchronizes device
@@ -194,6 +212,7 @@ namespace algorithms
         using namespace imresh::algorithms::cuda;
         using examples::createTestData::createAtomCluster;
         using imresh::libs::diffractionIntensity;
+        using imresh::libs::mallocCudaArray;
         using namespace imresh::tests;
 
         cudaEvent_t start, stop;
@@ -211,8 +230,8 @@ namespace algorithms
             pData[i].x = (float) rand() / RAND_MAX;
             pData[i].y = (float) rand() / RAND_MAX;
         }
-        CUDA_ERROR( cudaMalloc( (void**) &dpData  , nMaxElements * sizeof( dpData  [0] ) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpResult, nMaxElements * sizeof( dpResult[0] ) ) );
+        mallocCudaArray( &dpData  , nMaxElements );
+        mallocCudaArray( &dpResult, nMaxElements );
         CUDA_ERROR( cudaMemcpy( dpData, pData,     nMaxElements * sizeof( dpData  [0] ), cudaMemcpyHostToDevice ) );
 
         #ifdef USE_FFTW

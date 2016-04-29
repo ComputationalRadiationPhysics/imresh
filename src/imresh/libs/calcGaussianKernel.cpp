@@ -52,7 +52,7 @@ namespace libs
          * @todo inverfc, e.g. with minimax (port python version to C/C++)
          * the inverse erfc diverges at 0, this makes it hard to find a
          * a polynomial approximation there, but maybe I could rewrite
-         * minimax algorithm to work with \sum a_n/x**n
+         * minimax algorithm to work with @f[ \sum a_n/x**n @f]
          * Anyway, the divergence is also bad for the kernel Size. In order
          * to reach floating point single precision of 1e-7 absolute error
          * the kernel size would be: 3.854659 ok, it diverges much slower

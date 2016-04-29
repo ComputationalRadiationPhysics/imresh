@@ -72,7 +72,7 @@ namespace libs
      * very close to the 2.88440, but we should nevertheless include the
      * pixel at [-3.5,-2.5] to be correct.
      *
-     * @param[in]  T_PREC precision. Should only be a floating point type. For
+     * @tparam     T_PREC precision. Should only be a floating point type. For
      *             integers the sum of the weights may not be 1!
      * @param[in]  rSigma standard deviation for the gaussian. This determines
      *             the kernel size
