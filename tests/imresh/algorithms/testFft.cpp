@@ -229,5 +229,159 @@ namespace algorithms
     }
 
 
+    /* compare a naive fourier transform with actually used one */
+
+    #ifndef M_PI
+    #   define M_PI 3.141592653589793238462643383279502884
+    #endif
+
+    /**
+     * Calculates fourier coefficients a_k and b_k up for k=1 to k=rnCoefficients
+     *
+     * @param[in]  f continuous function to transform
+     * @param[in]  rnCoefficients number of complex(!) coefficients to calculate,
+     *             the returned float array will contain 2*rnCoefficients elements!
+     * @param[in]  sign -1 for forward FT and +1 for backward FT
+     * @param[out] rCoefficients pointer to allocated float array which will
+     *             rnCoefficients cosine, i.e. real, fourier coefficients, followed
+     *             by nCoefficients sine, i.e. imaginary, fourier coefficeints
+     **/
+    void dcft
+    (
+        unsigned int const rnValues,
+        float*       const rFunc   ,
+        float*       const rResult ,
+        int          const sign
+    )
+    {
+        /* F(k_n) = \sum_j f(x_j) exp(i*k_n*x_j)
+         *          with k_n = 2*pi*n/N and x_j = j/N
+         *        = \sum_j f_j exp( 2*pi*i*n*j/N ) */
+        for ( auto n = 0u; n < rnValues; ++n )
+        {
+            rResult[ 2*n+0 ] = 0;
+            rResult[ 2*n+1 ] = 0;
+            for ( auto j = 0u; j < rnValues; ++j )
+            {
+                rResult[ 2*n+0 ] += rFunc[ 2*j+0 ] * std::cos( 2 * M_PI * sign * n*j/rnValues )
+                                  - rFunc[ 2*j+1 ] * std::sin( 2 * M_PI * sign * n*j/rnValues );
+                rResult[ 2*n+1 ] += rFunc[ 2*j+0 ] * std::sin( 2 * M_PI * sign * n*j/rnValues )
+                                  + rFunc[ 2*j+1 ] * std::cos( 2 * M_PI * sign * n*j/rnValues );
+            }
+        }
+    }
+
+
+    void testCompareDcftArray( std::vector< float > data )
+    {
+        assert( data.size() % 2 == 0 );
+        unsigned int const N = data.size() / 2;
+
+        /* malloc arrays needed */
+        using imresh::libs::mallocCudaArray;
+        cufftComplex * dpResult;
+        mallocCudaArray( &dpResult, N );
+        CUDA_ERROR( cudaMemcpy( dpResult, &data[0], data.size() * sizeof( data[0] ), cudaMemcpyHostToDevice ) );
+        std::vector<cufftComplex> resultDcft ( N ),
+                                  resultLifft( N );
+        #ifdef USE_FFTW
+        std::vector<cufftComplex> resultFftw ( N );
+        #endif
+
+
+        /* naively */
+        dcft( N, (float*) &data[0], (float*) &resultDcft[0], -1 /* forward */ );
+
+        /* LiFFT */
+        using GpuFftPlanFwd = FFT_Definition<
+            FFT_Kind::Complex2Complex,
+            1,              /* dims */
+            float,          /* used precision */
+            std::true_type, /* forward */
+            true            /* in-place */
+        >;
+        auto ioData = GpuFftPlanFwd::wrapInput( wrapComplexDevicePointer( dpResult, N ) );
+        auto fftForward = makeFftPlan( ioData );
+        fftForward( ioData );
+        CUDA_ERROR( cudaMemcpy( &resultLifft[0], dpResult, N * sizeof( dpResult[0] ), cudaMemcpyDeviceToHost ) );
+
+        /* FFTW */
+        #ifdef USE_FFTW
+            auto cpuFtPlan = fftwf_plan_dft_1d( N,
+                (fftwf_complex*) &data[0], (fftwf_complex*) &resultFftw[0],
+                FFTW_FORWARD, FFTW_ESTIMATE );
+            fftwf_execute( cpuFtPlan );
+            fftwf_destroy_plan( cpuFtPlan );
+        #endif
+
+        #define PRINT_COMPLEX_ARRAY(X)                                  \
+        for ( auto i = 0u; i < N; ++i )                   \
+            std::cout << "  (" << std::setprecision(5) << (X)[2*i]      \
+                      << ","   << std::setprecision(5) << (X)[2*i+1]    \
+                      << ")" << std::endl;
+        std::cout << "Input:" << std::endl;
+        PRINT_COMPLEX_ARRAY( data )
+        std::cout << "Outputs:" << std::endl;
+        std::cout << "        naive        |        LiFFT        |        FFTW         |" << std::endl;
+        for ( auto i = 0u; i < N; ++i )
+        {
+            std::cout << std::setprecision(3)
+                      << " (" << std::setw(8) << resultDcft[i].x
+                      << ","  << std::setw(8) << resultDcft[i].y
+                      << ") |"
+                      << " (" << std::setw(8) << resultLifft[i].x
+                      << ","  << std::setw(8) << resultLifft[i].y
+                      << ") |"
+            #ifdef USE_FFTW
+                      << " (" << std::setw(8) << resultFftw[i].x
+                      << ","  << std::setw(8) << resultFftw[i].y
+                      << ") |"
+            #endif
+                      << std::endl;
+        }
+        std::cout << std::endl;
+    }
+
+    void testCompareDcftRealArray( std::vector< float > data )
+    {
+        std::vector< float > input( data.size() * 2 );
+        for ( auto i = 0u; i < data.size(); ++i )
+        {
+            input[ 2*i + 0 ] = data[i]; /* Re */
+            input[ 2*i + 1 ] = 0;       /* Im */
+        }
+        testCompareDcftArray( input );
+    }
+
+    template< class T_Func >
+    void testCompareDcftFunction( T_Func f )
+    {
+        for ( auto nSamples : std::vector<int>{ 10, 100, 1024 } )
+        {
+            std::vector< float >( 2*nSamples );
+            for ( int i = 0; i < nSamples; ++i )
+            {
+                /* initialize array @todo */
+            }
+        }
+    }
+
+    void testCompareDcft( void )
+    {
+        testCompareDcftRealArray( { 1 } );
+        testCompareDcftRealArray( { 1, 0 } );
+        testCompareDcftRealArray( { 1,0,1,0,1 } );
+        testCompareDcftRealArray( { 1,0,1,0,1,0,1,0,1 } );
+
+        #define L(X) []( float x ){ return X; }
+        testCompareDcftFunction( L( std::sin( 1*x )) );
+        testCompareDcftFunction( L( std::sin( 2*x )) );
+        testCompareDcftFunction( L( std::sin( 3*x )) );
+        testCompareDcftFunction( L( std::abs( x )  ) );
+        testCompareDcftFunction( L( x > 0 ? 1 : 0  ) );
+        #undef L
+    }
+
+
 } // namespace algorithms
 } // namespace imresh

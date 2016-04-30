@@ -215,8 +215,8 @@ namespace cuda
              * only if used directly it's so slow */
             #define VERSION 2
             #if VERSION == 0
-                auto nBlocks  = gridDim.x;
-                auto nThreads = blockDim.x;
+                auto const nBlocks  = gridDim.x;
+                auto const nThreads = blockDim.x;
             #elif VERSION == 1
                 auto nBlocks  = gridDim.x;
                 auto nThreads = blockDim.x;

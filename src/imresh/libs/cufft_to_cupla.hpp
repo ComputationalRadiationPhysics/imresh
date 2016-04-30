@@ -72,5 +72,21 @@ namespace cufftToCupla {
                                       rImageWidth  /* Nx, nCols */ } );
     };
 
+    /* shorthand for HaLT wrapper */
+    inline auto wrapComplexDevicePointer(
+        cufftComplex * const & rdp,
+        unsigned int const rnValues
+    ) -> decltype( haLT::mem::wrapPtr<
+             true /* is complex */,
+             devicePointerExists /* is device pointer */
+         >( (haLT::types::Complex<float> *) rdp, haLT::types::Vec1{1} ) )
+    {
+        return haLT::mem::wrapPtr<
+                   true /* is complex */,
+                   devicePointerExists /* is device pointer */
+               >( (haLT::types::Complex<float>*) rdp,
+                   haLT::types::Vec1{ rnValues } );
+    };
+
 } // cufftToCupla
 } // cupla

@@ -30,6 +30,7 @@ namespace algorithms
 
 
     void testFft( void );
+    void testCompareDcft( void );
 
 
 } // namespace algorithms
