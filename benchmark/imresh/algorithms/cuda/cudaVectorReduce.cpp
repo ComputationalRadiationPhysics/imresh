@@ -69,6 +69,7 @@ namespace cuda
     );
     INSTANTIATE_TMP( GlobalAtomic2 )
     INSTANTIATE_TMP( GlobalAtomic )
+    INSTANTIATE_TMP( Pointer )
     INSTANTIATE_TMP( SharedMemory )
     INSTANTIATE_TMP( SharedMemoryWarps )
     #undef INSTANTIATE_TMP

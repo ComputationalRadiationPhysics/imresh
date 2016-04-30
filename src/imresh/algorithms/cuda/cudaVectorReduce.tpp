@@ -218,11 +218,14 @@ namespace cuda
             assert( gridDim.y  == 1 );
             assert( gridDim.z  == 1 );
 
-            auto iElem = rdpData + blockIdx.x * blockDim.x + threadIdx.x;
+            int32_t const nTotalThreads = gridDim.x * blockDim.x;
+            int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
+            assert( i < nTotalThreads );
+
             auto localReduced = T_PREC( rInitValue );
             #pragma unroll
-            for ( ; iElem < rdpData + rnData; iElem += gridDim.x * blockDim.x )
-                localReduced = f( localReduced, *iElem );
+            for ( ; i < rnData; i += nTotalThreads )
+                localReduced = f( localReduced, rdpData[i] );
 
             atomicFunc( acc, rdpResult, localReduced, f );
         }

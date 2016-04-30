@@ -52,6 +52,7 @@ namespace cuda
     );
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic2 )
     CUDA_VECTOR_MAX_DECLARATION( GlobalAtomic )
+    CUDA_VECTOR_MAX_DECLARATION( Pointer )
     CUDA_VECTOR_MAX_DECLARATION( SharedMemory )
     CUDA_VECTOR_MAX_DECLARATION( SharedMemoryWarps )
     #undef CUDA_VECTOR_MAX_DECLARATION

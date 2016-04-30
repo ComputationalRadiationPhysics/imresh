@@ -146,14 +146,14 @@ namespace algorithms
 
         std::cout << "\n";
         std::cout << "FFT comparison timings in milliseconds:\n";
-        std::cout << " image size   :\n";
-        std::cout << "(nCols,nRows) : "
-                  << std::setw(26) << "cuFFT |";
+        std::cout << " image size   :                          |\n";
+        std::cout << "(nCols,nRows) :       HaLT / LiFFT       |";
+                  /* "(    1,    1) :  0.0001302 +-   0.000385 | "*/
         #ifdef USE_FFTW
-            std::cout << std::setw(26) << " fftw3 |";
+            std::cout << std::setw(15) << " fftw3";
         #endif
         /*#ifdef USE_CUFFT
-            std::cout << std::setw(26) << " fftw3 |";
+            std::cout << std::setw(26) << "cuFFT";
         #endif*/
         std::cout << std::endl;
 

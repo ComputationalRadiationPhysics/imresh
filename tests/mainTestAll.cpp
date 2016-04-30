@@ -40,17 +40,16 @@ int main( void )
     using namespace imresh::io;
 
     testFft();
+    testVectorIndex();
+    testUnpackBitMask();
+    testVectorReduce();
+    testVectorElementwise();
+    testCalculateHioError();
     TestGaussian testGaussian; testGaussian();
     testShrinkWrap();
     #ifdef USE_PNG
         testPng();
     #endif
-
-    testVectorIndex();
-    testUnpackBitMask();
-    testCalculateHioError();
-    testVectorReduce();
-    testVectorElementwise();
 
     std::cout << "All tests OK.\n";
 

@@ -182,21 +182,66 @@ namespace cuda
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
 
+            #pragma unroll
             for ( ; i < rnData; i += nTotalThreads )
                 atomicFunc( acc, rdpResult, rdpData[i], f );
         }
     };
 
     REDUCE_KERNEL_HEADER( kernelVectorReduceGlobalAtomic )
-            const int32_t nTotalThreads = gridDim.x * blockDim.x;
+            int32_t const nTotalThreads = gridDim.x * blockDim.x;
             int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
             assert( i < nTotalThreads );
 
-            T_PREC localReduced = T_PREC(rInitValue);
+            auto localReduced = T_PREC( rInitValue );
+            /* not having lastReduced and nTotalThreads results in a 2x slowdown! -> see Pointer kernel */
+            #pragma unroll
             for ( ; i < rnData; i += nTotalThreads )
                 localReduced = f( localReduced, rdpData[i] );
 
             atomicFunc( acc, rdpResult, localReduced, f );
+        }
+    };
+
+    REDUCE_KERNEL_HEADER( kernelVectorReducePointer )
+            auto iElem = rdpData + blockIdx.x * blockDim.x + threadIdx.x;
+            auto localReduced = T_PREC( rInitValue );
+
+            /* not having lastReduced and nTotalThreads results in a 2.5x
+             * slowdown! I guess because gridDim and blockDim are non-const
+             * when using alpaka -.-
+             * Even when using auto instead of auto const copying gridDim.x
+             * and blockDim.x to a local variable makes this 2.5x faster!
+             * only if used directly it's so slow */
+            #define VERSION 2
+            #if VERSION == 0
+                auto nBlocks  = gridDim.x;
+                auto nThreads = blockDim.x;
+            #elif VERSION == 1
+                auto nBlocks  = gridDim.x;
+                auto nThreads = blockDim.x;
+            #endif
+            assert( acc.m_gridBlockExtent[2]   == gridDim.x  );
+            assert( acc.m_blockThreadExtent[2] == blockDim.x );
+            #pragma unroll
+            for ( ; iElem < rdpData + rnData; iElem +=
+                        #if VERSION == 2
+                            gridDim.x * blockDim.x
+                        #elif VERSION == 3
+                            acc.m_gridBlockExtent[2] * acc.m_blockThreadExtent[2]
+                        #else
+                            nBlocks * nThreads
+                        #endif
+                                                        )
+                localReduced = f( localReduced, *iElem );
+
+            atomicFunc( acc, rdpResult, localReduced, f );
+            /* average time needed using OpenMP for 16777216 elements:
+             * VERSION 0: 29 ms
+             * VERSION 1: 29 ms
+             * VERSION 2: 76 ms
+             * VERSION 3: 29 ms
+             */
         }
     };
 
@@ -206,6 +251,7 @@ namespace cuda
             assert( i < nTotalThreads );
 
             T_PREC localReduced = T_PREC(rInitValue);
+            #pragma unroll
             for ( ; i < rnData; i += nTotalThreads )
                 localReduced = f( localReduced, rdpData[i] );
 
@@ -328,6 +374,7 @@ namespace cuda
     }
     WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
     WARP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
+    WARP_REDUCE_WITH_FUNCTOR( Pointer )
     WARP_REDUCE_WITH_FUNCTOR( SharedMemory )
     WARP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
     #undef WARP_REDUCE_WITH_FUNCTOR

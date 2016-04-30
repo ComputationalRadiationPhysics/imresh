@@ -55,7 +55,7 @@ namespace algorithms
 {
 
 
-    unsigned int constexpr nRepetitions = 20;
+    unsigned int constexpr nRepetitions = 10;
 
 
     template<class T_PREC>
@@ -80,7 +80,7 @@ namespace algorithms
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
 
-        const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
+        const unsigned nMaxElements = 16*1024*1024; // 64*1024*1024;  // ~4000x4000 pixel
         auto pData = new float[nMaxElements];
 
         srand(350471643);
@@ -105,14 +105,18 @@ namespace algorithms
          * times, we repeat the measurement nRepetitions times and choose the
          * shortest duration measured */
 
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "# Timings are in milliseconds, but note that measurements are repeated " << nRepetitions << " times, meaning they take that much longer than the value displayed\n";
-        std::cout << "# vector length : cudaVectorMax (global atomic) | cudaVectorMax (global atomic) | cudaVectorMax (shared memory) | cudaVectorMax (shared memory+warp reduce) | cudaVectorMax (__shfl_down) | vectorMax | cudaVectorMin (__shfl_down) | vectorMin\n";
+        std::cout << "# Timings are in milliseconds, but note that measurements are repeated " << nRepetitions << " times, meaning they take that much longer than the value displayed" << std::endl;
+        std::cout <<
+/*            (1)        (2)       (3)       (4)       (5)       (6)       (7)       (8)       (9)     */
+"# vector :          | local   |         | local + |         |         |         | minimum | minimum |\n"
+"# length :          | reduce+ | ibid.   | shared+ |  ibid.  |         | #pragma |         | #pragma |\n"
+"#        : global   | global  | pointer | global  |(old warp| chosen  | omp     | chosen_ | omp     |\n"
+"#        : atomic   | atomic  | arithm. | atomic  | reduce )|  one    | reduce  | one     | reduce  |\n"
+"---------:----------+---------+---------+---------+---------+---------+---------+---------+---------+"
+        << std::endl;
+
         using namespace imresh::tests;
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
@@ -124,34 +128,37 @@ namespace algorithms
             // std::cout << "iObviousValuePos = " << iObviousValuePos << "\n";
             // std::cout << "nElements        = " << nElements << "\n";
 
-
             /* Maximum */
             pData[iObviousValuePos] = obviousMaximum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-            #define TIME_GPU( FUNC, OBVIOUS_VALUE )                          \
+            #define TIME_KERNEL( FUNC, OBVIOUS_VALUE )                          \
             {                                                                \
                 minTime = FLT_MAX;                                           \
                 for ( unsigned iRepetition = 0; iRepetition < nRepetitions;  \
                       ++iRepetition )                                        \
                 {                                                            \
-                    cudaEventRecord( start );                                \
-                    auto cudaReduced = FUNC( CudaKernelConfig(), dpData,     \
+                    clock0 = clock::now();                                   \
+                    auto cudaReduced = FUNC( CudaKernelConfig(), pData,      \
                                              nElements );                    \
-                    cudaEventRecord( stop );                                 \
-                    cudaEventSynchronize( stop );                            \
-                    cudaEventElapsedTime( &milliseconds, start, stop );      \
-                    minTime = std::fmin( minTime, milliseconds );            \
+                    clock1 = clock::now();                                   \
+                    auto seconds = duration_cast<duration<float>>(           \
+                                        clock1 - clock0 );                   \
+                    minTime = std::fmin( minTime, seconds.count() * 1000 );  \
                     assert( cudaReduced == OBVIOUS_VALUE );                  \
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
 
-            TIME_GPU( cudaVectorMaxGlobalAtomic2    , obviousMaximum )
-            TIME_GPU( cudaVectorMaxGlobalAtomic     , obviousMaximum )
-            TIME_GPU( cudaVectorMaxSharedMemory     , obviousMaximum )
-            TIME_GPU( cudaVectorMaxSharedMemoryWarps, obviousMaximum )
-            TIME_GPU( cudaVectorMax                 , obviousMaximum )
+            if ( nElements < 1e6 )
+                TIME_KERNEL( cudaVectorMaxGlobalAtomic2, obviousMaximum ) /* (1) */
+            else
+                std::cout << std::setw(8) << -1 << " |" << std::flush;
+            TIME_KERNEL( cudaVectorMaxGlobalAtomic     , obviousMaximum ) /* (2) */
+            TIME_KERNEL( cudaVectorMaxPointer          , obviousMaximum ) /* (3) */
+            TIME_KERNEL( cudaVectorMaxSharedMemory     , obviousMaximum ) /* (4) */
+            TIME_KERNEL( cudaVectorMaxSharedMemoryWarps, obviousMaximum ) /* (5) */
+            TIME_KERNEL( cudaVectorMax                 , obviousMaximum ) /* (6) */
 
             /* time CPU */
             #define TIME_CPU( FUNC, OBVIOUS_VALUE )                          \
@@ -170,20 +177,20 @@ namespace algorithms
                 }                                                            \
                 std::cout << std::setw(8) << minTime << " |" << std::flush;  \
             }
-            TIME_CPU( vectorMax, obviousMaximum )
+            TIME_CPU( vectorMax, obviousMaximum )        /* (7) */
 
             /* Minimum */
             pData[iObviousValuePos] = obviousMinimum;
             CUDA_ERROR( cudaMemcpy( dpData, pData, nElements*sizeof(dpData[0]), cudaMemcpyHostToDevice ) );
 
-            TIME_GPU( cudaVectorMin, obviousMinimum )
-            TIME_CPU( vectorMin, obviousMinimum )
+            TIME_KERNEL( cudaVectorMin, obviousMinimum ) /* (8) */
+            TIME_CPU( vectorMin, obviousMinimum )        /* (9) */
 
             /* set obvious value back to random value */
             pData[iObviousValuePos] = (float) rand() / RAND_MAX;
             std::cout << "\n";
 
-            #undef TIME_GPU
+            #undef TIME_KERNEL
             #undef TIME_CPU
         }
 

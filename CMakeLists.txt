@@ -257,16 +257,14 @@ endif()
 # Tests and Benchmarks
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
+    # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
+    set(CMAKE_CXX_FLAGS "-O2 -finline-functions -Wall -Wextra -Wunused-parameter -g ${OpenMP_CXX_FLAGS}")
     file( GLOB_RECURSE BENCHMARK_SOURCE_FILES
         ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.cpp
-        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.hpp
-        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.tpp
     )
     alpaka_add_library( "benchmark" ${BENCHMARK_SOURCE_FILES} STATIC )
     target_link_libraries("benchmark" ${})
 
-    # reset cxx flags to delete the -DNDEBUG flag, because tests always need to assert
-    set(CMAKE_CXX_FLAGS "-O2 -Wall -Wextra -Wunused-parameter -g ${OpenMP_CXX_FLAGS}")
     # for includes of #include "benchmarks/...". Note that
     #    clude_directories(${PROJECT_SOURCE_DIR})
     # would lead to ambiguous includes
