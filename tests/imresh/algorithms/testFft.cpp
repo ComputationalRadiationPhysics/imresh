@@ -150,7 +150,7 @@ namespace algorithms
         std::cout << "(nCols,nRows) :       HaLT / LiFFT       |";
                   /* "(    1,    1) :  0.0001302 +-   0.000385 | "*/
         #ifdef USE_FFTW
-            std::cout << std::setw(15) << " fftw3";
+            std::cout << std::setw(17) << "FFTW3";
         #endif
         /*#ifdef USE_CUFFT
             std::cout << std::setw(26) << "cuFFT";

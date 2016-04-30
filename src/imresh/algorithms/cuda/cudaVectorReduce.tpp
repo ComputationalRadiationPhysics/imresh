@@ -401,6 +401,7 @@ namespace cuda
         }
     };
 
+
     template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError
     (

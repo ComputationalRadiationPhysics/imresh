@@ -232,6 +232,16 @@ namespace algorithms
         }
     }
 
+    inline uint32_t bfe
+    (
+        uint32_t src,
+        uint32_t offset,
+        uint32_t nBits
+    )
+    {
+        return ( ( uint32_t(0xFFFFFFFF) >> (32-nBits) ) << offset ) & src;
+    }
+
     void testUnpackBitMask( void )
     {
         uint32_t packed = 0x33333333;
@@ -258,7 +268,7 @@ namespace algorithms
         using namespace imresh::libs;               // calculateHioError, mallocCudaArray
         using namespace imresh::tests;              // getLogSpacedSamplingPoints
 
-        const unsigned nMaxElements = 64*1024*1024;  // ~4000x4000 pixel
+        const unsigned nMaxElements = 16*1024*1024;  // ~4000x4000 pixel
 
         /* allocate */
         cufftComplex * dpData, * pData;
@@ -276,10 +286,8 @@ namespace algorithms
         pBitMasked    = new unsigned[ nBitMaskedElements ];
         /* allocate result buffer for reduced values of calculateHioError
          * kernel call */
-        float nMaskedPixels, * dpnMaskedPixels;
-        float totalError   , * dpTotalError;
-        mallocCudaArray( &dpnMaskedPixels, 1 );
-        mallocCudaArray( &dpTotalError   , 1 );
+        float nMaskedPixels = 0;
+        float totalError = 0;
 
         /* initialize mask randomly */
         assert( sizeof(int) == 4 );
@@ -292,20 +300,36 @@ namespace algorithms
             pIsMaskedChar[i] = pIsMasked[i];
             assert( pIsMaskedChar[i] == 0 or pIsMaskedChar[i] == 1 );
         }
-
+        /* visual check if bitpacking works */
         std::cout << "[unpacked] ";
         for ( int i = 0; i < 32; ++i )
             std::cout << pIsMasked[i];
-        std::cout << "\n";
+        std::cout << std::endl;
         std::cout << "[  packed] " << std::bitset<32>( pBitMasked[0] ) << "\n";
+        std::cout << "[     bfe] ";
+        for ( int i = 0; i < 32; ++i )
+        {
+            unsigned int nBits = 32;
+            bool const shouldBeZero = bfe(
+                    pBitMasked[ i/nBits ], nBits-1 - i, 1 );
+            std::cout << ( shouldBeZero ? '1' : '0' );
+        }
+        std::cout << std::endl;
 
-        /* initialize data with Pythagorean triple 3*3 + 4*4 = 5*5 for masked bits */
+
+        struct {
+            float a = 3.0f;
+            float b = 4.0f;
+            float c = 5.0f;
+        } pythagoreanTriple;
+        /* initialize masked data with Pythagorean triple 3*3 + 4*4 = 5*5
+         * and unmaksed with random values */
         for ( auto i = 0u; i < nMaxElements; ++i )
         {
             if ( pIsMasked[i] )
             {
-                pData[i].x = 3.0f;
-                pData[i].y = 4.0f;
+                pData[i].x = pythagoreanTriple.a;
+                pData[i].y = pythagoreanTriple.b;
             }
             else
             {
@@ -323,79 +347,70 @@ namespace algorithms
         CUDA_ERROR( cudaMemcpy( dpIsMaskedChar, pIsMaskedChar, nMaxElements * sizeof( pIsMaskedChar[0] ), cudaMemcpyHostToDevice ) );
 
         std::cout << "test with randomly masked pythagorean triples";
-        /* because the number of elements we include only increases the number
-         * of found masked elements should also only increase. */
-        float nLastMaskedPixels = 0;
+        /* - because the number of elements we include only increases, the
+         *   number of found masked elements should also only increase.
+         *   from iteration to iteration
+         * - calculateHioError sums up the complex norm of masked pixels,
+         *   the complex norm for the pythagorean triple 3,4,5 should be 5
+         *   Check if totalError is nMaskedPixels * 5 */
+        float nLastMaskedPixels = 0; /* found masked pixels in last iteration (with less nElements) */
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
             std::cout << "." << std::flush;
+            nLastMaskedPixels = nMaskedPixels;
 
-            CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
-            CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
             cudaCalculateHioError(
                 CudaKernelConfig(3,256),
                 dpData, dpIsMasked, nElements, false /* don't invert mask */,
-                dpTotalError, dpnMaskedPixels
+                &totalError, &nMaskedPixels
             );
-            CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
-            CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
             /* Calculation done, now check if everything is correct */
-            if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
+            if ( totalError < 16777216 ) // float values higher 16777216 round to multiple of 2
             {
                 assert( nLastMaskedPixels <= nMaskedPixels );
-                assert( (unsigned) totalError % 5 == 0 );
-                assert( nMaskedPixels * 5 == totalError );
+                assert( (unsigned) totalError % (int) pythagoreanTriple.c == 0 );
+                assert( nMaskedPixels * pythagoreanTriple.c == totalError );
+                assert( nMaskedPixels <= nElements );
             }
-            nLastMaskedPixels = nMaskedPixels;
 
             /* check char version */
-            CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
-            CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
             cudaCalculateHioError(
                 CudaKernelConfig(3,256),
                 dpData, dpIsMaskedChar, nElements, false /* don't invert mask */,
-                dpTotalError, dpnMaskedPixels
+                &totalError, &nMaskedPixels
             );
-            CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
-            CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
             /* Calculation done, now check if everything is correct */
-            if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
+            if ( totalError < 16777216 ) // float values higher than 16777216 round to multiple of 2
             {
-                assert( nLastMaskedPixels == nMaskedPixels );
-                assert( (unsigned) totalError % 5 == 0 );
-                assert( nMaskedPixels * 5 == totalError );
+                assert( nLastMaskedPixels <= nMaskedPixels );
+                assert( (unsigned) totalError % (int) pythagoreanTriple.c == 0 );
+                assert( nMaskedPixels * pythagoreanTriple.c == totalError );
+                assert( nMaskedPixels <= nElements );
             }
 
-
             /* check packed bit version */
-            CUDA_ERROR( cudaMemset( dpnMaskedPixels, 0, sizeof(float) ) );
-            CUDA_ERROR( cudaMemset( dpTotalError   , 0, sizeof(float) ) );
             cudaCalculateHioErrorBitPacked(
                 CudaKernelConfig(1,32),
-                dpData, dpBitMasked, nElements, dpTotalError, dpnMaskedPixels
+                dpData, dpBitMasked, nElements, false /* don't invert mask */,
+                &totalError, &nMaskedPixels
             );
-            CUDA_ERROR( cudaMemcpy( &nMaskedPixels, dpnMaskedPixels,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
-            CUDA_ERROR( cudaMemcpy( &totalError, dpTotalError,
-                                    sizeof(float), cudaMemcpyDeviceToHost) );
             /* Calculation done, now check if everything is correct */
             if ( totalError < 16777216 ) // float vlaues higher round to multiple of 2
             {
-                if ( not ( nLastMaskedPixels == nMaskedPixels ) )
+                if ( ( not ( (unsigned) totalError % (int) pythagoreanTriple.c == 0 ) ) ||
+                     ( not ( nLastMaskedPixels <= nMaskedPixels ) ) ||
+                     ( not ( nMaskedPixels * pythagoreanTriple.c == totalError ) )
+                   )
                 {
-                    printf( "nLastMaskedPixels: %f, nMaskedPixels: %f, totalError: %f\n", nLastMaskedPixels, nMaskedPixels, totalError );
-                    assert( nLastMaskedPixels == nMaskedPixels );
+                    std::cout << "nElements        : " << nElements         << std::endl
+                              << "nLastMaskedPixels: " << nLastMaskedPixels << std::endl
+                              << "nMaskedPixels    : " << nMaskedPixels     << std::endl
+                              << "totalError       : " << totalError        << std::endl;
                 }
-                if ( not ( (unsigned) totalError % 5 == 0 ) )
-                {
-                    printf( "totalError: %f, nMaskedPixels: %f\n", totalError, nMaskedPixels );
-                    assert( (unsigned) totalError % 5 == 0 );
-                }
-                assert( nMaskedPixels * 5 == totalError );
+                assert( nMaskedPixels <= nElements );
+                assert( (unsigned) totalError % (int) pythagoreanTriple.c == 0 );
+                assert( nLastMaskedPixels <= nMaskedPixels );
+                assert( nMaskedPixels * pythagoreanTriple.c == totalError );
             }
             else
             {
@@ -417,6 +432,7 @@ namespace algorithms
                 {
                     assert( compareFloat( __FILE__, __LINE__, totalError, totalErrorCpu, sqrtf(nElements) ) );
                     assert( nMaskedPixelsCpu == nMaskedPixels );
+                    assert( nMaskedPixelsCpu <= nElements );
                 }
             #endif
         }
@@ -437,8 +453,12 @@ namespace algorithms
 
         using clock = std::chrono::high_resolution_clock;
 
-        std::cout << "time in milliseconds:\n";
-        std::cout << "vector length : cudaCalcHioError(uint32_t) | cudaCalcHioError(char) | cudaCalcHioError(packed) | calcHioError (CPU) |\n";
+        std::cout << "time in milliseconds calcHioError which sums up the norm of masked complex values:\n";
+        /*           "  524287 :  3.41546 | 2.45486 | 11.3163 |0.974992 */
+        std::cout << "  vector : mask in  | mask in | mask bit| CPU not |\n"
+                  << "  length : uint32_t | uint8_t | packed  | alpaka  |\n"
+                  << "---------:----------+---------+--------+----------+"
+                  << std::endl;
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 50 ) )
         {
             std::cout << std::setw(8) << nElements << " : ";
@@ -446,13 +466,13 @@ namespace algorithms
             decltype( clock::now() ) clock0, clock1;
 
             float error;
-            #define TIME_GPU( FUNC, MASK )                                    \
+            #define TIME_GPU( FUNC, MASK, CONFIG )                            \
             minTime = FLT_MAX;                                                \
             for ( auto iRepetition = 0u; iRepetition < nRepetitions;          \
                   ++iRepetition )                                             \
             {                                                                 \
                 cudaEventRecord( start );                                     \
-                error = FUNC( CudaKernelConfig(), dpData, MASK, nElements );  \
+                error = FUNC( CONFIG, dpData, MASK, nElements );              \
                 cudaEventRecord( stop );                                      \
                 cudaEventSynchronize( stop );                                 \
                 cudaEventElapsedTime( &milliseconds, start, stop );           \
@@ -461,12 +481,17 @@ namespace algorithms
             }                                                                 \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            TIME_GPU( cudaCalculateHioError, dpIsMasked )
+            TIME_GPU( cudaCalculateHioError, dpIsMasked, CudaKernelConfig() )
             auto unpackedError = error;
-            TIME_GPU( cudaCalculateHioError, dpIsMaskedChar ) // sets error
+            TIME_GPU( cudaCalculateHioError, dpIsMaskedChar, CudaKernelConfig() ) // sets error
             compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
-            TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
-            compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
+            if ( nElements < 1e6 )
+            {
+                TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked, CudaKernelConfig( 0,32 ) ) // sets error
+                compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
+            }
+            else
+                std::cout << std::setw(8) << -1 << " |" << std::flush;
 
             #ifdef USE_FFTW
                 /* time CPU */
@@ -486,8 +511,6 @@ namespace algorithms
         }
 
         /* free */
-        CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
-        CUDA_ERROR( cudaFree( dpTotalError    ) );
         CUDA_ERROR( cudaFree( dpData          ) );
         CUDA_ERROR( cudaFree( dpIsMasked      ) );
         CUDA_ERROR( cudaFree( dpBitMasked     ) );

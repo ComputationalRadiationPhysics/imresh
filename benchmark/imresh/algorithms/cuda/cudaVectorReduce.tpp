@@ -402,7 +402,7 @@ namespace cuda
             asm( "bfe.u32 %0, %1, %2, %3;" :
                  "=r"(result) : "r"(src), "r"(offset), "r"(nBits) );
         #else
-            result = ( ( uint32_t(0xFFFF) >> (32-nBits) ) << offset ) & src;
+            result = ( ( uint32_t(0xFFFFFFFF) >> (32-nBits) ) << offset ) & src;
         #endif
         return result;
     }
@@ -417,24 +417,24 @@ namespace cuda
         ALPAKA_FN_ACC
         void operator()
         (
-            T_ACC const & acc,
-            T_COMPLEX const * const __restrict__ rdpData,
-            uint32_t  const * const __restrict__ rdpIsMasked,
-            unsigned int const rnData,
-            float * const __restrict__ rdpTotalError,
-            float * const __restrict__ rdpnMaskedPixels
+            T_ACC             const &            acc             ,
+            T_COMPLEX const * const __restrict__ rdpData         ,
+            uint32_t  const * const __restrict__ rdpIsMasked     ,
+            unsigned int      const              rnData          ,
+            float           * const __restrict__ rdpTotalError   ,
+            float           * const __restrict__ rdpnMaskedPixels
         ) const
         {
             /**
              * @see http://www.pixel.io/blog/2012/4/19/does-anyone-actually-use-cudas-built-in-warpsize-variable.html
-             * warpSize will be read with some assembler isntruction, therefore
+             * warpSize will be read with some assembler instruction, therefore
              * it is not known at compile time, meaning some optimizations like
              * loop unrolling won't work. That's the reason for this roundabout way
              **/
-            //constexpr int cWarpSize = 32;
-            //static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
+            constexpr int cWarpSize = 32;
+            static_assert( cWarpSize == 8 * sizeof( rdpIsMasked[0] ), "" );
             //assert( cWarpSize  == warpSize );
-            //assert( blockDim.x == cWarpSize );
+            assert( blockDim.x == cWarpSize );
             assert( blockDim.y == 1 );
             assert( blockDim.z == 1 );
             assert( gridDim.y  == 1 );
@@ -449,6 +449,7 @@ namespace cuda
             #pragma unroll
             for ( ; i < rnData; i += nTotalThreads )
             {
+                assert( i % nBits == threadIdx.x );
                 bool const shouldBeZero = bfe(
                     rdpIsMasked[ i/nBits ], nBits-1 - threadIdx.x, 1 );
 
@@ -458,19 +459,9 @@ namespace cuda
                 localTotalError    += shouldBeZero * sqrtf( re*re+im*im );
                 localnMaskedPixels += shouldBeZero;
             }
-
-            //#pragma unroll
-            //for ( int warpDelta = cWarpSize / 2; warpDelta > 0; warpDelta /= 2 )
-            //{
-            //    localTotalError    += __shfl_down( localTotalError   , warpDelta );
-            //    localnMaskedPixels += __shfl_down( localnMaskedPixels, warpDelta );
-            //}
-            //
-            //if ( getLaneId() == 0 )
-            //{
-                atomicAdd( rdpTotalError   , localTotalError    );
-                atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
-            //}
+            atomicAdd( rdpTotalError   , localTotalError    );
+            atomicAdd( rdpnMaskedPixels, localnMaskedPixels );
+            __syncthreads();
         }
     };
 
