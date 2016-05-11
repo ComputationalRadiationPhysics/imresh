@@ -121,8 +121,34 @@ if(USE_FFTW)
     add_definitions( "-DUSE_FFTW" ${FFTW_DEFINITIONS} )
 endif()
 
+# Note that headers need not be added, they are deduced automatically
+set( SOURCE_FILES
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaGaussian.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaShrinkWrap.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorElementwise.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/cuda/cudaVectorReduce.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/shrinkWrap.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorElementwise.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/algorithms/vectorReduce.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/readInFuncs/readInFuncs.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/ReadTiff.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/taskQueue.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/io/writeOutFuncs/writeOutFuncs.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/calcGaussianKernel.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/checkCufftError.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/cudacommon.cu
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/diffractionIntensity.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/fftShift.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/gaussian.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/hybridInputOutput.cpp
+    ${PROJECT_SOURCE_DIR}/src/imresh/libs/vectorIndex.cpp
+)
+foreach(_file ${ARGN})
+    if((${_file} MATCHES "\\.cpp$") OR (${_file} MATCHES "\\.cxx$"))
+        set_source_files_properties(${_file} PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ)
+    endif()
+endforeach()
 
-file(GLOB_RECURSE SOURCE_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp ${PROJECT_SOURCE_DIR}/src/*.cu ${PROJECT_SOURCE_DIR}/src/*.h)
 include_directories(
     ${PROJECT_SOURCE_DIR}/src/imresh
 )
@@ -153,7 +179,13 @@ target_link_libraries( ${PROJECT_NAME} ${LIBRARIES_NEEDED} )
 #install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
 
 if(BUILD_EXAMPLES OR RUN_TESTS)
-    file( GLOB_RECURSE EXAMPLES_LIB_FILES ${PROJECT_SOURCE_DIR}/examples/createTestData/*.cpp ${PROJECT_SOURCE_DIR}/examples/createTestData/*.hpp )
+    set( EXAMPLES_LIB_FILES
+        ${PROJECT_SOURCE_DIR}/examples/createTestData/createAtomCluster.cpp
+        ${PROJECT_SOURCE_DIR}/examples/createTestData/createCheckerboard.cpp
+        ${PROJECT_SOURCE_DIR}/examples/createTestData/createCircularSection.cpp
+        ${PROJECT_SOURCE_DIR}/examples/createTestData/createRectangle.cpp
+        ${PROJECT_SOURCE_DIR}/examples/createTestData/rotateCoordinates.cpp
+    )
     add_library( examples STATIC ${EXAMPLES_LIB_FILES} )
     target_link_libraries( examples )
 endif()
@@ -171,7 +203,11 @@ endif()
 # Tests and Benchmarks
 include_directories( ${PROJECT_SOURCE_DIR}/tests )
 if(RUN_TESTS)
-    file( GLOB_RECURSE BENCHMARK_SOURCE_FILES ${PROJECT_SOURCE_DIR}/benchmark/*.cpp  ${PROJECT_SOURCE_DIR}/benchmark/*.hpp ${PROJECT_SOURCE_DIR}/benchmark/*.cu )
+    set( BENCHMARK_SOURCE_FILES
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaGaussian.cu
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaShrinkWrap.cu
+        ${PROJECT_SOURCE_DIR}/benchmark/imresh/algorithms/cuda/cudaVectorReduce.cu
+    )
     cuda_add_library("benchmark" ${BENCHMARK_SOURCE_FILES} STATIC)
     target_link_libraries("benchmark" ${PROJECT_NAME})
 
