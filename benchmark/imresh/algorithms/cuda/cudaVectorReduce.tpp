@@ -213,7 +213,7 @@ namespace cuda
              * Even when using auto instead of auto const copying gridDim.x
              * and blockDim.x to a local variable makes this 2.5x faster!
              * only if used directly it's so slow */
-            #define VERSION 2
+            #define VERSION 4
             #if VERSION == 0
                 auto const nBlocks  = gridDim.x;
                 auto const nThreads = blockDim.x;
@@ -229,6 +229,11 @@ namespace cuda
                             gridDim.x * blockDim.x
                         #elif VERSION == 3
                             acc.m_gridBlockExtent[2] * acc.m_blockThreadExtent[2]
+                        #elif VERSION == 4
+                            ::alpaka::workdiv::getWorkDiv<
+                                ::alpaka::Grid, ::alpaka::Blocks>(acc)[2] *
+                            ::alpaka::workdiv::getWorkDiv<
+                                ::alpaka::Block, ::alpaka::Threads>(acc)[2]
                         #else
                             nBlocks * nThreads
                         #endif
@@ -237,10 +242,12 @@ namespace cuda
 
             atomicFunc( acc, rdpResult, localReduced, f );
             /* average time needed using OpenMP for 16777216 elements:
-             * VERSION 0: 29 ms
-             * VERSION 1: 29 ms
-             * VERSION 2: 76 ms
-             * VERSION 3: 29 ms
+             *                   -ffast-math
+             * VERSION 0:  29 ms    18ms
+             * VERSION 1:  29 ms    18ms
+             * VERSION 2:  76 ms    69ms
+             * VERSION 3:  29 ms    18ms
+             * VERSION 4:  47 ms    34ms
              */
         }
     };
