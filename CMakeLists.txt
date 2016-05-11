@@ -91,7 +91,7 @@ endif()
 if(USE_SPLASH)
     # if PNGWRITER_ROOT not set, then get and compile submodule
     if( "$ENV{SPLASH_ROOT}" STREQUAL "" )
-        set( SPLASH_ROOT "${PROJECT_SOURCE_DIR}/libsplash" )
+        set( SPLASH_ROOT "${PROJECT_SOURCE_DIR}/libSplash" )
         if( NOT EXISTS "${SPLASH_ROOT}/include/splash/splash.h" OR
             NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.a" OR
             NOT EXISTS "${SPLASH_ROOT}/lib/libsplash.so"
@@ -99,9 +99,9 @@ if(USE_SPLASH)
             # every command own execute process because of this bug:
             execute_process(
                 COMMAND sh -c "
-                git submodule update --init -- ./libsplash && \
-                mkdir -p  ./libsplash/build                && \
-                cd ./libsplash/build                       && \
+                git submodule update --init -- ./libSplash && \
+                mkdir -p  ./libSplash/build                && \
+                cd ./libSplash/build                       && \
                 cmake .. -DCMAKE_INSTALL_PREFIX=..         && \
                 make install -j 4                             \
                 "
