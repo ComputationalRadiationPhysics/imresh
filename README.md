@@ -171,12 +171,16 @@ compiled by appending the `-DBUILD_EXAMPLES=on` to your CMake call, e.g.
 ## Folder structure
 
     .
-    +-- benchmark: Contains older deprecated less optimized versions for comparison. Files in here should only be used by files in the tests folder
+    +-- benchmark: Contains older deprecated less optimized versions for
+    |              comparison. Files in here should only be used by files
+    |              in the tests folder
     +-- cmake: CMake find package scripts
     +-- examples: Executable examples showing how to use the library
-    |   +-- createTestData: Functions for generating example objects and diffraction intensity to test the algorithm on
+    |   +-- createTestData: Functions for generating example objects and
+    |   |                   diffraction intensity to test the algorithm on
     |   +-- testData: Static examples with a fixed size to test e.g. `readInFuncs`
-    +-- src: The sources for the actual library. Only this folder is needed with the standard CMake options
+    +-- src: The sources for the actual library. Only this folder is needed
+    |   |    with the standard CMake options
     |   +-- imresh
     |       +-- algorithms
     |       +-- io: File input/output and batch processing
