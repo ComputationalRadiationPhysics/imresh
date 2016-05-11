@@ -42,14 +42,14 @@ namespace algorithms
         float * const rIoData,
         unsigned int const rImageWidth,
         unsigned int const rImageHeight,
-        unsigned int rnCycles = 20,
-        float rTargetError = 1e-5,
-        float rHioBeta = 0.9,
-        float rIntensityCutOffAutoCorel = 0.04,
-        float rIntensityCutOff = 0.20,
-        float sigma0 = 3.0,
-        float rSigmaChange = 0.01,
-        unsigned int rnHioCycles = 20
+        unsigned int       rnCycles                  = 0,
+        float              rTargetError              = 0,
+        float              rHioBeta                  = 0,
+        float              rIntensityCutOffAutoCorel = 0,
+        float              rIntensityCutOff          = 0,
+        float              sigma0                    = 0,
+        float              rSigmaChange              = 0,
+        unsigned int       rnHioCycles               = 0
     );
 
 
