@@ -224,7 +224,21 @@ if(RUN_TESTS)
     include_directories(${PROJECT_SOURCE_DIR})
     cuda_include_directories(${PROJECT_SOURCE_DIR})
 
-    file( GLOB_RECURSE TEST_SOURCE_FILES ${PROJECT_SOURCE_DIR}/tests/*.cpp ${PROJECT_SOURCE_DIR}/tests/*.hpp ${PROJECT_SOURCE_DIR}/tests/*.cu )
+    set( TEST_SOURCE_FILES
+        ${PROJECT_SOURCE_DIR}/tests/benchmarkHelper.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileGaussian.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/profileVectorReduce.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testGaussian.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testShrinkWrap.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorElementwise.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/io/testReadWrite.cpp
+        ${PROJECT_SOURCE_DIR}/tests/imresh/libs/testVectorIndex.cpp
+    )
+    set_source_files_properties(
+        ${PROJECT_SOURCE_DIR}/tests/imresh/algorithms/testVectorReduce.cpp
+        PROPERTIES CUDA_SOURCE_PROPERTY_FORMAT OBJ
+    )
     cuda_add_library("tests" ${TEST_SOURCE_FILES} STATIC)
     target_link_libraries("tests" ${PROJECT_NAME} "benchmark")
 

@@ -161,7 +161,7 @@ namespace algorithms
                     clock0 = clock::now();                                   \
                     auto cpuMax = FUNC( pData, nElements );                  \
                     clock1 = clock::now();                                   \
-                    auto seconds = duration_cast<duration<double>>(          \
+                    auto seconds = duration_cast<duration<float>>(           \
                                         clock1 - clock0 );                   \
                     minTime = fmin( minTime, seconds.count() * 1000 );       \
                     assert( cpuMax == OBVIOUS_VALUE );                       \
@@ -398,7 +398,7 @@ namespace algorithms
                 static_assert( sizeof( cufftComplex ) == sizeof( fftwf_complex ), "" );
 
                 /* now compare with CPU version which should give the exact same
-                 * result, as there should be no floating point rounding errors
+                 * result, as there should be no floating point rounding 4s
                  * for relatively short array ( < 1e6 ? ) */
                 float nMaskedPixelsCpu, totalErrorCpu;
                 calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements, /* is inverted:  */ false, &totalErrorCpu, &nMaskedPixelsCpu );
@@ -436,29 +436,30 @@ namespace algorithms
             float milliseconds, minTime;
             decltype( clock::now() ) clock0, clock1;
 
-            float error;
-            #define TIME_GPU( FUNC, MASK )                                    \
-            minTime = FLT_MAX;                                                \
-            for ( auto iRepetition = 0u; iRepetition < nRepetitions;          \
-                  ++iRepetition )                                             \
-            {                                                                 \
-                cudaEventRecord( start );                                     \
-                error = FUNC( dpData, MASK, nElements );                      \
-                cudaEventRecord( stop );                                      \
-                cudaEventSynchronize( stop );                                 \
-                cudaEventElapsedTime( &milliseconds, start, stop );           \
-                minTime = fmin( minTime, milliseconds );                      \
-                assert( error <= nElements );                                 \
-            }                                                                 \
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
+            {
+                float error;
+                #define TIME_GPU( FUNC, MASK )                              \
+                minTime = FLT_MAX;                                          \
+                for ( auto iRepetition = 0u; iRepetition < nRepetitions;    \
+                      ++iRepetition )                                       \
+                {                                                           \
+                    cudaEventRecord( start );                               \
+                    error = FUNC( dpData, MASK, nElements );                \
+                    cudaEventRecord( stop );                                \
+                    cudaEventSynchronize( stop );                           \
+                    cudaEventElapsedTime( &milliseconds, start, stop );     \
+                    minTime = fmin( minTime, milliseconds );                \
+                    assert( error <= nElements );                           \
+                }                                                           \
+                std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            TIME_GPU( cudaCalculateHioError, dpIsMasked )
-            auto unpackedError = error;
-            TIME_GPU( cudaCalculateHioError, dpIsMaskedChar ) // sets error
-            compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
-            TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
-            compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
-
+                TIME_GPU( cudaCalculateHioError, dpIsMasked )
+                auto unpackedError = error;
+                TIME_GPU( cudaCalculateHioError, dpIsMaskedChar ) // sets error
+                compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
+                TIME_GPU( cudaCalculateHioErrorBitPacked, dpBitMasked ) // sets error
+                compareFloat( __FILE__, __LINE__, unpackedError, error, sqrtf(nElements) );
+            }
             #ifdef USE_FFTW
                 /* time CPU */
                 minTime = FLT_MAX;
@@ -468,7 +469,7 @@ namespace algorithms
                     clock0 = clock::now();
                     auto error = calculateHioError( (fftwf_complex*) pData, pIsMasked, nElements );
                     clock1 = clock::now();
-                    auto seconds = duration_cast<duration<double>>( clock1 - clock0 );
+                    auto seconds = duration_cast<duration<float>>( clock1 - clock0 );
                     minTime = fmin( minTime, seconds.count() * 1000 );
                     assert( error <= nElements );
                 }

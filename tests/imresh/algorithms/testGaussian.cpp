@@ -632,7 +632,7 @@ namespace algorithms
                 FUNC( pResultCpu, nCols, nRows, sigma );                  \
                 clock1 = clock::now();                                    \
                                                                           \
-                auto seconds = duration_cast<duration<double>>(           \
+                auto seconds = duration_cast<duration<float>>(            \
                                     clock1 - clock0 );                    \
                 minTime = fmin( minTime, seconds.count() * 1000 );        \
                                                                           \

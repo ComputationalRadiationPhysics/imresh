@@ -172,10 +172,10 @@ namespace cuda
     template< class T_COMPLEX, class T_PREC >
     __global__ void cudaKernelApplyComplexModulus
     (
-        T_COMPLEX * const rdpDataTarget,
+        T_COMPLEX       * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
-        T_PREC const * const rdpComplexModulus,
-        unsigned int const rnElements
+        T_PREC    const * const rdpComplexModulus,
+        unsigned int      const rnElements
     )
     {
         assert( blockDim.y == 1 );
@@ -202,11 +202,11 @@ namespace cuda
     template< class T_PREC >
     __global__ void cudaKernelCutOff
     (
-        T_PREC * const rData,
-        unsigned int const rnElements,
-        T_PREC const rThreshold,
-        T_PREC const rLowerValue,
-        T_PREC const rUpperValue
+        T_PREC     * const rData      ,
+        unsigned int const rnElements ,
+        T_PREC       const rThreshold ,
+        T_PREC       const rLowerValue,
+        T_PREC       const rUpperValue
     )
     {
         assert( blockDim.y == 1 );
@@ -229,11 +229,11 @@ namespace cuda
     template< class T_PREC, class T_COMPLEX >
     void cudaComplexNormElementwise
     (
-        T_PREC * const rdpDataTarget,
+        T_PREC          * const rdpDataTarget,
         T_COMPLEX const * const rdpDataSource,
-        unsigned int const rnElements,
-        cudaStream_t const rStream,
-        bool const rAsync
+        unsigned int      const rnElements   ,
+        cudaStream_t      const rStream      ,
+        bool              const rAsync
     )
     {
         /* 1 operation per thread is a bit low, that's why we let each

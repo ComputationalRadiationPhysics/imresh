@@ -25,7 +25,8 @@
 
 #pragma once
 
-#include <cuda.h>
+#include <cstdlib>      // malloc, free
+#include <cuda.h>       // cudaStream_t
 #include <cuda_runtime_api.h>
 #include <cassert>
 
@@ -55,6 +56,43 @@ namespace libs
         CUDA_ERROR( cudaMallocHost( (void**) rPtr, sizeof(T) * rnElements ) );
         assert( rPtr != NULL );
     }
+
+    template< class T >
+    struct GpuArray
+    {
+        T * host, * gpu;
+        unsigned long long int const nBytes;
+        cudaStream_t mStream;
+
+        inline GpuArray
+        (
+            unsigned long long int const nElements = 1,
+            cudaStream_t rStream = 0
+        )
+        : nBytes( nElements * sizeof(T) ),
+          mStream( rStream )
+        {
+            host = (T*) malloc( nBytes );
+            CUDA_ERROR( cudaMalloc( (void**) &gpu, nBytes ) );
+            assert( host != NULL );
+            assert( gpu  != NULL );
+        }
+        inline ~GpuArray()
+        {
+            CUDA_ERROR( cudaFree( gpu ) );
+            free( host );
+        }
+        inline void down( void )
+        {
+            CUDA_ERROR( cudaMemcpyAsync( (void*) host, (void*) gpu, nBytes, cudaMemcpyDeviceToHost ) );
+            CUDA_ERROR( cudaPeekAtLastError() );
+        }
+        inline void up( void )
+        {
+            CUDA_ERROR( cudaMemcpyAsync( (void*) gpu, (void*) host, nBytes, cudaMemcpyHostToDevice ) );
+            CUDA_ERROR( cudaPeekAtLastError() );
+        }
+    };
 
 
 } // namespace libs

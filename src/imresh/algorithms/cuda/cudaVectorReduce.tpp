@@ -35,7 +35,7 @@
 #include <cmath>
 #include <cuda.h>     // atomicCAS
 #include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.hpp"
+#include "libs/cudacommon.hpp"  // CUDA_ERROR, GpuArray, atomicFunc
 
 
 namespace imresh
@@ -46,12 +46,7 @@ namespace cuda
 {
 
 
-    SumFunctor<float > sumFunctorf;
-    MinFunctor<float > minFunctorf;
-    MaxFunctor<float > maxFunctorf;
-    SumFunctor<double> sumFunctord;
-    MinFunctor<double> minFunctord;
-    MaxFunctor<double> maxFunctord;
+    using namespace imresh::libs;   // GpuArray, atomicFunc
 
 
     template<class T_FUNC>
@@ -114,30 +109,18 @@ namespace cuda
     }
 
 
+    /* specialize to speed up atomFunc for MaxFunctor by using intrinsics */
     template<>
     __device__ inline void atomicFunc<int,MaxFunctor<int>>
     (
-        int * const rdpTarget,
-        int const rValue,
+        int * const     rdpTarget,
+        int   const     rValue   ,
         MaxFunctor<int> f
     )
     {
         atomicMax( rdpTarget, rValue );
     }
 
-
-    /*
-    // seems to work for testVectorReduce, but it shouldn't oO, maybe just good numbers, or because this is only for max, maybe it wouldn't work for min, because the maximum is > 0 ... In the end it isn't faster than atomicCAS and it doesn't even use floatAsOrderdInt yet, which would make use of bitshift, subtraction and logical or, thereby decreasing performance even more: http://stereopsis.com/radix.html
-    template<>
-    __device__ inline void atomicFunc<float,MaxFunctor<float>>
-    (
-        float * const rdpTarget,
-        const float rValue,
-        MaxFunctor<float> f
-    )
-    {
-        atomicMax( (int*)rdpTarget, __float_as_int(rValue) );
-    }*/
 
     template<class T_PREC, class T_FUNC>
     __global__ void kernelVectorReduce
@@ -175,15 +158,13 @@ namespace cuda
     template<class T_PREC, class T_FUNC>
     T_PREC cudaReduce
     (
-        T_PREC const * const rdpData,
+        T_PREC const * const rdpData   ,
         unsigned int   const rnElements,
-        T_FUNC               f,
+        T_FUNC               f         ,
         T_PREC         const rInitValue,
         cudaStream_t         rStream
     )
     {
-        using imresh::libs::mallocCudaArray;
-
         const unsigned nThreads = 128;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         //printf( "nThreads = %i, nBlocks = %i\n", nThreads, nBlocks );
@@ -195,65 +176,35 @@ namespace cuda
          * warps */
         assert( nBlocks < 65536 );
 
-        T_PREC reducedValue;
-        T_PREC * dpReducedValue;
-        T_PREC initValue = rInitValue;
-
-        mallocCudaArray( &dpReducedValue, 1 );
-        CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(T_PREC),
-                                     cudaMemcpyHostToDevice, rStream ) );
-
-        /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
+        GpuArray<T_PREC> reducedValue(1,rStream);
+        reducedValue.host[0] = rInitValue;
+        reducedValue.up();
         kernelVectorReduce<<< nBlocks, nThreads, 0, rStream >>>
-            ( rdpData, rnElements, dpReducedValue, f, rInitValue );
+            ( rdpData, rnElements, reducedValue.gpu, f, rInitValue );
         CUDA_ERROR( cudaPeekAtLastError() );
-
-        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-        CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
-                                     cudaMemcpyDeviceToHost, rStream ) );
+        reducedValue.down();
         CUDA_ERROR( cudaStreamSynchronize( rStream) );
-        CUDA_ERROR( cudaFree( dpReducedValue ) );
-
-        return reducedValue;
-    }
-
-    template<class T_PREC>
-    T_PREC cudaVectorMin
-    (
-        T_PREC const * const rdpData,
-        unsigned int   const rnElements,
-        cudaStream_t         rStream
-    )
-    {
-        MinFunctor<T_PREC> minFunctor;
-        return cudaReduce( rdpData, rnElements, minFunctor, std::numeric_limits<T_PREC>::max(), rStream );
+        return reducedValue.host[0];
     }
 
 
-    template<class T_PREC>
-    T_PREC cudaVectorMax
-    (
-        T_PREC const * const rdpData,
-        unsigned int   const rnElements,
-        cudaStream_t         rStream
-    )
-    {
-        MaxFunctor<T_PREC> maxFunctor;
-        return cudaReduce( rdpData, rnElements, maxFunctor, std::numeric_limits<T_PREC>::lowest(), rStream );
+    #define WRAP_REDUCE_KERNEL(NAME,INIT)                                   \
+    template<class T_PREC>                                                  \
+    T_PREC cudaVector##NAME                                                 \
+    (                                                                       \
+        T_PREC const * const rdpData   ,                                    \
+        unsigned int   const rnElements,                                    \
+        cudaStream_t         rStream                                        \
+    )                                                                       \
+    {                                                                       \
+        NAME##Functor<T_PREC> functor;                                      \
+        return cudaReduce( rdpData, rnElements, functor, INIT, rStream );   \
     }
+    WRAP_REDUCE_KERNEL( Min, std::numeric_limits<T_PREC>::max() )
+    WRAP_REDUCE_KERNEL( Max, std::numeric_limits<T_PREC>::lowest() )
+    WRAP_REDUCE_KERNEL( Sum, T_PREC(0) )
+    #undef WRAP_REDUCE_KERNEL
 
-
-    template<class T_PREC>
-    T_PREC cudaVectorSum
-    (
-        T_PREC const * const rdpData,
-        unsigned int   const rnElements,
-        cudaStream_t         rStream
-    )
-    {
-        SumFunctor<T_PREC> sumFunctor;
-        return cudaReduce( rdpData, rnElements, sumFunctor, T_PREC(0), rStream );
-    }
 
     inline __device__ uint32_t getLaneId( void )
     {
@@ -370,40 +321,28 @@ namespace cuda
         float           * const rpnMaskedPixels
     )
     {
-        using imresh::libs::mallocCudaArray;
-
         const unsigned nThreads = 256;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         const unsigned nBlocks  = 256;
         assert( nBlocks < 65536 );
 
-        float     totalError,     nMaskedPixels;
-        float * dpTotalError, * dpnMaskedPixels;
-
-        mallocCudaArray( &dpTotalError   , 1 );
-        mallocCudaArray( &dpnMaskedPixels, 1 );
-        CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
-        CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
-
-        /* memset is on the same stream as kernel will be, so no synchronize needed! */
+        GpuArray<float> totalError( 1, rStream ), nMaskedPixels( 1, rStream );
+        CUDA_ERROR( cudaMemsetAsync( totalError.gpu   , 0, sizeof(float), rStream ) );
+        CUDA_ERROR( cudaMemsetAsync( nMaskedPixels.gpu, 0, sizeof(float), rStream ) );
         cudaKernelCalculateHioError<<< nBlocks, nThreads, 0, rStream >>>
-            ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
+            ( rdpData, rdpIsMasked, rnElements, rInvertMask,
+              totalError.gpu, nMaskedPixels.gpu );
         CUDA_ERROR( cudaPeekAtLastError() );
+        totalError.down();
+        nMaskedPixels.down();
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-
-        CUDA_ERROR( cudaMemcpyAsync( &totalError   , dpTotalError   , sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
-        CUDA_ERROR( cudaMemcpyAsync( &nMaskedPixels, dpnMaskedPixels, sizeof(float), cudaMemcpyDeviceToHost, rStream ) );
-        CUDA_ERROR( cudaStreamSynchronize( rStream ) );
-
-        CUDA_ERROR( cudaFree( dpTotalError    ) );
-        CUDA_ERROR( cudaFree( dpnMaskedPixels ) );
 
         if ( rpTotalError != NULL )
-            *rpTotalError    = totalError;
+            *rpTotalError    = totalError.host[0];
         if ( rpnMaskedPixels != NULL )
-            *rpnMaskedPixels = nMaskedPixels;
+            *rpnMaskedPixels = nMaskedPixels.host[0];
 
-        return sqrtf(totalError) / nMaskedPixels;
+        return sqrtf( totalError.host[0] ) / nMaskedPixels.host[0];
     }
 
 
