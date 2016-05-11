@@ -156,22 +156,23 @@ namespace cuda
     MinFunctor<double> minFunctord;
     MaxFunctor<double> maxFunctord;
 
-
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceGlobalAtomic2
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
+    #define REDUCE_KERNEL_HEADER( NAME )            \
+    template<class T_PREC, class T_FUNC>            \
+    __global__ void kernelVectorReduce##namespace   \
+    (                                               \
+        T_PREC const * const rdpData  ,             \
+        unsigned int   const rnData   ,             \
+        T_PREC       * const rdpResult,             \
+        T_FUNC               f        ,             \
+        T_PREC         const rInitValue             \
+    )                                               \
+    {                                               \
+        assert( blockDim.y == 1 );                  \
+        assert( blockDim.z == 1 );                  \
+        assert( gridDim.y  == 1 );                  \
         assert( gridDim.z  == 1 );
 
+    REDUCE_KERNEL_HEADER( GlobalAtomic2 )
         const int32_t nTotalThreads = gridDim.x * blockDim.x;
         int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
@@ -180,22 +181,7 @@ namespace cuda
             atomicFunc( rdpResult, rdpData[i], f );
     }
 
-
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceGlobalAtomic
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( GlobalAtomic )
         const int32_t nTotalThreads = gridDim.x * blockDim.x;
         int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
@@ -207,22 +193,7 @@ namespace cuda
         atomicFunc( rdpResult, localReduced, f );
     }
 
-
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceSharedMemory
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( SharedMemory )
         const int32_t nTotalThreads = gridDim.x * blockDim.x;
         int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
@@ -250,21 +221,7 @@ namespace cuda
      * benchmarks suggest that this kernel is twice as fast as
      * kernelVectorReduceShared
      **/
-    template<class T_PREC, class T_FUNC>
-    __global__ void kernelVectorReduceSharedMemoryWarps
-    (
-        T_PREC const * const rdpData,
-        unsigned int const rnData,
-        T_PREC * const rdpResult,
-        T_FUNC f,
-        T_PREC const rInitValue
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
+    REDUCE_KERNEL_HEADER( SharedMemoryWarps )
         const int32_t nTotalThreads = gridDim.x * blockDim.x;
         int32_t i = blockIdx.x * blockDim.x + threadIdx.x;
         assert( i < nTotalThreads );
@@ -301,6 +258,7 @@ namespace cuda
         if ( threadIdx.x == 0 )
             atomicFunc( rdpResult, smReduced, f );
     }
+    #undef REDUCE_KERNEL_HEADER
 
 
     #define WRAP_REDUCE_WITH_FUNCTOR( NAME)                                    \
