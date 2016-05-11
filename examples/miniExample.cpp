@@ -95,26 +95,23 @@ int main( int argc, char ** argv )
             pData,
             imageSize[0],
             imageSize[1],
-            64      /*cycles*/,
-            1e-6    /* targetError */
-        );
     #else
         imresh::algorithms::cuda::cudaShrinkWrap(
             pData,
             imageSize[0],
             imageSize[1],
             cudaStream_t(0),
-            96      /* nBlocks          */,
-            256     /* nThreads         */,
-            64      /* cycles           */,
-            1e-6    /* targetError      */,
-            0       /* HioBeta (auto)   */,
-            0.001   /* rIntensityCutOffAutoCorel (auto) */,
-            0.01    /* rIntensityCutOff */,
-            0       /* rSigma0          */,
-            0       /* rSigmaChange     */
-        );
+            96      /* nBlocks              */,
+            256     /* nThreads             */,
     #endif
+            64      /* shrinkWrap-cycles    */,
+            1e-6    /* targetError          */,
+            0       /* HioBeta (auto)       */,
+            0.001   /* rIntensityCutOffAutoCorel (auto) */,
+            0.01    /* rIntensityCutOff     */,
+            0       /* rSigma0              */,
+            0       /* rSigmaChange         */
+        );
     /* pData now holds the original image again (with some deviation)
      * you could compare the current state with the data returned by
      * createAtomCluster now */

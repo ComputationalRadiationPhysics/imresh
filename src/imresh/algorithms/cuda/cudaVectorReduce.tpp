@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+
+#pragma once
+
+
 #include "cudaVectorReduce.hpp"
 
 #include <cassert>
@@ -54,7 +58,7 @@ namespace cuda
     __device__ inline void atomicFunc
     (
         float * const rdpTarget,
-        float const rValue,
+        float   const rValue   ,
         T_FUNC f
     )
     {
@@ -93,7 +97,7 @@ namespace cuda
     __device__ inline void atomicFunc
     (
         double * const rdpTarget,
-        double const rValue,
+        double   const rValue,
         T_FUNC f
     )
     {
@@ -139,8 +143,8 @@ namespace cuda
     __global__ void kernelVectorReduce
     (
         T_PREC const * const __restrict__ rdpData,
-        unsigned int const rnData,
-        T_PREC * const __restrict__ rdpResult,
+        unsigned int   const              rnData,
+        T_PREC       * const __restrict__ rdpResult,
         T_FUNC f,
         T_PREC const rInitValue
     )
@@ -172,10 +176,10 @@ namespace cuda
     T_PREC cudaReduce
     (
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        T_FUNC f,
-        T_PREC const rInitValue,
-        cudaStream_t rStream
+        unsigned int   const rnElements,
+        T_FUNC               f,
+        T_PREC         const rInitValue,
+        cudaStream_t         rStream
     )
     {
         using imresh::libs::mallocCudaArray;
@@ -217,8 +221,8 @@ namespace cuda
     T_PREC cudaVectorMin
     (
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int   const rnElements,
+        cudaStream_t         rStream
     )
     {
         MinFunctor<T_PREC> minFunctor;
@@ -230,8 +234,8 @@ namespace cuda
     T_PREC cudaVectorMax
     (
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int   const rnElements,
+        cudaStream_t         rStream
     )
     {
         MaxFunctor<T_PREC> maxFunctor;
@@ -243,8 +247,8 @@ namespace cuda
     T_PREC cudaVectorSum
     (
         T_PREC const * const rdpData,
-        unsigned int const rnElements,
-        cudaStream_t rStream
+        unsigned int   const rnElements,
+        cudaStream_t         rStream
     )
     {
         SumFunctor<T_PREC> sumFunctor;
@@ -284,12 +288,12 @@ namespace cuda
     template< class T_COMPLEX, class T_MASK >
     __global__ void cudaKernelCalculateHioError
     (
-        T_COMPLEX const * const __restrict__ rdpData,
-        T_MASK    const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        bool const rInvertMask,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
+        T_COMPLEX const * const __restrict__ rdpData         ,
+        T_MASK    const * const __restrict__ rdpIsMasked     ,
+        unsigned int      const              rnData          ,
+        bool              const              rInvertMask     ,
+        float           * const __restrict__ rdpTotalError   ,
+        float           * const __restrict__ rdpnMaskedPixels
     )
     {
         assert( blockDim.y == 1 );
@@ -357,13 +361,13 @@ namespace cuda
     template<class T_COMPLEX, class T_MASK>
     float cudaCalculateHioError
     (
-        T_COMPLEX const * const rdpData,
-        T_MASK const * const rdpIsMasked,
-        unsigned int const rnElements,
-        bool const rInvertMask,
-        cudaStream_t rStream,
-        float * const rpTotalError,
-        float * const rpnMaskedPixels
+        T_COMPLEX const * const rdpData        ,
+        T_MASK    const * const rdpIsMasked    ,
+        unsigned int      const rnElements     ,
+        bool              const rInvertMask    ,
+        cudaStream_t            rStream        ,
+        float           * const rpTotalError   ,
+        float           * const rpnMaskedPixels
     )
     {
         using imresh::libs::mallocCudaArray;
@@ -401,106 +405,6 @@ namespace cuda
 
         return sqrtf(totalError) / nMaskedPixels;
     }
-
-
-    /* explicit template instantiations */
-
-    template
-    float cudaVectorMin<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorMin<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-
-    template
-    float cudaVectorMax<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorMax<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-
-    template
-    float cudaVectorSum<float>
-    (
-        float const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-    template
-    double cudaVectorSum<double>
-    (
-        double const * rdpData,
-        unsigned int rnElements,
-        cudaStream_t rStream
-    );
-
-    template
-    __global__ void cudaKernelCalculateHioError
-    <cufftComplex, float>
-    (
-        cufftComplex const * rdpgPrime,
-        float const * rdpIsMasked,
-        unsigned int rnData,
-        bool rInvertMask,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-
-
-    template
-    float cudaCalculateHioError
-    <cufftComplex, float>
-    (
-        cufftComplex const * rdpData,
-        float const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-    template
-    float cudaCalculateHioError
-    <cufftComplex, bool>
-    (
-        cufftComplex const * rdpData,
-        bool const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
-    template
-    float cudaCalculateHioError
-    <cufftComplex, unsigned char>
-    (
-        cufftComplex const * rdpData,
-        unsigned char const * rdpIsMasked,
-        unsigned int rnElements,
-        bool rInvertMask,
-        cudaStream_t rStream,
-        float * rdpTotalError,
-        float * rdpnMaskedPixels
-    );
 
 
 } // namespace cuda

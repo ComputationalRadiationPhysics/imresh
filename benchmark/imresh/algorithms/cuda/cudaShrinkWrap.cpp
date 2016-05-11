@@ -22,6 +22,7 @@
  * SOFTWARE.
  */
 
+
 #include "cudaShrinkWrap.hpp"
 
 #ifndef NDEBUG

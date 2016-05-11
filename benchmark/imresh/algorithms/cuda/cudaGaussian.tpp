@@ -23,6 +23,9 @@
  */
 
 
+#pragma once
+
+
 #include "cudaGaussian.hpp"
 
 #include <iostream>
@@ -286,7 +289,6 @@ namespace cuda
     }
 
 
-
     template<class T_PREC>
     void cudaGaussianBlurHorizontalConstantWeights
     (
@@ -367,21 +369,6 @@ namespace cuda
         if ( not rAsync )
             CUDA_ERROR( cudaStreamSynchronize( rStream ) );
     }
-
-
-
-
-    /* explicit template instantiations */
-    template
-    void cudaGaussianBlurHorizontalConstantWeights<float>
-    (
-        float * rdpData,
-        unsigned int rnDataX,
-        unsigned int rnDataY,
-        double rSigma,
-        cudaStream_t rStream,
-        bool rAsync
-    );
 
 
 } // namespace cuda

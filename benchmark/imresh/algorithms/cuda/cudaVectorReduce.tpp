@@ -22,6 +22,10 @@
  * SOFTWARE.
  */
 
+
+#pragma once
+
+
 #include "cudaVectorReduce.hpp"
 
 #include <cassert>
@@ -149,27 +153,20 @@ namespace cuda
     }
 
 
-    SumFunctor<float > sumFunctorf;
-    MinFunctor<float > minFunctorf;
-    MaxFunctor<float > maxFunctorf;
-    SumFunctor<double> sumFunctord;
-    MinFunctor<double> minFunctord;
-    MaxFunctor<double> maxFunctord;
-
-    #define REDUCE_KERNEL_HEADER( NAME )            \
-    template<class T_PREC, class T_FUNC>            \
-    __global__ void kernelVectorReduce##namespace   \
-    (                                               \
-        T_PREC const * const rdpData  ,             \
-        unsigned int   const rnData   ,             \
-        T_PREC       * const rdpResult,             \
-        T_FUNC               f        ,             \
-        T_PREC         const rInitValue             \
-    )                                               \
-    {                                               \
-        assert( blockDim.y == 1 );                  \
-        assert( blockDim.z == 1 );                  \
-        assert( gridDim.y  == 1 );                  \
+    #define REDUCE_KERNEL_HEADER( NAME )        \
+    template<class T_PREC, class T_FUNC>        \
+    __global__ void kernelVectorReduce##NAME    \
+    (                                           \
+        T_PREC const * const rdpData  ,         \
+        unsigned int   const rnData   ,         \
+        T_PREC       * const rdpResult,         \
+        T_FUNC               f        ,         \
+        T_PREC         const rInitValue         \
+    )                                           \
+    {                                           \
+        assert( blockDim.y == 1 );              \
+        assert( blockDim.z == 1 );              \
+        assert( gridDim.y  == 1 );              \
         assert( gridDim.z  == 1 );
 
     REDUCE_KERNEL_HEADER( GlobalAtomic2 )
@@ -315,23 +312,12 @@ namespace cuda
         return cudaReduce##NAME( rdpData, rnElements, maxFunctor,              \
                                  std::numeric_limits<T_PREC>::lowest(),        \
                                  rStream );                                    \
-    }                                                                          \
-                                                                               \
-    /* explicit template instantiations */                                     \
-                                                                               \
-    template                                                                   \
-    float cudaVectorMax##NAME<float>                                           \
-    (                                                                          \
-        float const * const rdpData,                                           \
-        unsigned int const rnElements,                                         \
-        cudaStream_t rStream                                                   \
-    );
-
-
+    }
     WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic2 )
     WRAP_REDUCE_WITH_FUNCTOR( GlobalAtomic )
     WRAP_REDUCE_WITH_FUNCTOR( SharedMemory )
     WRAP_REDUCE_WITH_FUNCTOR( SharedMemoryWarps )
+    #undef WRAP_REDUCE_WITH_FUNCTOR
 
     inline __device__ uint32_t getLaneId( void )
     {
@@ -460,32 +446,6 @@ namespace cuda
 
         return sqrtf(totalError) / nMaskedPixels;
     }
-
-
-
-    /* explicit template instantiations */
-
-    template
-    __global__ void cudaKernelCalculateHioErrorBitPacked<cufftComplex>
-    (
-        cufftComplex const * const __restrict__ rdpgPrime,
-        uint32_t     const * const __restrict__ rdpIsMasked,
-        unsigned int const rnData,
-        float * const __restrict__ rdpTotalError,
-        float * const __restrict__ rdpnMaskedPixels
-    );
-
-    template
-    float cudaCalculateHioErrorBitPacked<cufftComplex>
-    (
-        cufftComplex const * const rdpData,
-        uint32_t  const * const rdpIsMasked,
-        unsigned int const rnElements,
-        bool const rInvertMask,
-        cudaStream_t rStream,
-        float * const rpTotalError,
-        float * const rpnMaskedPixels
-    );
 
 
 } // namespace cuda

@@ -25,7 +25,7 @@
 #include "cudaShrinkWrap.hpp"
 
 #ifndef NDEBUG // change the following, if you want to turn on debugging
-#   define DEBUG_CUDASHRINKWRAP 1
+#   define DEBUG_CUDASHRINKWRAP 0
 #   define WRITE_OUT_SHRINKWRAP_DEBUG 0
 #else   // leave this as it is
 #   define DEBUG_CUDASHRINKWRAP 0
@@ -62,39 +62,6 @@ namespace algorithms
 {
 namespace cuda
 {
-
-
-    template< class T_COMPLEX, class T_PREC >
-    __global__ void cudaKernelApplyHioDomainConstraints
-    (
-        T_COMPLEX       * const __restrict__ rdpgPrevious,
-        T_COMPLEX const * const __restrict__ rdpgPrime,
-        T_PREC    const * const __restrict__ rdpIsMasked,
-        unsigned int const rnElements,
-        T_PREC const rHioBeta
-    )
-    {
-        assert( blockDim.y == 1 );
-        assert( blockDim.z == 1 );
-        assert( gridDim.y  == 1 );
-        assert( gridDim.z  == 1 );
-
-        int i = blockIdx.x * blockDim.x + threadIdx.x;
-        const int nTotalThreads = gridDim.x * blockDim.x;
-        for ( ; i < rnElements; i += nTotalThreads )
-        {
-            if ( rdpIsMasked[i] == 1 or /* g' */ rdpgPrime[i].x < 0 )
-            {
-                rdpgPrevious[i].x -= rHioBeta * rdpgPrime[i].x;
-                rdpgPrevious[i].y -= rHioBeta * rdpgPrime[i].y;
-            }
-            else
-            {
-                rdpgPrevious[i].x = rdpgPrime[i].x;
-                rdpgPrevious[i].y = rdpgPrime[i].y;
-            }
-        }
-    }
 
 
 #   ifdef IMRESH_DEBUG

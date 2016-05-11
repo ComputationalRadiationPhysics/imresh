@@ -27,7 +27,7 @@
 #include <vector>
 #include <iostream>
 
-#include "io/taskQueue.cu"
+#include "io/taskQueue.hpp"
 #include "io/readInFuncs/readInFuncs.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "libs/diffractionIntensity.hpp"
