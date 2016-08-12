@@ -39,18 +39,18 @@ int main( void )
     using namespace imresh::libs;
     using namespace imresh::io;
 
-    //testFft();
-    //testCompareDcft();
-    //testVectorIndex();
-    //testUnpackBitMask();
+    testFft();
+    testCompareDcft();
+    testVectorIndex();
+    testUnpackBitMask();
     testVectorReduce();
     testVectorElementwise();
     testCalculateHioError();
-    TestGaussian testGaussian; testGaussian();
-    testShrinkWrap();
     #ifdef USE_PNG
         testPng();
     #endif
+    TestGaussian testGaussian; testGaussian();
+    testShrinkWrap();
 
     std::cout << "All tests OK.\n";
 
