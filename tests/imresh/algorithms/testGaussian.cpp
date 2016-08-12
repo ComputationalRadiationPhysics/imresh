@@ -44,7 +44,7 @@
 #include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
-#define DEBUG_TESTGAUSSIAN 0
+#define DEBUG_TESTGAUSSIAN 2
 
 
 namespace imresh
@@ -264,6 +264,9 @@ namespace algorithms
             float pKernel[nKernelElements];
             unsigned int const kernelSize = calcGaussianKernel( sigma, (float*) pKernel, nKernelElements );
             unsigned int const kernelHalf = (kernelSize-1)/2;
+            #if DEBUG_TESTGAUSSIAN == 2
+                std::cout << "Kernel Size used: " << kernelSize << std::endl;
+            #endif
 
             std::cout << "." << std::flush;
 
@@ -276,6 +279,13 @@ namespace algorithms
             #endif
 
             for ( auto nCols : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
+            {
+            #if DEBUG_TESTGAUSSIAN == 2
+                using namespace std::chrono;
+                using clock = std::chrono::high_resolution_clock;
+                auto const clock0 = clock::now();
+                auto       clock1 = clock::now(); // only for datatype now called
+            #endif
             for ( auto nRows : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,512,1021,1024 } )
             {
                 auto const nElements = nRows*nCols;
@@ -285,9 +295,7 @@ namespace algorithms
                     continue;
                 }
 
-                #if DEBUG_TESTGAUSSIAN == 1
-                    if ( nRows == 1 )
-                        std::cout << std::endl;
+                #if DEBUG_TESTGAUSSIAN == 2
                     std::cout << "(" << nCols << "," << nRows << "), " << std::flush;
                 #endif
 
@@ -370,6 +378,12 @@ namespace algorithms
                     gaussianBlurVertical( pResultCpu, nCols, nRows, sigma );
                     compareFloatArray( pResult, pSolution, nCols, nRows, sigma, __LINE__ );
                 }
+            }
+            #if DEBUG_TESTGAUSSIAN == 2
+                clock1 = clock::now();
+                float const seconds = duration_cast<duration<float>>( clock1 - clock0 ).count();
+                std::cout << "\b -> " << seconds << "s" << std::endl;
+            #endif
             }
         }
         std::cout << "OK" << std::endl;
@@ -614,8 +628,14 @@ namespace algorithms
         decltype( clock::now() ) clock0, clock1;
 
         std::cout << "\n";
-        std::cout << "Gaussian blur timings in milliseconds:\n";
-        std::cout << "image size (nCols,nRows) : CUDA const memory horizontal | CUDA shared memory horizontal | CPU horizontal | CUDA vertical | CPU vertical | CPU vertical with software cache\n";
+        std::cout << "Gaussian blur timings in milliseconds:" << std::endl;
+        std::cout << "image size (nCols,nRows)"
+                     " | CUDA shared memory horizontal"
+                     " | CPU horizontal"
+                     " | CUDA vertical"
+                     " | CPU vertical"
+                     " | CPU vertical with software cache"
+                  << std::endl;
         using namespace imresh::tests;
         //for ( auto sigma : std::vector<float>{ 1.5,2,3 } )
         for ( auto sigma : std::vector<float>{ 3 } )
