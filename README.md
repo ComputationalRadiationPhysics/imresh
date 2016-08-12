@@ -87,28 +87,28 @@ make -j 3
 
 1. Create a build directory
 
-       mkdir build
-       cd build
+        mkdir build
+        cd build
 
 2. Invoking CMake
 
-       cmake ..
+        cmake ..
 
     For a clean build with debugging information, try
 
-       cmake .. -DIMRESH_DEBUG=on -DBUILD_DOC=off
+        cmake .. -DIMRESH_DEBUG=on -DBUILD_DOC=off
 
     To build and run everything, try
 
-       cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on -DUSE_PNG=on -DUSE_SPLASH=on
+        cmake .. -DRUN_TESTS=on -DBUILD_EXAMPLES=on -DUSE_PNG=on -DUSE_SPLASH=on
 
 3. Invoking make
 
-       make
+        make
 
 4. Installing
 
-       make install
+        make install
 
 ## Usage
 
@@ -245,11 +245,11 @@ If there are valid errors in the output of the above command you can then search
 
 * `stddef.h(432): error: identifier "nullptr" is undefined`
 
-    Your CMake version is too old.
+    This happens, because the code is compiled without the `--std=c++11`-flac most probably, because the CMake version used is too old.
 
 * `/usr/include/host_config.h:105:2: error: #error -- unsupported GNU version! gcc 4.10 and up are not supported! #error -- unsupported GNU version! gcc 4.10 and up are not supported!`
 
-  This is a common problem with debian and maybe its derivatives, because debian sid and stretch have by default GCC 5.x, but `nvidia-cuda-toolkit` 7.0.x. The latter wants GCC 4.10 or lower versions, though.
+  This is a common problem with Debian and maybe its derivatives, because Debian sid and stretch have by default GCC 5.x, but `nvidia-cuda-toolkit` 7.0.x wants GCC 4.10 or lower versions.
 
   **On Debian:**
   - `apt-get install gcc-4.9`
