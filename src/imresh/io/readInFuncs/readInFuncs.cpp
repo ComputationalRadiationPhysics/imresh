@@ -45,6 +45,9 @@
 #include "io/readInFuncs/readInFuncs.hpp"
 
 
+#define DEBUG_READINFUNCS 0
+
+
 namespace imresh
 {
 namespace io
@@ -92,7 +95,7 @@ namespace readInFuncs
             }
 
             auto ret = std::make_pair( (float *) retArray, std::make_pair( xDim, yDim ) );
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                 std::cout << "imresh::io::readInFuncs::readTxt(): Successfully read file."
                     << std::endl;
 #           endif
@@ -100,7 +103,7 @@ namespace readInFuncs
         }
         else
         {
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                 std::cout << "imresh::io::readInFuncs::readTxt(): Error opening file."
                     << std::endl;
 #           endif
@@ -141,7 +144,7 @@ namespace readInFuncs
 
             png.close( );
 
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                 if( remove( "tmp.png" ) != 0 )
                 {
                     perror( "imresh::io::readInFuncs::readPNG(): Error deleting temporary file" );
@@ -218,7 +221,7 @@ namespace readInFuncs
             if( num_ids == 0 )
             {
                 sdc.close( );
-#               ifdef IMRESH_DEBUG
+#               if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                     std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
                         << std::endl;
 #               endif
@@ -239,7 +242,7 @@ namespace readInFuncs
                 delete[] entries;
                 delete[] ids;
                 sdc.close( );
-#               ifdef IMRESH_DEBUG
+#               if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                     std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
                         << std::endl;
 #               endif
@@ -263,7 +266,7 @@ namespace readInFuncs
                 delete[] ids;
                 delete[] mem;
                 sdc.close( );
-#               ifdef IMRESH_DEBUG
+#               if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                     std::cout << "imresh::io::readInFuncs::readHDF5(): Error opening empty file."
                         << std::endl;
 #               endif
@@ -278,7 +281,7 @@ namespace readInFuncs
             delete[] entries;
             delete[] ids;
 
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                 std::cout << "imresh::io::readInFuncs::readHDF5(): Successfully read file."
                     << std::endl;
 #           endif
@@ -290,3 +293,5 @@ namespace readInFuncs
 } // namespace readInFuncs
 } // namespace io
 } // namespace imresh
+
+#undef READINFUNCS

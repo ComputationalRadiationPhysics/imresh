@@ -47,6 +47,9 @@
 #include "algorithms/vectorReduce.hpp" // vectorMax
 
 
+#define DEBUG_WRITEOUTFUNCS 0
+
+
 namespace imresh
 {
 namespace io
@@ -67,7 +70,7 @@ namespace writeOutFuncs
         {
             delete[] _mem;
         }
-#       ifdef IMRESH_DEBUG
+#       if defined( IMRESH_DEBUG ) && ( DEBUG_WRITEOUTFUNCS >= 10 )
             std::cout << "imresh::io::writeOutFuncs::justFree(): Freeing data ("
                 << _filename << ")." << std::endl;
 #       endif
@@ -97,7 +100,7 @@ namespace writeOutFuncs
                     auto const index = iy * _size.first + ix;
                     assert( index < _size.first * _size.second );
                     auto const value = _mem[index] / max;
-#                   ifdef IMRESH_DEBUG
+#                   if defined( IMRESH_DEBUG ) && ( READINFUNCS >= 10 )
                     if ( isnan(value) or isinf(value) or value < 0 )
                     {
                         /* write out red  pixel to alert user that something is wrong */
@@ -121,7 +124,7 @@ namespace writeOutFuncs
 
             png.close( );
 
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( DEBUG_WRITEOUTFUNCS >= 10 )
                 std::cout << "imresh::io::writeOutFuncs::writeOutPNG(): "
                              "Successfully written image data to PNG ("
                           << _filename << ")." << std::endl;
@@ -170,7 +173,7 @@ namespace writeOutFuncs
 
             sdc.close( );
 
-#           ifdef IMRESH_DEBUG
+#           if defined( IMRESH_DEBUG ) && ( DEBUG_WRITEOUTFUNCS >= 10 )
                 std::cout << "imresh::io::writeOutFuncs::writeOutHDF5(): "
                              "Successfully written image data to HDF5 ("
                           << _filename << "_0_0_0.h5)." << std::endl;
@@ -195,3 +198,4 @@ namespace writeOutFuncs
 } // namespace io
 } // namespace imresh
 
+#undef DEBUG_WRITEOUTFUNCS

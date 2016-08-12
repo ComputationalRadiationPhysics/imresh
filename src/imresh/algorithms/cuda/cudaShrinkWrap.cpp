@@ -36,6 +36,7 @@
 #include <cstddef>              // NULL
 #include <cassert>
 #include <cuda_to_cupla.hpp>    // atomicCAS, cudaMemcpy
+
 #include "libs/cufft_to_cupla.hpp"   // cufftComplex
 #include "algorithms/cuda/cudaGaussian.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
