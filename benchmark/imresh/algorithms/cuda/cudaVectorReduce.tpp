@@ -221,8 +221,8 @@ namespace cuda
                 auto nBlocks  = gridDim.x;
                 auto nThreads = blockDim.x;
             #endif
-            assert( acc.m_gridBlockExtent[2]   == gridDim.x  );
-            assert( acc.m_blockThreadExtent[2] == blockDim.x );
+            //assert( acc.m_gridBlockExtent[2]   == gridDim.x  );
+            //assert( acc.m_blockThreadExtent[2] == blockDim.x );
             #pragma unroll
             for ( ; iElem < rdpData + rnData; iElem +=
                         #if VERSION == 2
