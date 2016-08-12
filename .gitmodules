@@ -9,5 +9,4 @@
 	url = https://github.com/ComputationalRadiationPhysics/halt.git
 [submodule "cupla"]
 	path = cupla
-	url = https://github.com/mxmlnkn/cupla.git
-	branch = unusedParamWarning
+	url = https://github.com/ComputationalRadiationPhysics/cupla.git
