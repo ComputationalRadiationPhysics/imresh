@@ -26,10 +26,11 @@
 #pragma once
 
 
-#if ! defined( _CUFFT_H_ ) and ! defined( __CUDACC__ )
+/* only load redefinitions for cuComplex and FFT_C2C,... if using HaLT
+ * without NVCC */
+#if ! defined( _CUFFT_H_ ) && ! defined( __CUDACC__ )
 #   include "cufftToCupla/cuComplex.hpp"
 #   include "cufftToCupla/runtime.hpp"
-    using namespace cupla::cufftToCupla;
 #endif
 
 #include <haLT/FFT.hpp>
@@ -90,3 +91,5 @@ namespace cufftToCupla {
 
 } // cufftToCupla
 } // cupla
+
+using namespace cupla::cufftToCupla;
