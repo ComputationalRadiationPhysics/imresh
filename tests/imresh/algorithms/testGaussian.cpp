@@ -44,6 +44,10 @@
 #include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
+#ifdef USE_PNG
+#   include "io/readInFuncs/readInFuncs.hpp"
+#   include "io/writeOutFuncs/writeOutFuncs.hpp"
+#endif
 
 
 namespace imresh
@@ -166,7 +170,7 @@ namespace algorithms
         unsigned int  const nRows
     )
     {
-        for ( unsigned iRow = 0; iRow < nRows; ++iRow )
+        for ( auto iRow = 0u; iRow < nRows; ++iRow )
             checkGaussian( pResult, pOriginal, nCols );
     }
 
@@ -689,7 +693,12 @@ namespace algorithms
     }
 
 
-    void TestGaussian::operator()( void )
+    void TestGaussian::benchmarkFourierConvolution( void )
+    {
+
+    }
+
+    TestGaussian::TestGaussian()
     {
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
@@ -703,19 +712,25 @@ namespace algorithms
         /* fill test data with random numbers from [-0.5,0.5] */
         srand(350471643);
         fillWithRandomValues( dpData, pData, nMaxElements );
+    }
 
-
-        testGaussianDiracDeltas();
-        testGaussianRandomSingleData();
-        testGaussianConstantValuesPerRowLine();
-        testGaussianConstantValues();
-        benchmarkGaussianGeneralRandomValues();
-
+    TestGaussian::~TestGaussian()
+    {
         delete[] pResultCpu;
         delete[] pSolution;
         CUDA_ERROR( cudaFree( dpData ) );
         CUDA_ERROR( cudaFreeHost( pData ) );
         CUDA_ERROR( cudaFreeHost( pResult ) );
+    }
+
+    void TestGaussian::operator()( void )
+    {
+        testGaussianDiracDeltas();
+        testGaussianRandomSingleData();
+        testGaussianConstantValuesPerRowLine();
+        testGaussianConstantValues();
+        benchmarkGaussianGeneralRandomValues();
+        benchmarkGaussianGeneralRandomValues();
     }
 
 
