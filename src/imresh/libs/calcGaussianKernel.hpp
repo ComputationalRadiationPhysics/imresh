@@ -72,7 +72,7 @@ namespace libs
      * very close to the 2.88440, but we should nevertheless include the
      * pixel at [-3.5,-2.5] to be correct.
      *
-     * @tparam     T_PREC precision. Should only be a floating point type. For
+     * @tparam     T_Prec precision. Should only be a floating point type. For
      *             integers the sum of the weights may not be 1!
      * @param[in]  rSigma standard deviation for the gaussian. This determines
      *             the kernel size
@@ -85,13 +85,28 @@ namespace libs
      *         rWeights wasn't changed. Normally you would want to check for
      *         that, allocate a larger array and call this function again.
      **/
-    template<class T_PREC>
+    template<class T_Prec>
     int calcGaussianKernel
     (
-        const double & rSigma,
-        T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError = 0.5/255
+        double       const rSigma   ,
+        T_Prec *     const rWeights ,
+        unsigned int const rnWeights,
+        double       const rMinAbsoluteError = 0.5/255
+    );
+
+    /**
+     * Same as calcGaussianKernel, but creates 2D kernel of arbirtrary
+     * size by padding it with zeros.
+     */
+    template<class T_Prec>
+    int calcGaussianKernel2d
+    (
+        double       const rSigma    ,
+        unsigned int const rCenterX  ,
+        unsigned int const rCenterY  ,
+        T_Prec *     const rWeights  ,
+        unsigned int const rnWeightsX,
+        unsigned int const rnWeightsY
     );
 
 

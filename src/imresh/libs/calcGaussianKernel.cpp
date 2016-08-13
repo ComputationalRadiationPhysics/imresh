@@ -24,13 +24,7 @@
 
 
 #include "calcGaussianKernel.hpp"
-
-#include <cmath>
-#ifndef M_PI
-#   define M_PI 3.141592653589793238462643383279502884
-#endif
-#include <cassert>
-#include <cstddef>  // NULL
+#include "calcGaussianKernel.tpp"
 
 
 namespace imresh
@@ -39,76 +33,32 @@ namespace libs
 {
 
 
-    template<class T_PREC>
-    int calcGaussianKernel
-    (
-        const double & rSigma,
-        T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
-    )
-    {
-        /**
-         * @todo inverfc, e.g. with minimax (port python version to C/C++)
-         * the inverse erfc diverges at 0, this makes it hard to find a
-         * a polynomial approximation there, but maybe I could rewrite
-         * minimax algorithm to work with @f[ \sum a_n/x**n @f]
-         * Anyway, the divergence is also bad for the kernel Size. In order
-         * to reach floating point single precision of 1e-7 absolute error
-         * the kernel size would be: 3.854659 ok, it diverges much slower
-         * than I thought
-         **/
-        //const int nNeighbors = ceil( erfcinv( 2.0*rMinAbsoluteError ) - 0.5 );
-        assert( rSigma >= 0 );
-        const int nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
-        const int nWeights   = 2*nNeighbors + 1;
-        assert( nWeights > 0 );
-        if ( rWeights == NULL or (unsigned) nWeights > rnWeights )
-            return nWeights;
+    /* @todo This could almost be automatically generated from the header files ... */
 
-        double sumWeightings = 0;
-        /* Calculate the weightings. I'm not sure, if this is correct.
-         * I mean it could be, that the weights are the integrated gaussian
-         * values over the pixel interval, but I guess that would force
-         * no interpolation. Depending on the interpolation it wouldn't even
-         * be pixel value independent anymore, making this useless, so I guess
-         * the normal distribution evaluated at -1,0,1 for a kernel size of 3
-         * should be correct ??? */
-        const double a =  1.0/( sqrt(2.0*M_PI)*rSigma );
-        const double b = -1.0/( 2.0*rSigma*rSigma );
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-        {
-            const T_PREC weight = T_PREC( a*exp( i*i*b ) );
-            rWeights[nNeighbors+i] = weight;
-            sumWeightings += weight;
-        }
-
-        /* scale up or down the kernel, so that the sum of the weights will be 1 */
-        for ( int i = -nNeighbors; i <= nNeighbors; ++i )
-            rWeights[nNeighbors+i] /= sumWeightings;
-
-        return nWeights;
-    }
-
-
-    /* Explicitely instantiate certain template arguments to make an object
-     * file. Furthermore this saves space, as we don't need to write out the
-     * data types of all functions to instantiate */
-
-    template int calcGaussianKernel<float>
-    (
-        const double & rSigma,
-        float * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
+    #define __INSTANTIATE( T_Prec )             \
+                                                \
+    template int calcGaussianKernel<T_Prec>     \
+    (                                           \
+        double       const rSigma   ,           \
+        T_Prec *     const rWeights ,           \
+        unsigned int const rnWeights,           \
+        double       const rMinAbsoluteError    \
+    );                                          \
+                                                \
+    template void calcGaussianKernel2d<T_Prec>  \
+    (                                           \
+        double       const rSigma    ,          \
+        unsigned int const rCenterX  ,          \
+        unsigned int const rCenterY  ,          \
+        T_Prec *     const rWeights  ,          \
+        unsigned int const rnWeightsX,          \
+        unsigned int const rnWeightsY           \
     );
-    template int calcGaussianKernel<double>
-    (
-        const double & rSigma,
-        double * const & rWeights,
-        const unsigned & rnWeights,
-        const double & rMinAbsoluteError
-    );
+
+    __INSTANTIATE( float  )
+    __INSTANTIATE( double )
+
+    #undef __INSTANTIATE
 
 
 } // namespace libs
