@@ -39,7 +39,7 @@ namespace algorithms
         static constexpr int maxKernelWidth = 30; // (sigma=4), needed to calculate upper bound of maximum rounding error
 
 
-        void compareFloatArray
+        static void compareFloatArray
         (
             float * pData,
             float * pResult,
@@ -96,7 +96,7 @@ namespace algorithms
          *            Can be useful to check columns in 2D data, by setting
          *            nStride = nCols. Must not be 0
          **/
-        void checkGaussian
+        static void checkGaussian
         (
             float const * pResult,
             float const * pOriginal,
@@ -107,7 +107,7 @@ namespace algorithms
         /**
          * Calls checkGaussian for every row
          **/
-        void checkGaussianHorizontal
+        static void checkGaussianHorizontal
         (
             float const * pResult,
             float const * pOriginal,
@@ -118,7 +118,7 @@ namespace algorithms
         /**
          * Calls checkGaussian for every column
          **/
-        void checkGaussianVertical
+        static void checkGaussianVertical
         (
             float const * pResult,
             float const * pOriginal,
@@ -126,25 +126,27 @@ namespace algorithms
             unsigned int nRows
         );
 
-        void checkIfElementsEqual
+        static void checkIfElementsEqual
         (
             float const * pData,
             unsigned int nData,
             unsigned int nStride = 1
         );
 
-        void fillWithRandomValues
+        static void fillWithRandomValues
         (
             float * dpData,
             float * pData,
             unsigned int nElements
         );
 
-        void testGaussianDiracDeltas( void );
-        void testGaussianRandomSingleData( void );
+        void testGaussianDiracDeltas             ( void );
+        void testGaussianRandomSingleData        ( void );
         void testGaussianConstantValuesPerRowLine( void );
-        void testGaussianConstantValues( void );
+        void testGaussianConstantValues          ( void );
         void benchmarkGaussianGeneralRandomValues( void );
+        void benchmarkFourierConvolution         ( void );
+        /* calls all tests */
         void operator()( void );
 
     }; // struct TestGaussian

@@ -36,6 +36,7 @@
 #include <cmath>
 #include <cfloat>    // FLT_MAX, FLT_EPSILON
 #include <cuda_runtime.h>
+
 #include "algorithms/vectorReduce.hpp"
 #include "algorithms/cuda/cudaGaussian.hpp"
 #include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
@@ -51,7 +52,14 @@ namespace algorithms
 {
 
     void TestGaussian::compareFloatArray
-    ( float * pData, float * pResult, unsigned nCols, unsigned nRows, float sigma, unsigned line )
+    (
+        float *      const pData  ,
+        float *      const pResult,
+        unsigned int const nCols  ,
+        unsigned int const nRows  ,
+        float        const sigma  ,
+        unsigned int const line
+    )
     {
         const unsigned nElements = nCols * nRows;
         auto maxError = vectorMaxAbsDiff( pData, pResult, nElements );
@@ -133,10 +141,10 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussian
     (
-        float const * const pResult,
+        float const * const pResult  ,
         float const * const pOriginal,
-        unsigned const nElements,
-        unsigned const nStride
+        unsigned int  const nElements,
+        unsigned int  const nStride
     )
     {
         assert( vectorMin( pOriginal, nElements, nStride )
@@ -152,10 +160,10 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussianHorizontal
     (
-        float const * const pResult,
+        float const * const pResult  ,
         float const * const pOriginal,
-        unsigned const nCols,
-        unsigned const nRows
+        unsigned int  const nCols    ,
+        unsigned int  const nRows
     )
     {
         for ( unsigned iRow = 0; iRow < nRows; ++iRow )
@@ -167,10 +175,10 @@ namespace algorithms
      **/
     void TestGaussian::checkGaussianVertical
     (
-        float const * const pResult,
+        float const * const pResult  ,
         float const * const pOriginal,
-        unsigned int const nCols,
-        unsigned int const nRows
+        unsigned int  const nCols    ,
+        unsigned int  const nRows
     )
     {
         for ( unsigned iCol = 0; iCol < nCols; ++iCol )
@@ -180,8 +188,8 @@ namespace algorithms
     void TestGaussian::checkIfElementsEqual
     (
         float const * const pData,
-        unsigned int const nData,
-        unsigned int const nStride
+        unsigned int  const nData,
+        unsigned int  const nStride
     )
     {
         assert( nStride > 0 );
@@ -205,7 +213,11 @@ namespace algorithms
     }
 
     void TestGaussian::fillWithRandomValues
-    ( float * dpData, float * pData, unsigned nElements )
+    (
+        float *      const dpData,
+        float *      const pData ,
+        unsigned int const nElements
+    )
     {
         for ( unsigned i = 0; i < nElements; ++i )
             pData[i] = (float) rand() / RAND_MAX - 0.5;
