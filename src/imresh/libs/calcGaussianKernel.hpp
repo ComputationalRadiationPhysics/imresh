@@ -99,7 +99,7 @@ namespace libs
      * size by padding it with zeros.
      */
     template<class T_Prec>
-    int calcGaussianKernel2d
+    void calcGaussianKernel2d
     (
         double       const rSigma    ,
         unsigned int const rCenterX  ,

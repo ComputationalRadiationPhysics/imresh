@@ -32,6 +32,7 @@
 #   define M_PI 3.141592653589793238462643383279502884
 #endif
 #include <cstddef>      // NULL
+#include <iostream>
 
 
 namespace imresh
@@ -136,14 +137,34 @@ namespace libs
              * the center and then periodically shift it.
              * E.g. if rCenterX=0 and and we look at pixel rnWeightsX-1, then
              * we find it mapped to
+             * The periodicity results in a grid like this:
+             * +.....+.....+
+             * :     :     :
+             * :4o  I:3o   :
+             * +-----+.....+
+             * | '''I|''   :
+             * |1o  I|2o   :
+             * +-----+.....+
+             * o denote the center of the periodically copied Gaussian
+             * I and ' roughly denote the Wiegner-Seitz cells corresponding to
+             *   the Gaussian centers
+             * - and + denote the actual image we want to calculate
+             * : . and + denotes the borders of the periodically copied images
+             * The numbers correspond to the dx[1234] used in the code below
+             *
+             * Note (unsigned int) +- (int) will be cast "up" to (unsigned int)
              */
-            auto const dx = std::abs( ix - rCenterX );
-            auto const dy = std::abs( iy - rCenterY );
-            /* This is problematic to do with fmod, because of rounding errors
-             * For 0 <= dx < rnWeightsX the maximum value of x will be
-             * rnWeightsX / 2 */
-            auto const x  = std::min( dx, std::abs( dx - rnWeightsX ) );
-            auto const y  = std::min( dy, std::abs( dy - rnWeightsY ) );
+            auto const dx1 = std::abs( (int) ix - (int) ( rCenterX + 0          ) );
+            auto const dy1 = std::abs( (int) iy - (int) ( rCenterY + 0          ) );
+            auto const dx2 = std::abs( (int) ix - (int) ( rCenterX + rnWeightsX ) );
+            auto const dy2 = std::abs( (int) iy - (int) ( rCenterY + 0          ) );
+            auto const dx3 = std::abs( (int) ix - (int) ( rCenterX + 0          ) );
+            auto const dy3 = std::abs( (int) iy - (int) ( rCenterY + rnWeightsY ) );
+            auto const dx4 = std::abs( (int) ix - (int) ( rCenterX + rnWeightsX ) );
+            auto const dy4 = std::abs( (int) iy - (int) ( rCenterY + rnWeightsY ) );
+
+            auto const x  = std::min( { dx1, dx2, dx3, dx4 } );
+            auto const y  = std::min( { dy1, dy2, dy3, dy4 } );
 
             const T_Prec weight = T_Prec( a*exp( x*x*bx + y*y*by ) );
 
