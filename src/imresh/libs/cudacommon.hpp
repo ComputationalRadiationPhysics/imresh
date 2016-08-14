@@ -28,6 +28,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <cassert>
+#include <cstdlib>
 
 
 #define CUDA_ERROR(X) ::imresh::libs::checkCudaError(X,__FILE__,__LINE__);
@@ -55,6 +56,47 @@ namespace libs
         CUDA_ERROR( cudaMallocHost( (void**) rPtr, sizeof(T) * rnElements ) );
         assert( rPtr != NULL );
     }
+
+
+    /**
+     * Basically saves a gpu/cpu pointer pair plus their size and therefore
+     * makes it a tad shorter to communicate with a GPU device
+     */
+    template< typename T >
+    struct HostDeviceMemory
+    {
+        T * cpu, * gpu;
+        unsigned int nBytes;
+
+        inline HostDeviceMemory( int const nElements )
+        {
+            nBytes = sizeof(T) * nElements;
+            cpu = (T*) malloc( nBytes );
+            CUDA_ERROR( cudaMalloc( &gpu, nBytes ) );
+        }
+
+        inline ~HostDeviceMemory()
+        {
+            free( cpu );
+            cpu = NULL;
+            CUDA_ERROR( cudaFree( gpu ) );
+            gpu = NULL;
+        }
+
+        inline void toGpu( void )
+        {
+            assert( cpu != NULL );
+            assert( gpu != NULL );
+            CUDA_ERROR( cudaMemcpy( cpu, gpu, nBytes, cudaMemcpyHostToDevice ) );
+        }
+
+        inline void toCpu( void )
+        {
+            assert( cpu != NULL );
+            assert( gpu != NULL );
+            CUDA_ERROR( cudaMemcpy( gpu, cpu, nBytes, cudaMemcpyDeviceToHost ) );
+        }
+    };
 
 
 } // namespace libs
