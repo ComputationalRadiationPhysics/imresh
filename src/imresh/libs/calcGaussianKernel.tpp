@@ -50,7 +50,6 @@ namespace libs
         double       const rMinAbsoluteError
     )
     {
-        assert( rWeights != NULL );
         assert( rMinAbsoluteError > 0 );
 
         /**
