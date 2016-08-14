@@ -35,30 +35,86 @@ namespace tests
 {
 
 
-    template<class T_PREC>
-    T_PREC mean( std::vector<T_PREC> const vec )
+    template<class T_Prec>
+    T_Prec mean
+    (
+        T_Prec const * const vec,
+        unsigned int const nElements
+    )
     {
-        auto sum = T_PREC(0);
-        for ( auto const & elem : vec )
-            sum += elem;
-        return sum / vec.size();
+        auto sum = T_Prec(0);
+        for ( auto i = 0u; i < nElements; ++i )
+            sum += vec[i];
+        return sum / nElements;
     }
-    template float mean<float>( std::vector<float> const vec );
+
+    template<class T_Prec>
+    T_Prec mean( std::vector<T_Prec> const vec )
+    {
+        return mean( &(vec[0]), vec.size() );
+    }
 
     /**
      * < (x - <x>)^2 > = < x^2 + <x>^2 - 2x<x> > = <x^2> - <x>^2
      **/
-    template<class T_PREC>
-    T_PREC stddev( std::vector<T_PREC> const vec )
+    template<class T_Prec>
+    T_Prec stddev( T_Prec const * const vec, unsigned int const nElements )
     {
-        auto sum2 = T_PREC(0);
-        for ( auto const elem : vec )
-            sum2 += elem*elem;
-        auto avg = mean( vec );
-        auto const N = T_PREC( vec.size() );
+        auto sum2 = T_Prec(0);
+        for ( auto i = 0u; i < nElements; ++i )
+            sum2 += vec[i] * vec[i];
+        auto avg = mean( vec, nElements );
+        auto const N = T_Prec( nElements );
         return sqrt( ( sum2/N - avg*avg )*N/(N-1) );
     }
-    template float stddev( std::vector<float> const vec );
+
+    template<class T_Prec>
+    T_Prec stddev( std::vector<T_Prec> const vec )
+    {
+        return stddev( &(vec[0]), vec.size() );
+    }
+
+    template<class T_Prec>
+    T_Prec interpolateWithLagrangePolynomial
+    (
+        std::vector<T_Prec> const x0,
+        std::vector<T_Prec> const y0,
+        T_Prec              const x
+    )
+    {
+        assert( x0.size() == y0.size() );
+        // number of values. Approximating polynomial is of degree n-1
+        unsigned int const n = x0.size();
+        assert( n > 1 );
+        auto res = T_Prec(0);
+        for ( auto k = 0u; k < n; ++k )
+        {
+            auto prod = y0[k];
+            for ( auto j = 0u; j < n; ++j )
+            {
+                if ( j != k )
+                    prod *= ( x0[j] - x ) / ( x0[j] - x0[k] );
+            }
+            res += prod;
+        }
+        return res;
+    }
+
+    /* explicit instantiations */
+    #define __INSTANTIATE( T_Prec ) \
+        template T_Prec mean  <T_Prec>( T_Prec const * const vec, unsigned int const nElements ); \
+        template T_Prec stddev<T_Prec>( T_Prec const * const vec, unsigned int const nElements ); \
+        template T_Prec mean  <T_Prec>( std::vector<T_Prec> const vec ); \
+        template T_Prec stddev<T_Prec>( std::vector<T_Prec> const vec ); \
+        template T_Prec interpolateWithLagrangePolynomial<T_Prec>        \
+        (                                                                \
+            std::vector<T_Prec> const x0,                                \
+            std::vector<T_Prec> const y0,                                \
+            T_Prec              const x                                  \
+        );
+    __INSTANTIATE( float  )
+    __INSTANTIATE( double )
+    #undef __INSTANTIATE
 
 
     std::vector<int> getLogSpacedSamplingPoints

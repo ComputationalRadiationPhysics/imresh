@@ -37,11 +37,28 @@ namespace tests
     template<class T_PREC>
     T_PREC mean( std::vector<T_PREC> const vec );
 
+    template<class T_PREC>
+    T_PREC mean( T_PREC const * const vec, unsigned int const nElements  );
+
     /**
      * < (x - <x>)^2 > = < x^2 + <x>^2 - 2x<x> > = <x^2> - <x>^2
      **/
     template<class T_PREC>
     T_PREC stddev( std::vector<T_PREC> const vec );
+
+    template<class T_PREC>
+    T_PREC stddev( T_PREC const * const vec, unsigned int const nElements );
+
+    /**
+     * This function approximates f so that f(x0)=y0 and returns f(x)
+     */
+    template<class T_Prec>
+    T_Prec interpolateWithLagrangePolynomial
+    (
+        std::vector<T_Prec> const x0,
+        std::vector<T_Prec> const y0,
+        T_Prec              const x
+    );
 
     /**
      * Returns a list of rnPoints logspaced points
