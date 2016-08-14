@@ -153,7 +153,6 @@ namespace algorithms
         void testGaussianConstantValues          ( void );
         void benchmarkGaussianGeneralRandomValues( void );
         static void testFourierConvolution       ( void );
-        static void benchmarkFourierConvolution  ( void );
         /* calls all tests */
         void operator()( void );
 

@@ -588,9 +588,18 @@ namespace algorithms
         float milliseconds, minTime;
         decltype( clock::now() ) clock0, clock1;
 
-        std::cout << "\n";
-        std::cout << "Gaussian blur timings in milliseconds:\n";
-        std::cout << "image size (nCols,nRows) : CUDA const memory horizontal | CUDA shared memory horizontal | CPU horizontal | CUDA vertical | CPU vertical | CPU vertical with software cache\n";
+        std::cout
+            << "\nGaussian blur timings in milliseconds:\n"
+            << "image size (nCols,nRows) "
+            << ": CUDA const memory horizontal "
+            << "| CUDA shared memory horizontal "
+            << "| CPU horizontal "
+            << "| CUDA vertical "
+            << "| CPU vertical "
+            << "| CPU vertical with software cache"
+            << "| CUDA FFT"
+            << "| CPU FFT"
+            << std::endl;
         using namespace imresh::tests;
         //for ( auto sigma : std::vector<float>{ 1.5,2,3 } )
         for ( auto sigma : std::vector<float>{ 3 } )
@@ -604,47 +613,32 @@ namespace algorithms
             std::cout << "(" << std::setw(5) << nCols << ","
                              << std::setw(5) << nRows << ") : ";
 
-            /* time CUDA horizontal blur (constant memory kernel) */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                srand(350471643);
-                fillWithRandomValues( dpData, pData, nElements );
-
-                cudaEventRecord( start );
-                cudaGaussianBlurHorizontalConstantWeights( dpData, nCols, nRows, sigma );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-
-                CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
-                checkGaussianHorizontal( pResult, pData, nCols, nRows );
+            #define TIME_GPU( FUNC, CHECK )                                    \
+            {                                                                  \
+                minTime = FLT_MAX;                                             \
+                for ( auto iRepetition = 0u; iRepetition < nRepetitions;       \
+                      ++iRepetition )                                          \
+                {                                                              \
+                    srand(350471643);                                          \
+                    fillWithRandomValues( dpData, pData, nElements );          \
+                                                                               \
+                    cudaEventRecord( start );                                  \
+                    FUNC( dpData, nCols, nRows, sigma );                       \
+                    cudaEventRecord( stop );                                   \
+                    cudaEventSynchronize( stop );                              \
+                                                                               \
+                    cudaEventElapsedTime( &milliseconds, start, stop );        \
+                    minTime = fmin( minTime, milliseconds );                   \
+                                                                               \
+                    CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements *       \
+                                sizeof(dpData[0]), cudaMemcpyDeviceToHost ) ); \
+                    CHECK( pResult, pData, nCols, nRows );                     \
+                }                                                              \
+                std::cout << std::setw(8) << minTime << " |" << std::flush;    \
             }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
 
-            /* time CUDA horizontal blur (shared memory kernel) */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                srand(350471643);
-                fillWithRandomValues( dpData, pData, nElements );
+            #define NOP( ... )
 
-                cudaEventRecord( start );
-                cudaGaussianBlurHorizontalSharedWeights( dpData, nCols, nRows, sigma );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-
-                CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
-                checkGaussianHorizontal( pResult, pData, nCols, nRows );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
-
-            /* time CPU horizontal blur */
             #define TIME_CPU( FUNC, CHECK )                               \
             minTime = FLT_MAX;                                            \
             for ( unsigned iRepetition = 0; iRepetition < nRepetitions;   \
@@ -664,27 +658,12 @@ namespace algorithms
                                    sigma, __LINE__ );                     \
             }                                                             \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
-            TIME_CPU( gaussianBlurHorizontal, checkGaussianHorizontal )
 
-            /* time CUDA vertical blur */
-            minTime = FLT_MAX;
-            for ( unsigned iRepetition = 0; iRepetition < nRepetitions; ++iRepetition )
-            {
-                srand(350471643);
-                fillWithRandomValues( dpData, pData, nElements );
+            TIME_GPU( cudaGaussianBlurHorizontalConstantWeights, checkGaussianHorizontal )
+            TIME_GPU( cudaGaussianBlurHorizontalSharedWeights  , checkGaussianHorizontal )
 
-                cudaEventRecord( start );
-                cudaGaussianBlurVertical( dpData, nCols, nRows, sigma );
-                cudaEventRecord( stop );
-                cudaEventSynchronize( stop );
-
-                cudaEventElapsedTime( &milliseconds, start, stop );
-                minTime = fmin( minTime, milliseconds );
-
-                CUDA_ERROR( cudaMemcpy( pResult, dpData, nElements*sizeof(dpData[0]), cudaMemcpyDeviceToHost ) );
-                checkGaussianVertical( pResult, pData, nCols, nRows );
-            }
-            std::cout << std::setw(8) << minTime << " |" << std::flush;
+            TIME_CPU( gaussianBlurHorizontal  , checkGaussianHorizontal )
+            TIME_GPU( cudaGaussianBlurVertical, checkGaussianVertical )
 
             if ( (unsigned) calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
             {
@@ -694,8 +673,16 @@ namespace algorithms
             {
                 std::cout << std::setw(8) << "-" << " |";
             }
+
             TIME_CPU( gaussianBlurVertical, checkGaussianVertical )
+            TIME_GPU( cudaGaussianBlurVertical, NOP )
+            TIME_CPU( gaussianBlurVertical, NOP )
+
             std::cout << std::endl;
+
+            #undef TIME_GPU
+            #undef TIME_CPU
+            #undef NOP
         }
     }
 
@@ -904,7 +891,7 @@ namespace algorithms
     void TestGaussian::testFourierConvolution( void )
     {
         using namespace imresh::io::writeOutFuncs;
-        using namespace imresh::libs;   // calcGaussianKernel2d
+        using namespace imresh::libs;   // calcGaussianKernel2d, gaussianBlur
 
         auto n = 256u;
         HostDeviceMemory<float> image( n*n ), kernel( n*n );
@@ -1074,6 +1061,7 @@ namespace algorithms
                 //<< "    stddev iy=0   : " << imresh::tests::stddev( kernel.cpu, n ) * n << " (should be sigma)\n"
                 << "from the analytically calculated transformed kernel" << std::endl;
         }
+
         #ifdef USE_FFTW
         {
             auto pKernelFt          = new fftwf_complex[ n*n ];
@@ -1192,15 +1180,30 @@ namespace algorithms
                 << "        max rel. error : " << maxRelErrIm   << "\n"
                 << "    calc sigma         : " << calcSigmaPred << "\n"
                 << "from the analytically calculated transformed kernel" << std::endl;
-    }
-    #endif
-    }
+        }
+        #endif
 
-    void TestGaussian::benchmarkFourierConvolution( void )
-    {
+        #ifdef USE_FFTW
+            /**
+             * Compare convolution blur, with direct blur
+             */
+            float * blurRaw = new float[ n*n ];
+            float * blurFft = new float[ n*n ];
 
+            memcpy( blurRaw, image.cpu, n*n*sizeof(float) );
+            memcpy( blurFft, image.cpu, n*n*sizeof(float) );
+
+            gaussianBlur   ( blurRaw, n,n, sigma );
+            gaussianBlur   ( blurFft, n,n, sigma );
+            //gaussianBlurFft( blurFft, n,n, sigma );
+
+            compareFloatArray( blurRaw, blurFft, n,n, sigma );
+            std::cout << "Check old blur function with FFT blur ... OK\n";
+
+            delete[] blurRaw;
+            delete[] blurFft;
+        #endif
     }
-
 
     TestGaussian::TestGaussian()
     {
@@ -1235,7 +1238,6 @@ namespace algorithms
         testGaussianConstantValues();
         benchmarkGaussianGeneralRandomValues();
         testFourierConvolution();
-        benchmarkFourierConvolution();
     }
 
 
