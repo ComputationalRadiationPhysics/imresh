@@ -40,6 +40,7 @@
 #ifdef USE_FFTW
 #   include <fftw3.h>
 #endif
+
 #include "algorithms/shrinkWrap.hpp"
 #include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "io/taskQueue.hpp"

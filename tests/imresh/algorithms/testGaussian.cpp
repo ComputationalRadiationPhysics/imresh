@@ -48,7 +48,7 @@
 #include "libs/gaussian.hpp"
 #include "libs/calcGaussianKernel.hpp"
 #include "libs/cudacommon.hpp"
-#include "benchmarkHelper.hpp"
+#include "benchmarkHelper.hpp"      // getLogSpacedSamplingPoints, mean, stddev
 #ifdef USE_PNG
 #   include "io/readInFuncs/readInFuncs.hpp"
 #   include "io/writeOutFuncs/writeOutFuncs.hpp"
@@ -64,12 +64,12 @@ namespace algorithms
 
     void TestGaussian::compareFloatArray
     (
-        float *      const pData  ,
-        float *      const pResult,
-        unsigned int const nCols  ,
-        unsigned int const nRows  ,
-        float        const sigma  ,
-        unsigned int const line
+        float const * const pData  ,
+        float const * const pResult,
+        unsigned int  const nCols  ,
+        unsigned int  const nRows  ,
+        float         const sigma  ,
+        unsigned int  const line
     )
     {
         const unsigned nElements = nCols * nRows;
@@ -901,7 +901,7 @@ namespace algorithms
     }
 #endif
 
-    void TestGaussian::benchmarkFourierConvolution( void )
+    void TestGaussian::testFourierConvolution( void )
     {
         using namespace imresh::io::writeOutFuncs;
         using namespace imresh::libs;   // calcGaussianKernel2d
@@ -946,6 +946,7 @@ namespace algorithms
         plotPng( image.cpu, n,n, "toBlur.png" );
 
         #ifdef USE_FFTW
+        {
             auto pImageFt  = new fftwf_complex[ n*n ];
             auto pKernelFt = new fftwf_complex[ n*n ];
 
@@ -1013,15 +1014,193 @@ namespace algorithms
                 image.cpu[i] = pImageFt[i][1];
             plotPng( image.cpu, n,n, "blurredImag.png" );
 
+            float maxReal = 0;
+            for ( auto i = 0u; i < n*n; ++i )
+                maxReal = std::max( maxReal, std::abs( pImageFt[i][0] ) );
+            std::cout << "max value of the blurred image is " << maxReal << "\n"
+                      << "max value of the original image was 1.0\n";
+
             delete[] pImageFt;
             delete[] pKernelFt;
+        }
         #endif
 
         //cufftHandle gpuFtPlan;
         //CUFFT_ERROR( cufftPlan2d( &gpuFtPlan, Ny /* nRows */, Nx /* nColumns */, CUFFT_C2C ) );
         //CUFFT_ERROR( cufftExecC2C( gpuFtPlan, dpData, dpResult, CUFFT_FORWARD ) );
         //writeOutPNG( image.cpu, n,n, "extendedKernelFt.png" );
+
+        /* Test if the converted Gaussian kernel is exactly as the theory
+         * predicts, because that could save one convolution when directly
+         * calculating the frequency space kernel */
+        float sigma = 10;
+        calcGaussianKernel2d( sigma, 0,0, kernel.cpu, n,n );
+        writeOutPNG( kernel.cpu, n,n, "extendedKernel.png" );
+        {
+            float maxValue = 0;
+            float minValue = INFINITY;
+            float sumKernel = 0;
+            for ( auto i = 0u; i < n*n; ++i )
+            {
+                minValue = std::min( minValue, kernel.cpu[i] );
+                maxValue = std::max( maxValue, kernel.cpu[i] );
+                sumKernel += kernel.cpu[i];
+            }
+            float calcSigma = 0;
+            float const gaussAtSigma = std::exp( - 1./2 ); // 0.60653
+            for ( auto i = 0u; i < n-1; ++i ) // only first row
+            {
+                if ( ( kernel.cpu[i  ] >= maxValue * gaussAtSigma ) &&
+                     ( kernel.cpu[i+1] <= maxValue * gaussAtSigma )   )
+                {
+                    /* interpolate where it actually is equal
+                     * c := maxValue * gaussAtSigma:
+                     * f(x) = ai + ( aip1 - ai ) / ( (i+1) - i ) * ( x - i )
+                     * f(x) != c => x = ( c - ai ) / ( aip1 - ai ) + i
+                     */
+                    calcSigma = ( maxValue * gaussAtSigma - kernel.cpu[i] ) /
+                                ( kernel.cpu[i+1] - kernel.cpu[i] ) + i;
+                    break;
+                }
+            }
+            std::cout
+                << "Statistics for the original Gaussian Kernel:\n"
+                << "    sigma         : " << sigma    << "\n"
+                << "    minimum value : " << minValue << "\n"
+                << "    maximum value : " << maxValue << "\n"
+                << "    1/(2*pi*s*s)  : " << 1.0/( 2.0 * M_PI * sigma * sigma ) << " (should be equal to maximum value)\n"
+                << "    total sum     : " << sumKernel << " (should be equal 1.0)\n"
+                << "    calc sigma    : " << calcSigma << " (should be sigma)\n"
+                //<< "    stddev iy=0   : " << imresh::tests::stddev( kernel.cpu, n ) * n << " (should be sigma)\n"
+                << "from the analytically calculated transformed kernel" << std::endl;
+        }
+        #ifdef USE_FFTW
+        {
+            auto pKernelFt          = new fftwf_complex[ n*n ];
+            auto pKernelFtPredicted = new fftwf_complex[ n*n ];
+            for ( auto i = 0u; i < n*n; ++i )
+            {
+                pKernelFt[i][0] = n * kernel.cpu[i];
+                pKernelFt[i][1] = 0;
+            }
+            auto cpuFtPlan = fftwf_plan_dft_2d( n, n, pKernelFt, pKernelFt,
+                                                FFTW_FORWARD, FFTW_ESTIMATE );
+            fftwf_execute( cpuFtPlan );
+            plotPng( pKernelFt, n,n, "NonTranslatedKernelFtSwapped.png",
+                     true, true, 2 );
+
+            /**
+             * Calculate using analytical formula for mu=0:
+             * f(kx,ky) = 1/sqrt(2*pi) * exp[ -(kx^2+ky^2)*sigma^2 ]
+             */
+            calcGaussianKernel2d( 1.*sqrt(n)/sigma, 0,0, kernel.cpu, n,n );
+            for ( auto i = 0u; i < n*n; ++i )
+            {
+                pKernelFtPredicted[i][0] = n * sigma * kernel.cpu[i];
+                pKernelFtPredicted[i][1] = 0;
+            }
+                //pKernelFtPredicted[iy*n+ix][0] = 1./std::sqrt(2.*M_PI) *
+                 //                                std::exp( -(iy*iy+ix*ix)/(sigma*sigma) );
+            plotPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredicted.png",
+                     false, false, 2 );
+            plotPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredictedSwapped.png",
+                     true, true, 2 );
+
+            /* Calculate deviation */
+            float
+                maxAbsErrRe = 0, maxAbsRe = 0, maxRelErrRe = 0,
+                maxAbsErrIm = 0, maxAbsIm = 0, maxRelErrIm = 0,
+                maxAbsReOrig = 0, minAbsReOrig = INFINITY,
+                maxAbsRePred = 0, minAbsRePred = INFINITY,
+                maxReOrig    = 0, minReOrig    = INFINITY,
+                maxRePred    = 0, minRePred    = INFINITY,
+                sumOrig = 0, sumPred = 0;
+            for ( auto i = 0u; i < n*n; ++i )
+            {
+                maxAbsReOrig = std::max( maxAbsReOrig, std::abs( pKernelFt         [i][0] ) );
+                maxAbsRePred = std::max( maxAbsRePred, std::abs( pKernelFtPredicted[i][0] ) );
+
+                minAbsReOrig = std::min( minAbsReOrig, std::abs( pKernelFt         [i][0] ) );
+                minAbsRePred = std::min( minAbsRePred, std::abs( pKernelFtPredicted[i][0] ) );
+
+                maxReOrig = std::max( maxReOrig, pKernelFt         [i][0] );
+                maxRePred = std::max( maxRePred, pKernelFtPredicted[i][0] );
+
+                minReOrig = std::min( minReOrig, pKernelFt         [i][0] );
+                minRePred = std::min( minRePred, pKernelFtPredicted[i][0] );
+
+                sumOrig += pKernelFt         [i][0];
+                sumPred += pKernelFtPredicted[i][0];
+
+                float const maxValRe = std::max(
+                    std::abs( pKernelFtPredicted[i][0] ),
+                    std::abs( pKernelFt         [i][0] )
+                );
+                float const maxValIm = std::max(
+                    std::abs( pKernelFtPredicted[i][1] ),
+                    std::abs( pKernelFt         [i][1] )
+                );
+                maxAbsRe = std::max( maxAbsRe, maxValRe );
+                maxAbsIm = std::max( maxAbsIm, maxValIm );
+
+                pKernelFtPredicted[i][0] -= pKernelFt[i][0];
+                pKernelFtPredicted[i][1] -= pKernelFt[i][1];
+
+                maxAbsErrRe = std::max( maxAbsErrRe, std::abs( pKernelFtPredicted[i][0] ) );
+                maxAbsErrIm = std::max( maxAbsErrIm, std::abs( pKernelFtPredicted[i][1] ) );
+                maxRelErrRe = std::max( maxRelErrRe,
+                                        std::abs( pKernelFtPredicted[i][0] ) / maxValRe );
+                maxRelErrIm = std::max( maxRelErrIm,
+                                        std::abs( pKernelFtPredicted[i][1] ) / maxValIm );
+            }
+            float calcSigmaPred = 0;
+            float const gaussAtSigma = std::exp( - 1./2 ); // 0.60653
+            for ( auto i = 0u; i < n-1; ++i ) // only first row
+            {
+                auto const ai  = pKernelFt[i  ][0];
+                auto const ai1 = pKernelFt[i+1][0];
+                std::cout << ai << " ";
+                if ( ( ai  >= maxAbsRePred * gaussAtSigma ) &&
+                     ( ai1 <= maxAbsRePred * gaussAtSigma )   )
+                {
+                    /* interpolate where it actually is equal
+                     * c := maxValue * gaussAtSigma:
+                     * f(x) = ai + ( aip1 - ai ) / ( (i+1) - i ) * ( x - i )
+                     * f(x) != c => x = ( c - ai ) / ( aip1 - ai ) + i
+                     */
+                    calcSigmaPred = ( maxAbsRePred * gaussAtSigma - ai ) / ( ai1 - ai ) + i;
+                    std::cout << ai1 << " (sought for: " << maxAbsRePred * gaussAtSigma << ")" << std::endl;
+                    break;
+                }
+            }
+            plotPng( pKernelFtPredicted, n,n, "NonTranslatedFtPredictedDeviationSwapped.png",
+                     true, true, 2 );
+            std::cout
+                << "The transformed Gaussian Kernel deviates:\n"
+                << "    Re: abs. diff.     : " << maxAbsErrRe   << "\n"
+                << "        min abs.orig.  : " << minAbsReOrig  << "\n"
+                << "        max abs.orig.  : " << maxAbsReOrig  << "\n"
+                << "        min abs.pred.  : " << minAbsRePred  << "\n"
+                << "        max abs.pred.  : " << maxAbsRePred  << "\n"
+                << "        min     orig.  : " << minReOrig     << "\n"
+                << "        max     orig.  : " << maxReOrig     << "\n"
+                << "        min     pred.  : " << minRePred     << "\n"
+                << "        max     pred.  : " << maxRePred     << "\n"
+                << "        max rel. error : " << maxRelErrRe   << "\n"
+                << "    Im: abs. diff.     : " << maxAbsErrIm   << "\n"
+                << "        max abs.       : " << maxAbsIm      << "\n"
+                << "        max rel. error : " << maxRelErrIm   << "\n"
+                << "    calc sigma         : " << calcSigmaPred << "\n"
+                << "from the analytically calculated transformed kernel" << std::endl;
     }
+    #endif
+    }
+
+    void TestGaussian::benchmarkFourierConvolution( void )
+    {
+
+    }
+
 
     TestGaussian::TestGaussian()
     {
@@ -1055,7 +1234,8 @@ namespace algorithms
         testGaussianConstantValuesPerRowLine();
         testGaussianConstantValues();
         benchmarkGaussianGeneralRandomValues();
-        benchmarkGaussianGeneralRandomValues();
+        testFourierConvolution();
+        benchmarkFourierConvolution();
     }
 
 

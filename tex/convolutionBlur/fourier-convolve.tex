@@ -13,6 +13,14 @@
 
 \begin{document}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Gaussian Kernel in Frequency Space}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Fourier Transform}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 Let's look at what the fourier transform of the Gaussian kernel results to:
 
 \begin{align}
@@ -54,7 +62,8 @@ Let's look at what the fourier transform of the Gaussian kernel results to:
     = & \sigma e^{ \pm \mathrm{i} \mu k \sigma^2  } G\left( \sigma x \right)
 \end{align}
 
-Or by using some basic transformation rules for the fourier transform:
+This can be done more abstract by using some Fourier transform rules.
+First we proof the fixpoint of the Fourier transform:
 
 \begin{align}
 G(x) := & \frac{1}{\sqrt{2\pi}} e^{ -\frac{ x^2 }{2} } \\
@@ -71,17 +80,41 @@ g(k) := & \mathcal{F}\left[ G \right]
         e^{ - \frac{1}{2} \left( x - \mathrm{i} k \right)^2 } \mathrm{d}x \\
     = & \frac{1}{2\pi} e^{ - \frac{ k^2 }{2} } \sqrt{2\pi}
     =   \frac{1}{ \sqrt{2\pi} } e^{ - \frac{ k^2 }{2} }
-    =   G(k) \\
-\mathcal{F}\left[G\left( \frac{x-\mu}{\sigma} \right) \right]
-    = & \sigma \mathcal{F}\left[G\left( x-\mu \right)\right]\left( \sigma x' \right) \\
-    = & \mathcal{F} \left[G\left( \frac{x-\mu}{\sigma} \right) \right]
-    =   \sigma e^{ -\mathrm{i} \mu k \sigma^2 } g\left( \sigma x \right) \\
+    =   G(k)
+\end{align}
+By expressing $\tilde{G}$ using the fixpoint function $G$ we can show how $\tilde{G}$ transforms,
+Note that for brevity it looks like $\mathcal{F}$ is applied on a function value instead of a function, but let's just say, that e.g. $\mathcal{F}\left[f(x)\right]$ actually means $\mathcal{F}\left[f\right]$.
+The mathematical way would be to define functionals (in physics operators) which translate or scale the argument of a function, see also $T_a$ below.
+\begin{align}
+    \tilde{G}(k) = & \frac{1}{\sigma} G\left( \frac{x-\mu}{\sigma} \right) \\
+    \Rightarrow &
+        \mathcal{F}\left[
+            \frac{1}{\sigma} G\left( \frac{x-\mu}{\sigma} \right)
+        \right]\left( x \right) \\
+    = & \frac{1}{\sigma} \sigma \mathcal{F}\left[
+            G\left( x-\mu \right) \right]( \sigma k ) \\
+    = & e^{ - \mathrm{i} \mu k \sigma^2  }
+        \mathcal{F} \left[G \right](\sigma k) \\
+    = & e^{ -\mathrm{i} \mu k \sigma^2 } G( \sigma k ) \\
     = & \frac{1}{ \sqrt{2\pi} }
-        e^{ \pm \mathrm{i} \mu k \sigma^2  }
+        e^{ - \mathrm{i} \mu k \sigma^2  }
         e^{ -\frac{ k^2\sigma^2 }{ 2 } }
 \end{align}
 
-Period shifts of the kernel do not influece the convoluted result:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Discrete Fourier Transform}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+In order to save computation time FFTW doesn't use scaling factors, meaning $\mathcal{F}^{-1}[\mathcal{F}[g]] = N_x N_y g$ where $N_x$ and $N_y$ are the number of pixels or values of the 2D array.
+
+The results from the section above for the continous Fourier transform can't be applied to the discrete transform, because scaling the argument behaves differently and the DFT also has a different eigenvector which is not a discrete Gaussian.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Correct Position of the Kernel}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Let's look what a periodic shift of the kernel will do to the convoluted result.
 Let $\mathbb{K}$ be $\mathbb{C}$ or $\mathbb{R}$.
 %and $L^2\left( \mathbb{K}^2 \right)$ be the space of all Lebesgue-integrable functions on $\mathbb{K}^2$, then:
 \begin{align}
@@ -108,7 +141,7 @@ Then the translation rule for the Fourier transform can be written as:
     \,\mathrm{d}x \\
  = & \frac{1}{ \sqrt{2\pi} } e^{-\mathrm{i} k a} \mathcal{F}\left[ f \right]
 \end{align}
-Here we define the function (not a functional) $\tilde{T}_a(k)$ which shifts in real space $x$ when multiplied with a function in frequency-space $k$:
+Here we define the function (not a functional) $\tilde{T}_a(k)$ which shifts in real space $x$ when multiplied with a function in frequency-space $k$.
 \begin{align}
     \tilde{T}_a(k) := & \frac{1}{ \sqrt{2\pi} } e^{-\mathrm{i} k a} \\
     \mathcal{F}\left[ \tilde{T}_a \right](x)
@@ -119,7 +152,7 @@ Here we define the function (not a functional) $\tilde{T}_a(k)$ which shifts in 
     =   \delta\left( x+a \right) \\
 \end{align}
 Function are to be equal if $\forall x: f(x) = g(x)$.
-With this we can take a closer look at shifted kernels $G$:
+With this we can take a closer look at shifted kernels $G$.
 \begin{align}
     f \ast T_a[G]
     = & \mathcal{F}^{-1}\left[

@@ -41,14 +41,19 @@ namespace algorithms
         TestGaussian();
         ~TestGaussian();
 
+        /**
+         * Compares the data in pData with pResult.
+         * nCols, nRows, sigma and line are only needed for debugging output
+         * For comparing only pData, pResult and nCols*nRows are actually used.
+         */
         static void compareFloatArray
         (
-            float * pData,
-            float * pResult,
-            unsigned int nCols,
-            unsigned int nRows,
-            float sigma,
-            unsigned line = 0
+            float const * const pData  ,
+            float const * const pResult,
+            unsigned int  const nCols  ,
+            unsigned int  const nRows  ,
+            float         const sigma = -1,
+            unsigned int  const line  = 0
         );
 
         /**
@@ -147,7 +152,8 @@ namespace algorithms
         void testGaussianConstantValuesPerRowLine( void );
         void testGaussianConstantValues          ( void );
         void benchmarkGaussianGeneralRandomValues( void );
-        void benchmarkFourierConvolution         ( void );
+        static void testFourierConvolution       ( void );
+        static void benchmarkFourierConvolution  ( void );
         /* calls all tests */
         void operator()( void );
 
