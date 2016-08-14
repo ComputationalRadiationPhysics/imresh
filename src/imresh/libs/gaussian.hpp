@@ -62,11 +62,11 @@ namespace libs
     template<class T_PREC>
     void applyKernel
     (
-        T_PREC * const rData,
-        unsigned int const rnData,
-        const T_PREC * const rWeights,
-        unsigned int const rnWeights,
-        unsigned int const rnThreads = 128
+        T_PREC *       const rData    ,
+        unsigned int   const rnData   ,
+        const T_PREC * const rWeights ,
+        unsigned int   const rnWeights,
+        unsigned int   const rnThreads = 128
     );
 
     /**
@@ -81,9 +81,9 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const rData,
+        T_PREC *     const rData ,
         unsigned int const rnData,
-        double const rSigma
+        double       const rSigma
     );
 
     /**
@@ -109,39 +109,48 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const rData,
+        T_PREC *     const rData  ,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
-        double const rSigma
+        double       const rSigma
     );
 
 
     template<class T_PREC>
     void gaussianBlurHorizontal
     (
-        T_PREC * const rData,
+        T_PREC *     const rData  ,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
-        double const rSigma
+        double       const rSigma
     );
 
 
     template<class T_PREC>
     void gaussianBlurVertical
     (
-        T_PREC * const rData,
+        T_PREC *     const rData  ,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
-        double const rSigma
+        double       const rSigma
     );
 
     template<class T_PREC>
     void gaussianBlurVerticalUncached
     (
-        T_PREC * const rData,
+        T_PREC *     const rData  ,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
-        double const rSigma
+        double       const rSigma
+    );
+
+    template<class T_PREC>
+    void gaussianBlurFft
+    (
+        T_PREC *     const rData  ,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double       const rSigma
     );
 
 
