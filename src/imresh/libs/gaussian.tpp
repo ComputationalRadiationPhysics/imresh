@@ -41,6 +41,9 @@
 #endif
 
 #include "calcGaussianKernel.hpp"
+#ifdef USE_PNG
+#   include "io/writeOutFuncs/writeOutFuncs.hpp"
+#endif
 
 
 namespace imresh
@@ -753,17 +756,127 @@ namespace libs
     }
 
 
-    template<class T_PREC>
+    template<class T_Prec>
     void gaussianBlurFft
     (
-        T_PREC *     const rData  ,
+        T_Prec *     const rData  ,
         unsigned int const rnDataX,
         unsigned int const rnDataY,
         double       const rSigma
     )
     {
         #ifdef USE_FFTW
-            //
+            auto const nPadding = calcGaussianKernel2d( rSigma, 0,0, (float*) NULL, 0, 0 );
+
+            /* The image needs to be padded by some pixels so that the blur
+             * doesn't use periodic values.
+             * The padding needs to be roughly half the size of the support
+             * of th kernel, where the support is defined as "numerically
+             * non-zero" e.g. if x > 0.01
+             * Actually calcGaussianKernel2d returns the support size, so that
+             * only half of the returned value needs to be used as padding, but
+             * the condition is very lax (1/255), so the extended padding is
+             * for safety
+             */
+            auto const nElements = ( rnDataX + 2*nPadding ) * ( rnDataY + 2*nPadding );
+            auto pKernel   = new T_Prec       [ nElements ];
+            auto pKernelFt = new fftwf_complex[ nElements ];
+            auto pImageFt  = new fftwf_complex[ nElements ];
+
+            calcGaussianKernel2d( rSigma, 0,0, pKernel,
+                                  rnDataX + 2*nPadding,
+                                  rnDataY + 2*nPadding );
+
+            /* @todo this copy step from float-array to fftwf_complex array
+             *       could somehow be avoided by adjusting calcGaussianKernel2d
+             * @todo some performance could also be achieved by using R2C and
+             *       C2R transformations isntead of C2C, but that would make
+             *       it necessary to check if the multiplication still works,...
+             */
+
+            for ( auto iy = 0u; iy < rnDataY + 2*nPadding; ++iy )
+            for ( auto ix = 0u; ix < rnDataX + 2*nPadding; ++ix )
+            {
+                auto i = iy * ( rnDataX + 2*nPadding ) + ix;
+                auto j = std::max( 0, std::min( (int) rnDataY-1, (int) iy - nPadding ) ) * rnDataX +
+                         std::max( 0, std::min( (int) rnDataX-1, (int) ix - nPadding ) );
+                assert( i < nElements );
+                assert( j < rnDataX * rnDataY );
+                pImageFt[i][0] = rData[j];
+                pImageFt[i][1] = 0;
+            }
+
+            for ( auto i = 0u; i < nElements; ++i )
+            {
+                pKernelFt[i][0] = pKernel[i] / nElements; // <- /n because FFTW has no scaling factor
+                pKernelFt[i][1] = 0;
+            }
+
+            #if defined( USE_PNG ) && ( DEBUG_GAUSSIAN_CPP == 3 )
+                using namespace imresh::io::writeOutFuncs;
+                plotPng       ( pKernel , rnDataX + 2*nPadding, rnDataY + 2*nPadding, "kernel.png" );
+                plotComplexPng( pImageFt, rnDataX + 2*nPadding, rnDataY + 2*nPadding, "paddedImage.png" );
+            #endif
+
+            {
+                auto cpuFtPlan = fftwf_plan_dft_2d( rnDataX + 2*nPadding,
+                                                    rnDataY + 2*nPadding,
+                                                    pImageFt, pImageFt,
+                                                    FFTW_FORWARD, FFTW_ESTIMATE );
+                fftwf_execute( cpuFtPlan );
+            }
+            {
+                auto cpuFtPlan = fftwf_plan_dft_2d( rnDataX + 2*nPadding,
+                                                    rnDataY + 2*nPadding,
+                                                    pKernelFt, pKernelFt,
+                                                    FFTW_FORWARD, FFTW_ESTIMATE );
+                fftwf_execute( cpuFtPlan );
+            }
+
+            #if defined( USE_PNG ) && ( DEBUG_GAUSSIAN_CPP == 3 )
+                using namespace imresh::io::writeOutFuncs;
+                plotComplexPng( pKernelFt, rnDataX + 2*nPadding, rnDataY + 2*nPadding, "kernelFt.png" );
+                plotComplexPng( pImageFt , rnDataX + 2*nPadding, rnDataY + 2*nPadding, "paddedImageFt.png" );
+            #endif
+
+            /* Multiply in frequency space */
+            for ( auto i = 0u; i < nElements; ++i )
+            {
+                /* (a+ib)*(c+id) = ac-bd + i(ad+bc) */
+                float const /* not ref! */
+                    a = pImageFt[i][0], c = pKernelFt[i][0],
+                    b = pImageFt[i][1], d = pKernelFt[i][1];
+                pImageFt[i][0] = a*c - b*d;
+                pImageFt[i][1] = a*d + b*c;
+            }
+
+            #if defined( USE_PNG ) && ( DEBUG_GAUSSIAN_CPP == 3 )
+                using namespace imresh::io::writeOutFuncs;
+                plotComplexPng( pImageFt, rnDataX + 2*nPadding, rnDataY + 2*nPadding, "gaussian.tpp-multiplied.png" );
+            #endif
+
+            {
+                auto cpuFtPlan = fftwf_plan_dft_2d( rnDataX + 2*nPadding,
+                                                    rnDataY + 2*nPadding,
+                                                    pImageFt, pImageFt,
+                                                    FFTW_BACKWARD, FFTW_ESTIMATE );
+                fftwf_execute( cpuFtPlan );
+            }
+
+            /* Copy padded complex array back to real array */
+            for ( auto iy = 0u; iy < rnDataY; ++iy )
+            for ( auto ix = 0u; ix < rnDataX; ++ix )
+            {
+                auto const j = iy * rnDataX + ix;
+                auto const i = ( nPadding + iy ) * ( rnDataX + 2*nPadding ) +
+                               ( nPadding + ix );
+                assert( i < nElements );
+                assert( j < rnDataX * rnDataY );
+                rData[j] = pImageFt[i][0];
+            }
+
+            delete[] pKernelFt;
+            delete[] pKernel;
         #else
             assert( false && "gaussianBlurFft can only be used if compiled with USE_FFTW CMake option." );
         #endif
