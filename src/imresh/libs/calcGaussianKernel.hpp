@@ -97,9 +97,11 @@ namespace libs
     /**
      * Same as calcGaussianKernel, but creates 2D kernel of arbirtrary
      * size by padding it with zeros.
+     *
+     * For use as a Gaussian Blur Kernel rCenterX and rCenterY should be 0.
      */
     template<class T_Prec>
-    void calcGaussianKernel2d
+    int calcGaussianKernel2d
     (
         double       const rSigma    ,
         unsigned int const rCenterX  ,

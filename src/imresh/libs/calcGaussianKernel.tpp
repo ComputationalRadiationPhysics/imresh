@@ -95,14 +95,8 @@ namespace libs
     }
 
 
-    /**
-     * Same as calcGaussianKernel, but creates 2D kernel of arbirtrary
-     * size by padding it with zeros.
-     *
-     * For use as a Gaussian Blur Kernel rCenterX and rCenterY should be 0.
-     */
     template<class T_Prec>
-    void calcGaussianKernel2d
+    int calcGaussianKernel2d
     (
         double       const rSigma    ,
         unsigned int const rCenterX  ,
@@ -117,7 +111,12 @@ namespace libs
         assert( rnWeightsY >= 0 );
         assert( rCenterX <= rnWeightsX );
         assert( rCenterY <= rnWeightsY );
-        assert( rWeights != NULL );
+
+        int const nNeighbors = ceil( 2.884402748387961466 * rSigma - 0.5 );
+        int const nWeights   = 2*nNeighbors + 1;
+        assert( nWeights > 0 );
+        if ( rWeights == NULL )
+            return nWeights;
 
         auto const sigmaX = rSigma;
         auto const sigmaY = rSigma;
@@ -173,6 +172,8 @@ namespace libs
 
         for ( auto i = 0u; i <= rnWeightsX * rnWeightsY; ++i )
             rWeights[i] /= sumWeightings;
+
+        return nWeights;
     }
 
 

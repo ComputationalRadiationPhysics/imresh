@@ -45,7 +45,7 @@ namespace libs
         double       const rMinAbsoluteError    \
     );                                          \
                                                 \
-    template void calcGaussianKernel2d<T_Prec>  \
+    template int calcGaussianKernel2d<T_Prec>   \
     (                                           \
         double       const rSigma    ,          \
         unsigned int const rCenterX  ,          \
