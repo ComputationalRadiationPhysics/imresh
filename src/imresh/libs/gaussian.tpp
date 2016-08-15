@@ -55,6 +55,9 @@ namespace libs
     #define DEBUG_GAUSSIAN_CPP 0
 
 
+    int const gnKernelElements = 256;
+
+
     template<class T_Prec>
     void applyKernel
     (
@@ -177,11 +180,11 @@ namespace libs
         double       const rSigma
     )
     {
-        constexpr int nKernelElements = 64;
-        T_Prec pKernel[nKernelElements];
-        const int kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
+        auto pKernel = new T_Prec[gnKernelElements];
+        const int kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, gnKernelElements );
+        assert( kernelSize <= gnKernelElements );
         applyKernel( rData, rnData, (T_Prec*) pKernel, kernelSize );
+        delete[] pKernel;
     }
 
     template<class T_Prec>
@@ -193,14 +196,14 @@ namespace libs
         double       const rSigma
     )
     {
-        const int nKernelElements = 64;
-        T_Prec pKernel[64];
-        const int kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
-
+        auto pKernel = new T_Prec[ gnKernelElements ];
+        const int kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, gnKernelElements );
+        assert( kernelSize <= gnKernelElements );
 
         for ( T_Prec * curRow = rData; curRow < &rData[rnDataX*rnDataY]; curRow += rnDataX )
             applyKernel( curRow, rnDataX, (T_Prec*) pKernel, kernelSize );
+
+        delete[] pKernel;
     }
 
     template<class T_Prec>
@@ -213,10 +216,9 @@ namespace libs
     )
     {
         /* calculate Gaussian kernel */
-        const unsigned nKernelElements = 64;
-        T_Prec pKernel[64];
-        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, nKernelElements );
-        assert( kernelSize <= nKernelElements );
+        auto pKernel = new T_Prec[ gnKernelElements ];
+        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, gnKernelElements );
+        assert( kernelSize <= gnKernelElements );
         assert( kernelSize % 2 == 1 );
         const unsigned nKernelHalf = (kernelSize-1)/2;
 
@@ -459,6 +461,7 @@ namespace libs
         }
 
         delete[] buffer;
+        delete[] pKernel;
     }
 
     inline int min( const int & a, const int & b )
@@ -573,10 +576,9 @@ namespace libs
     )
     {
         /* calculate Gaussian kernel */
-        const unsigned nKernelElements = 64;
-        T_Prec pKernel[64];
-        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, nKernelElements );
-            assert( kernelSize <= nKernelElements );
+        auto pKernel = new T_Prec[ gnKernelElements ];
+        const unsigned kernelSize = calcGaussianKernel( rSigma, (T_Prec*) pKernel, gnKernelElements );
+            assert( kernelSize <= gnKernelElements );
             assert( kernelSize % 2 == 1 );
         const unsigned nKernelHalf = (kernelSize-1)/2;
 
@@ -738,6 +740,7 @@ namespace libs
         }
 
         delete[] pBuffer;
+        delete[] pKernel;
     }
 
 

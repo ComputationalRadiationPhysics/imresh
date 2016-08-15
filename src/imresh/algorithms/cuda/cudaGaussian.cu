@@ -95,7 +95,7 @@ namespace cuda
          *   size for that is 19 elements. Meaning a value of 32 should be ok
          *   for most purposes and also would be aligned relatively well.
          **/
-        static constexpr unsigned mMaxKernelSize = 32;
+        static constexpr unsigned mMaxKernelSize = 256;
 
         struct DeviceGaussianKernels
         {

@@ -56,6 +56,8 @@
 #   include <complex>
 #endif
 
+#define DEBUG_TESTGAUSSIAN 0
+
 
 namespace imresh
 {
@@ -162,10 +164,34 @@ namespace algorithms
         unsigned int  const nStride
     )
     {
-        assert( vectorMin( pOriginal, nElements, nStride )
-             <= vectorMin( pResult  , nElements, nStride ) );
-        assert( vectorMax( pOriginal, nElements, nStride )
-             >= vectorMax( pResult  , nElements, nStride ) );
+        bool const blurredMinIsLarger =
+            vectorMin( pOriginal, nElements, nStride ) <=
+            vectorMin( pResult  , nElements, nStride ) * ( 1. + 10 * FLT_EPSILON );
+        if ( ! blurredMinIsLarger )
+        {
+            std::cout
+            << "Minimum Original: "
+            << vectorMin( pOriginal, nElements, nStride )
+            << " should be smaller equal than blurred: "
+            << vectorMin( pResult  , nElements, nStride )
+            << std::endl;
+        }
+        assert( blurredMinIsLarger );
+
+        bool const blurredMaxIsSmaller =
+            vectorMax( pOriginal, nElements, nStride ) >=
+            vectorMax( pResult  , nElements, nStride ) * ( 1. - 10 * FLT_EPSILON );
+        if ( ! blurredMaxIsSmaller )
+        {
+            std::cout
+            << "Maximum Original: "
+            << vectorMax( pOriginal, nElements, nStride )
+            << " should be larger equal than blurred: "
+            << vectorMax( pResult  , nElements, nStride )
+            << std::endl;
+        }
+        assert( blurredMaxIsSmaller );
+
         assert( vectorMaxAbsDiff( pResult  , pResult  +nStride, nElements-1, nStride )
              <= vectorMaxAbsDiff( pOriginal, pOriginal+nStride, nElements-1, nStride ) );
     }
@@ -606,7 +632,7 @@ namespace algorithms
             << std::endl;
         using namespace imresh::tests;
         //for ( auto sigma : std::vector<float>{ 1.5,2,3 } )
-        for ( auto sigma : std::vector<float>{ 3 } )
+        for ( auto sigma : std::vector<float>{ 30, 3, 10, 20 } )
         for ( auto nElements : getLogSpacedSamplingPoints( 2, nMaxElements, 20 ) )
         {
             const unsigned nCols = floor(sqrt( nElements ));
@@ -643,7 +669,7 @@ namespace algorithms
 
             #define NOP( ... )
 
-            #define TIME_CPU( FUNC, CHECK )                               \
+            #define TIME_CPU( FUNC, CHECK1, CHECK2 )                      \
             minTime = FLT_MAX;                                            \
             for ( unsigned iRepetition = 0; iRepetition < nRepetitions;   \
                   ++iRepetition )                                         \
@@ -657,30 +683,32 @@ namespace algorithms
                                     clock1 - clock0 );                    \
                 minTime = fmin( minTime, seconds.count() * 1000 );        \
                                                                           \
-                CHECK( pResultCpu, pData, nCols, nRows );                 \
-                compareFloatArray( pResultCpu, pResult, nCols, nRows,     \
-                                   sigma, __LINE__ );                     \
+                CHECK1( pResultCpu, pData  , nCols, nRows );              \
+                CHECK2( pResultCpu, pResult, nCols, nRows,                \
+                        sigma, __LINE__ );                                \
             }                                                             \
             std::cout << std::setw(8) << minTime << " |" << std::flush;
 
             TIME_GPU( cudaGaussianBlurHorizontalConstantWeights, checkGaussianHorizontal )
             TIME_GPU( cudaGaussianBlurHorizontalSharedWeights  , checkGaussianHorizontal )
 
-            TIME_CPU( gaussianBlurHorizontal  , checkGaussianHorizontal )
+            TIME_CPU( gaussianBlurHorizontal  , checkGaussianHorizontal, compareFloatArray )
             TIME_GPU( cudaGaussianBlurVertical, checkGaussianVertical )
 
             if ( (unsigned) calcGaussianKernel( sigma, (float*)NULL, 0 )/2 < nRows )
             {
-                TIME_CPU( gaussianBlurVerticalUncached, checkGaussianVertical )
+                TIME_CPU( gaussianBlurVerticalUncached, checkGaussianVertical, compareFloatArray )
             }
             else
             {
                 std::cout << std::setw(8) << "-" << " |";
             }
 
-            TIME_CPU( gaussianBlurVertical, checkGaussianVertical )
+            TIME_CPU( gaussianBlurVertical, checkGaussianVertical, compareFloatArray )
             TIME_GPU( cudaGaussianBlurVertical, NOP )
-            TIME_CPU( gaussianBlurVertical, NOP )
+            TIME_CPU( gaussianBlurVertical, NOP, NOP )
+            // TIME_GPU( cudaGaussianBlurFft, NOP )
+            TIME_CPU( gaussianBlurFft, NOP, NOP )
 
             std::cout << std::endl;
 
@@ -1006,7 +1034,7 @@ namespace algorithms
             gaussianBlur   ( blurRaw, n,n, sigma );
             gaussianBlurFft( blurFft, n,n, sigma );
 
-            #ifdef USE_PNG
+            #if defined( USE_PNG ) && ( DEBUG_TESTGAUSSIAN == 2 )
                 plotPng( blurRaw, n,n, "blurRaw.png" );
                 plotPng( blurFft, n,n, "blurFft.png" );
 

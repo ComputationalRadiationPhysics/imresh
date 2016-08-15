@@ -40,7 +40,7 @@
 
 
 /* constant memory declaration doesn't work inside namespaces */
-constexpr unsigned nMaxWeights = 50; // need to assert whether this is enough
+constexpr unsigned nMaxWeights = 256; // need to assert whether this is enough
 constexpr unsigned nMaxKernels = 20; // ibid
 __constant__ float gdpGaussianWeights[ nMaxWeights*nMaxKernels ];
 
