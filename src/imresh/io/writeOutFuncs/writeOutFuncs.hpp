@@ -27,6 +27,9 @@
 
 #include <string>               // std::string
 #include <utility>              // std::pair
+#ifdef USE_FFTW
+#   include <fftw3.h>           // fftwf_complex
+#endif
 
 
 namespace imresh
@@ -110,6 +113,60 @@ namespace writeOutFuncs
             std::string const fileName
         );
 #   endif
+
+
+#ifdef USE_PNG
+    template< typename T_Prec >
+    void plotPng
+    (
+        T_Prec *     const rMem,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
+        std::string  const rFileName
+    );
+#endif
+
+    void hsvToRgb
+    (
+        float   const hue       ,
+        float   const saturation,
+        float   const value     ,
+        float * const red       ,
+        float * const green     ,
+        float * const blue
+    );
+
+    void hslToRgb
+    (
+        float   const hue       ,
+        float   const saturation,
+        float   const luminosity,
+        float * const red       ,
+        float * const green     ,
+        float * const blue
+    );
+
+#if defined( USE_PNG ) && defined( USE_FFTW )
+    /**
+     * @param[in] swapQuadrants true: rows and columns will be shifted by half
+     *            width thereby centering the shortest wavelengths instead of
+     *            those being at the corners
+     * @param[in] colorFunction 1:HSL (H=arg(z), S=1, L=|z|)
+     *                          2:HSV
+     *                          3:
+     */
+    template< typename T_Complex>
+    void plotComplexPng
+    (
+        T_Complex *     const values   ,
+        unsigned int    const nValuesX ,
+        unsigned int    const nValuesY ,
+        std::string     const rFileName,
+        bool            const logPlot       = false,
+        bool            const swapQuadrants = false,
+        unsigned int    const upsize        = 1
+    );
+#endif
 
 
 } // namespace writeOutFuncs

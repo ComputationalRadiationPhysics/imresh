@@ -69,7 +69,9 @@ namespace algorithms
         unsigned int  const nCols  ,
         unsigned int  const nRows  ,
         float         const sigma  ,
-        unsigned int  const line
+        unsigned int  const line   ,
+        float         const margin ,
+        bool          const print
     )
     {
         const unsigned nElements = nCols * nRows;
@@ -78,8 +80,10 @@ namespace algorithms
         maxValue = fmax( maxValue, vectorMaxAbs( pResult, nElements ) );
         if ( maxValue == 0 )
             maxValue = 1;
-        const bool errorMarginOk = maxError / maxValue <= FLT_EPSILON * maxKernelWidth;
-        if ( not errorMarginOk )
+        const bool errorMarginOk = margin > 0
+                                   ? maxError / maxValue <= margin
+                                   : maxError / maxValue <= FLT_EPSILON * maxKernelWidth;
+        if ( not errorMarginOk && print )
         {
             std::cout << "Max Error for " << nCols << " columns " << nRows
                       << " rows at sigma=" << sigma << ": " << maxError / maxValue << "\n";
@@ -686,208 +690,6 @@ namespace algorithms
         }
     }
 
-#ifdef USE_PNG
-    void plotPng
-    (
-        float *      const rMem,
-        unsigned int const rImageWidth,
-        unsigned int const rImageHeight,
-        std::string  const rFileName
-    )
-    {
-        pngwriter png( rImageWidth, rImageHeight, 0, rFileName.c_str( ) );
-
-        float max = algorithms::vectorMax( rMem,
-                                    rImageWidth * rImageHeight );
-        /* avoid NaN in border case where all values are 0 */
-        if ( max == 0 )
-            max = 1;
-        for( unsigned int iy = 0; iy < rImageHeight; ++iy )
-        for( unsigned int ix = 0; ix < rImageWidth; ++ix )
-        {
-            auto const index = iy * rImageWidth + ix;
-            assert( index < rImageWidth * rImageHeight );
-            auto const value = rMem[index] / max;
-            int intToPlot = int( value*65535 + 0.5f );
-            png.plot( 1+ix, 1+iy, intToPlot, intToPlot, intToPlot );
-        }
-        png.close( );
-    }
-#endif
-
-#if defined( USE_PNG ) && defined( USE_FFTW )
-    void hsvToRgb
-    (
-        float   const hue       ,
-        float   const saturation,
-        float   const value     ,
-        float * const red       ,
-        float * const green     ,
-        float * const blue
-    )
-    {
-        /**
-         * This is the trapeze function of the green channel. The other channel
-         * functions can be derived by calling this function with a shift.
-         **/
-        struct { float operator()( float rHue, float rSat, float rVal )
-                 {
-                     /* rHue will be in [0,6]. Note that fmod(-5.1,3.0) = -2.1 */
-                     rHue = fmod( rHue, 6 );
-                     if ( rHue < 0 )
-                         rHue += 6.0;
-                     /*        _____              __             __        *
-                     *       /            -  ___/        =     /  \__     */
-                     float hue = fmin( 1,rHue ) - fmax( 0, fmin( 1,rHue-3 ) );
-                     return rVal*( (1-rSat) + rSat*hue );
-                 }
-        } trapeze;
-
-        *red   = trapeze( hue / (M_PI/3) + 2, saturation, value );
-        *green = trapeze( hue / (M_PI/3), saturation, value );
-        *blue  = trapeze( hue / (M_PI/3) + 4, saturation, value );
-    }
-
-    void hslToRgb
-    (
-        float   const hue       ,
-        float   const saturation,
-        float   const luminosity,
-        float * const red       ,
-        float * const green     ,
-        float * const blue
-    )
-    {
-        /**
-         * This mapping from HSL to HSV coordinates is derived, seeing that the
-         * formulae for HSV and HSL are very similar especially the hue:
-         * @see https://en.wikipedia.org/w/index.php?title=HSL_and_HSV&oldid=687890438#Converting_to_RGB
-         * Equating the intermediary values we get:
-         *          H ... hue                  H ... hue
-         *          S ... HSV-saturation       T ... HSL-saturation
-         *          V ... value                L ... luminosity
-         *   C = (1-|2L-1|) T = V S      (1)
-         *   m = L - C/2      = V - C    (2)
-         * Solving this system of equations for V(L,T) and S(L,T) we get:
-         *   (1) => S(L,T) = C(L,T) T / V
-         *   (2) => V(L,T) = C(L,T) T + L
-         *
-         *        chroma
-         *_____ saturation
-         *          | /\
-         *          |/  \
-         *          +----> luminosity
-         *          0    1
-         *
-         * Note that the HSL-formula maps to a hexcone instead of a circular cone,
-         * like it also can be read in literature!
-         * This should not be the standard behavior, but it is easier.
-         **/
-        float const chroma = ( 1-fabs(2*luminosity-1) )*saturation;
-        float const value  = chroma/2 + luminosity;
-        /* this ternary check is especially import for value = 0 where hsvSat=NaN */
-        float const hsvSat = chroma/value <= 1.0f ? chroma/value : 0;
-        hsvToRgb( hue, hsvSat, value, red, green, blue );
-    }
-
-    /**
-     * @param[in] swapQuadrants true: rows and columns will be shifted by half
-     *            width thereby centering the shortest wavelengths instead of
-     *            those being at the corners
-     * @param[in] colorFunction 1:HSL (H=arg(z), S=1, L=|z|)
-     *                          2:HSV
-     *                          3:
-     */
-    void plotPng
-    (
-        fftwf_complex * const values   ,
-        unsigned int    const nValuesX ,
-        unsigned int    const nValuesY ,
-        std::string     const rFileName,
-        bool            const logPlot       = false,
-        bool            const swapQuadrants = false,
-        unsigned int    const upsize        = 1
-    )
-    {
-        pngwriter png( nValuesX * upsize, nValuesY * upsize, 0, rFileName.c_str( ) );
-        /* find maximum magnitude (which is always positive) to find out
-         * how to scale to [0,1] */
-        float maxMagnitude = 0;
-        for ( unsigned i = 0; i < nValuesX*nValuesY; ++i )
-        {
-            float const & re = values[i][0];
-            float const & im = values[i][1];
-            maxMagnitude = std::max( maxMagnitude, std::sqrt( re*re + im*im ) );
-        }
-
-        /* convert complex numbers to a color value to plot using */
-        for ( auto ix = 0u; ix < nValuesX; ++ix )
-        for ( auto iy = 0u; iy < nValuesY; ++iy )
-        {
-            /**
-             * for the 1D case the fouriertransform looks like:
-             *   @f[ \forall k = 0\ldots N: \tilde{x}_k = \sum\limits{n=0}{N-1}
-             * x_n e{  -2 \pi k \frac{n}{N} } @f]
-             * This means for k=0, meaning the first element in the result error
-             * will contain the sum over the function. the value k=1 will contain
-             * the sum of f(x)*sin(x). Because the argument of exl(ix) is periodic
-             * the last element in the array k=N-1 is equal to k=-1 which is the
-             * sum over f(x)*sin(-x). This value will be similarily large as k=1.
-             * This means the center of the array will contain the smallest
-             * coefficients because those are high frequency coefficients.
-             * The problem now is, that normally the diffraction pattern actually
-             * goes from k=-infinity to infinity, meaning k=0 lies in the middle.
-             * Because the discrete fourier transform is periodic the center is
-             * arbitrary.
-             * In order to reach a real diffraction pattern we need to shift k=0 to
-             * the center of the array before plotting. In 2D this applies to both
-             * axes:
-             * @verbatim
-             *        +------------+      +------------+      +------------+
-             *        |            |      |## ++  ++ ##|      |     --     |
-             *        |            |      |o> ''  '' <o|      | .. <oo> .. |
-             *        |     #      |  FT  |-          -|      | ++ #### ++ |
-             *        |     #      |  ->  |-          -|  ->  | ++ #### ++ |
-             *        |            |      |o> ..  .. <o|      | '' <oo> '' |
-             *        |            |      |## ++  ++ ##|      |     --     |
-             *        +------------+      +------------+      +------------+
-             *                           k=0         k=N-1         k=0
-             * @endverbatim
-             * This index shift can be done by a simple shift followed by a modulo:
-             *   newArray[i] = array[ (i+N/2)%N ]
-             **/
-            int index;
-            if ( swapQuadrants == true )
-            {
-                index = ( ( iy+nValuesY/2 ) % nValuesY ) * nValuesX +
-                        ( ( ix+nValuesX/2 ) % nValuesX );
-            }
-            else
-                index = iy*nValuesX + ix;
-            std::complex<double> const z = { values[index][0], values[index][1] };
-
-            float magnitude = std::abs(z) / maxMagnitude;
-            float phase     = std::arg(z);
-            if ( phase < 0 ) phase += 2*M_PI;
-            if ( logPlot )
-                magnitude = log( 1+std::abs(z) ) / log( 1+maxMagnitude );
-
-            /* convert magnitude and phase to color */
-            float r,g,b;
-            hslToRgb( phase, 1, magnitude, &r, &g, &b );
-            for ( auto ilx = 0u; ilx < upsize; ++ilx )
-            for ( auto ily = 0u; ily < upsize; ++ily )
-            {
-                png.plot( 1 + ix*upsize + ilx, 1 + iy*upsize + ily,
-                          int( r * 65535 + 0.5f ),
-                          int( g * 65535 + 0.5f ),
-                          int( b * 65535 + 0.5f ) );
-            }
-        } // ix,iy for-loop
-        png.close( );
-    }
-#endif
-
     void TestGaussian::testFourierConvolution( void )
     {
         using namespace imresh::io::writeOutFuncs;
@@ -936,6 +738,7 @@ namespace algorithms
         {
             auto pImageFt  = new fftwf_complex[ n*n ];
             auto pKernelFt = new fftwf_complex[ n*n ];
+            auto tmp       = new float        [ n*n ];
 
             {
                 for ( auto i = 0u; i < n*n; ++i )
@@ -946,15 +749,15 @@ namespace algorithms
                 auto cpuFtPlan = fftwf_plan_dft_2d( n, n, pImageFt, pImageFt,
                                                     FFTW_FORWARD, FFTW_ESTIMATE );
                 fftwf_execute( cpuFtPlan );
-                plotPng( pImageFt, n,n, "toBlurFt.png", false, false, 2 );
-                plotPng( pImageFt, n,n, "toBlurFtSwapped.png", true, true, 2 );
+                plotComplexPng( pImageFt, n,n, "toBlurFt.png", false, false, 2 );
+                plotComplexPng( pImageFt, n,n, "toBlurFtSwapped.png", true, true, 2 );
 
                 for ( auto i = 0u; i < n*n; ++i )
-                    image.cpu[i] = pImageFt[i][0];
-                writeOutPNG( image.cpu, n,n, "toBlurFtReal.png" );
+                    tmp[i] = pImageFt[i][0];
+                writeOutPNG( tmp, n,n, "toBlurFtReal.png" );
                 for ( auto i = 0u; i < n*n; ++i )
-                    image.cpu[i] = pImageFt[i][1];
-                writeOutPNG( image.cpu, n,n, "toBlurFtImag.png" );
+                    tmp[i] = pImageFt[i][1];
+                writeOutPNG( tmp, n,n, "toBlurFtImag.png" );
             }
 
             /* same with pImageFt -> pKernelFt -> use function ? */
@@ -967,15 +770,15 @@ namespace algorithms
                 auto cpuFtPlan = fftwf_plan_dft_2d( n, n, pKernelFt, pKernelFt,
                                                     FFTW_FORWARD, FFTW_ESTIMATE );
                 fftwf_execute( cpuFtPlan );
-                plotPng( pKernelFt, n,n, "extendedKernelFt.png", false, false, 2 );
-                plotPng( pKernelFt, n,n, "extendedKernelFtSwapped.png", true, true, 2 );
+                plotComplexPng( pKernelFt, n,n, "extendedKernelFt.png", false, false, 2 );
+                plotComplexPng( pKernelFt, n,n, "extendedKernelFtSwapped.png", true, true, 2 );
 
                 for ( auto i = 0u; i < n*n; ++i )
-                    image.cpu[i] = pKernelFt[i][0];
-                writeOutPNG( image.cpu, n,n, "extendedKernelFtReal.png" );
+                    tmp[i] = pKernelFt[i][0];
+                writeOutPNG( tmp, n,n, "extendedKernelFtReal.png" );
                 for ( auto i = 0u; i < n*n; ++i )
-                    image.cpu[i] = pKernelFt[i][1];
-                writeOutPNG( image.cpu, n,n, "extendedKernelFtImag.png" );
+                    tmp[i] = pKernelFt[i][1];
+                writeOutPNG( tmp, n,n, "extendedKernelFtImag.png" );
             }
 
             for ( auto i = 0u; i < n*n; ++i )
@@ -987,19 +790,19 @@ namespace algorithms
                 pImageFt[i][0] = a*c - b*d;
                 pImageFt[i][1] = a*d + b*c;
             }
-            plotPng( pImageFt, n,n, "multiplied.png", true, true, 2 );
+            plotComplexPng( pImageFt, n,n, "multiplied.png", true, true, 2 );
 
             auto cpuFtPlan = fftwf_plan_dft_2d( n, n, pImageFt, pImageFt,
                                                 FFTW_BACKWARD, FFTW_ESTIMATE );
             fftwf_execute( cpuFtPlan );
-            plotPng( pImageFt, n,n, "blurred.png" );
+            plotComplexPng( pImageFt, n,n, "blurred.png" );
 
             for ( auto i = 0u; i < n*n; ++i )
-                image.cpu[i] = pImageFt[i][0];
-            plotPng( image.cpu, n,n, "blurredReal.png" );
+                tmp[i] = pImageFt[i][0];
+            plotPng( tmp, n,n, "blurredReal.png" );
             for ( auto i = 0u; i < n*n; ++i )
-                image.cpu[i] = pImageFt[i][1];
-            plotPng( image.cpu, n,n, "blurredImag.png" );
+                tmp[i] = pImageFt[i][1];
+            plotPng( tmp, n,n, "blurredImag.png" );
 
             float maxReal = 0;
             for ( auto i = 0u; i < n*n; ++i )
@@ -1009,6 +812,7 @@ namespace algorithms
 
             delete[] pImageFt;
             delete[] pKernelFt;
+            delete[] tmp;
         }
         #endif
 
@@ -1068,14 +872,14 @@ namespace algorithms
             auto pKernelFtPredicted = new fftwf_complex[ n*n ];
             for ( auto i = 0u; i < n*n; ++i )
             {
-                pKernelFt[i][0] = n * kernel.cpu[i];
+                pKernelFt[i][0] = kernel.cpu[i];
                 pKernelFt[i][1] = 0;
             }
             auto cpuFtPlan = fftwf_plan_dft_2d( n, n, pKernelFt, pKernelFt,
                                                 FFTW_FORWARD, FFTW_ESTIMATE );
             fftwf_execute( cpuFtPlan );
-            plotPng( pKernelFt, n,n, "NonTranslatedKernelFtSwapped.png",
-                     true, true, 2 );
+            plotComplexPng( pKernelFt, n,n, "NonTranslatedKernelFtSwapped.png",
+                            true, true, 2 );
 
             /**
              * Calculate using analytical formula for mu=0:
@@ -1089,10 +893,10 @@ namespace algorithms
             }
                 //pKernelFtPredicted[iy*n+ix][0] = 1./std::sqrt(2.*M_PI) *
                  //                                std::exp( -(iy*iy+ix*ix)/(sigma*sigma) );
-            plotPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredicted.png",
-                     false, false, 2 );
-            plotPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredictedSwapped.png",
-                     true, true, 2 );
+            plotComplexPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredicted.png",
+                            false, false, 2 );
+            plotComplexPng( pKernelFtPredicted, n,n, "NonTranslatedKernelFtPredictedSwapped.png",
+                            true, true, 2 );
 
             /* Calculate deviation */
             float
@@ -1161,8 +965,8 @@ namespace algorithms
                     break;
                 }
             }
-            plotPng( pKernelFtPredicted, n,n, "NonTranslatedFtPredictedDeviationSwapped.png",
-                     true, true, 2 );
+            plotComplexPng( pKernelFtPredicted, n,n, "NonTranslatedFtPredictedDeviationSwapped.png",
+                            true, true, 2 );
             std::cout
                 << "The transformed Gaussian Kernel deviates:\n"
                 << "    Re: abs. diff.     : " << maxAbsErrRe   << "\n"
@@ -1184,24 +988,43 @@ namespace algorithms
         #endif
 
         #ifdef USE_FFTW
-            /**
-             * Compare convolution blur, with direct blur
-             */
-            float * blurRaw = new float[ n*n ];
-            float * blurFft = new float[ n*n ];
+        /**
+         * Compare convolution blur, with direct blur
+         */
+        std::cout << "Check old blur function with FFT blur ";
+        for ( auto n : std::vector<unsigned>{ 1,2,3,5,10,31,37,234,511,512,513,1024,1025 } )
+        for ( auto sigma : std::vector<float>{ 0.1,0.5,1,1.7,2,3,4,10 } )
+        {
+            auto blurRaw = new float[ n*n ];
+            auto blurFft = new float[ n*n ];
+            auto diff    = new float[ n*n ];
 
-            memcpy( blurRaw, image.cpu, n*n*sizeof(float) );
-            memcpy( blurFft, image.cpu, n*n*sizeof(float) );
+            srand(350471643);
+            fillWithRandomValues( NULL, blurRaw, n*n );
+            memcpy( blurFft, blurRaw, n*n*sizeof(float) );
 
             gaussianBlur   ( blurRaw, n,n, sigma );
-            gaussianBlur   ( blurFft, n,n, sigma );
-            //gaussianBlurFft( blurFft, n,n, sigma );
+            gaussianBlurFft( blurFft, n,n, sigma );
 
-            compareFloatArray( blurRaw, blurFft, n,n, sigma );
-            std::cout << "Check old blur function with FFT blur ... OK\n";
+            #ifdef USE_PNG
+                plotPng( blurRaw, n,n, "blurRaw.png" );
+                plotPng( blurFft, n,n, "blurFft.png" );
 
+                /* make and output difference map */
+                for ( auto i = 0u; i < n*n; ++i )
+                    diff[i] = blurRaw[i] - blurFft[i];
+                plotPng( diff, n,n, "blurDiff.png" );
+            #endif
+
+            std::cout << "n=" << n << ", s=" << sigma << "\n";
+            compareFloatArray( blurRaw, blurFft, n,n, sigma, __LINE__, 0.1, false /* print raw values on error */ );
+            std::cout << "." << std::flush;
+
+            delete[] diff;
             delete[] blurRaw;
             delete[] blurFft;
+        }
+        std::cout << " OK" << std::endl;
         #endif
     }
 

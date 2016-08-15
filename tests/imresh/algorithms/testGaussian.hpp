@@ -52,8 +52,10 @@ namespace algorithms
             float const * const pResult,
             unsigned int  const nCols  ,
             unsigned int  const nRows  ,
-            float         const sigma = -1,
-            unsigned int  const line  = 0
+            float         const sigma  = -1,
+            unsigned int  const line   =  0,
+            float         const margin = -1,
+            bool          const print  = true
         );
 
         /**
