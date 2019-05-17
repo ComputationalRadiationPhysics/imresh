@@ -61,5 +61,8 @@ Geany
 
 # hidden files
 .*
-!/.gitignore
-
+!/.git*
+.*~
+*~
+*.old
+/build*/

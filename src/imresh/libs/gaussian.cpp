@@ -51,11 +51,11 @@ namespace libs
     template<class T_PREC>
     void applyKernel
     (
-        T_PREC * const & rData,
-        const unsigned & rnData,
-        const T_PREC * const & rWeights,
-        const unsigned & rnWeights,
-        const unsigned & rnThreads
+        T_PREC * const rData,
+        unsigned int const rnData,
+        const T_PREC * const rWeights,
+        unsigned int const rnWeights,
+        unsigned int const rnThreads
     )
     {
         assert( rnWeights > 0 );
@@ -165,9 +165,9 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const & rData,
-        const unsigned & rnData,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnData,
+        double const rSigma
     )
     {
         constexpr int nKernelElements = 64;
@@ -180,10 +180,10 @@ namespace libs
     template<class T_PREC>
     void gaussianBlurHorizontal
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     )
     {
         const int nKernelElements = 64;
@@ -199,10 +199,10 @@ namespace libs
     template<class T_PREC>
     void gaussianBlurVerticalUncached
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     )
     {
         /* calculate Gaussian kernel */
@@ -462,11 +462,11 @@ namespace libs
     {
         return a > b ? a : b;
     }
-    inline unsigned min( const unsigned & a, const unsigned & b )
+    inline unsigned min( unsigned int const a, unsigned int const b )
     {
         return a < b ? a : b; // a <? b GNU C++ extension does the same :S!
     }
-    inline unsigned max( const unsigned & a, const unsigned & b )
+    inline unsigned max( unsigned int const a, unsigned int const b )
     {
         return a > b ? a : b;
     }
@@ -478,11 +478,11 @@ namespace libs
     template<class T_PREC>
     struct MovingWindowCache2D
     {
-        T_PREC const * const & rData;
+        T_PREC const * const rData;
         unsigned const & rnDataX;
         unsigned const & rnDataY;
 
-        T_PREC * const & buffer; /**< pointer to allocated buffer, will not be allocated on constructor because this class needs to be trivial to work on GPU */
+        T_PREC * const buffer; /**< pointer to allocated buffer, will not be allocated on constructor because this class needs to be trivial to work on GPU */
         unsigned const & nRowsBuffer;
         unsigned const & nColsBuffer;
 
@@ -559,10 +559,10 @@ namespace libs
     template<class T_PREC>
     void gaussianBlurVertical
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     )
     {
         /* calculate Gaussian kernel */
@@ -622,13 +622,14 @@ namespace libs
                 /* move as many rows as we calculated in last iteration with
                  * threads */
                 //memcpy( buffer, buffer + nThreads*nColsBuffer, (nBufferSize - nThreads*nColsBuffer) * sizeof( buffer[0] ) );
-                for ( unsigned iRow = 0; iRow < nRowsBuffer-nThreads; ++iRow )
-                for ( unsigned iCol = 0; iCol < nColsBuffer; ++iCol )
+                for ( unsigned iRowTmp = 0; iRowTmp < nRowsBuffer-nThreads; ++iRowTmp )
+                for ( unsigned iColTmp = 0; iColTmp < nColsBuffer; ++iColTmp )
                 {
-                    const unsigned iTarget = iRow*nColsBuffer + iCol;
-                        assert( iTarget < nBufferSize );
-                    const unsigned iSrc = (iRow+nThreads)*nColsBuffer + iCol;
-                        assert( iSrc < nBufferSize );
+                    unsigned int const iTarget = iRowTmp * nColsBuffer + iColTmp;
+                    assert( iTarget < nBufferSize );
+                    unsigned int const iSrc
+                        = ( iRowTmp + nThreads ) * nColsBuffer + iColTmp;
+                    assert( iSrc < nBufferSize );
                     buffer[ iTarget ] = buffer[ iSrc ];
                 }
 
@@ -736,10 +737,10 @@ namespace libs
     template<class T_PREC>
     void gaussianBlur
     (
-        T_PREC * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        T_PREC * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     )
     {
         assert( rData != NULL );
@@ -754,93 +755,93 @@ namespace libs
 
     template void applyKernel<float>
     (
-        float * const & rData,
-        const unsigned & rnData,
-        const float * const & rWeights,
-        const unsigned & rnWeights,
-        const unsigned & rnThreads
+        float * const rData,
+        unsigned int const rnData,
+        const float * const rWeights,
+        unsigned int const rnWeights,
+        unsigned int const rnThreads
     );
     template void applyKernel<double>
     (
-        double * const & rData,
-        const unsigned & rnData,
-        const double * const & rWeights,
-        const unsigned & rnWeights,
-        const unsigned & rnThreads
+        double * const rData,
+        unsigned int const rnData,
+        const double * const rWeights,
+        unsigned int const rnWeights,
+        unsigned int const rnThreads
     );
 
     template void gaussianBlur<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const double & rSigma
+        float * const rData,
+        unsigned int const rnDataX,
+        double const rSigma
     );
     template void gaussianBlur<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const double & rSigma
+        double * const rData,
+        unsigned int const rnDataX,
+        double const rSigma
     );
 
     template void gaussianBlur<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        float * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
     template void gaussianBlur<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        double * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
 
     template void gaussianBlurVertical<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        float * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
     template void gaussianBlurVertical<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        double * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
     template void gaussianBlurVerticalUncached<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        float * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
     template void gaussianBlurVerticalUncached<double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        double * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
     template void gaussianBlurHorizontal<float>
     (
-        float * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        float * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
     template void gaussianBlurHorizontal <double>
     (
-        double * const & rData,
-        const unsigned & rnDataX,
-        const unsigned & rnDataY,
-        const double & rSigma
+        double * const rData,
+        unsigned int const rnDataX,
+        unsigned int const rnDataY,
+        double const rSigma
     );
 
 } // namespace libs

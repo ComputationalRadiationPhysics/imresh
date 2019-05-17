@@ -34,6 +34,9 @@
 #ifdef USE_SPLASH
 #   include <splash/splash.h>
 #endif
+#ifdef USE_TIFF
+#   include "../ReadTiff.hpp"
+#endif
 #include <string>               // std::string
 #include <utility>              // std::pair
 #include <cstddef>              // NULL
@@ -50,13 +53,10 @@ namespace readInFuncs
 {
 
 
-    std::pair<float *,std::pair<unsigned int,unsigned int>>
-    readTxt(
-        std::string const _filename
-    )
+    FloatImage readTxt( std::string const rFilename )
     {
         std::ifstream file;
-        file.open( _filename, std::ios::in );
+        file.open( rFilename, std::ios::in );
 
         if( file.is_open( ) )
         {
@@ -156,11 +156,46 @@ namespace readInFuncs
         }
 #   endif
 
+#   ifdef USE_TIFF
+        FloatImage readTiff( std::string const rFilename )
+        {
+            FloatImage result;
+            auto & width  = result.second.first;
+            auto & height = result.second.second;
+            auto & buffer = result.first;
+
+            try
+            {
+                ReadTiff image( rFilename );
+                width  = image.getWidth ();
+                height = image.getHeight();
+                assert( image.getSampleFormat() == SAMPLEFORMAT_IEEEFP );
+                assert( width * height == image.getBufferSize() );
+                buffer = (float*) image.unlinkInternalBuffer();
+            }
+            catch ( ReadTiff::ErrorCodes error )
+            {
+                switch( error )
+                {
+                    case ReadTiff::ErrorOnOpeningFile:
+                    {
+                        std::cout << "Couldn't open file '" << rFilename << "'" << std::endl;
+                        break;
+                    }
+                    default:
+                    {
+                        std::cout << "Unknown Error!" << std::endl;
+                        break;
+                    }
+                }
+            }
+
+            return result;
+        }
+#   endif
+
 #   ifdef USE_SPLASH
-        std::pair<float *,std::pair<unsigned int,unsigned int>>
-        readHDF5(
-            std::string const _filename
-        )
+        FloatImage readHDF5( std::string const rFilename )
         {
             splash::SerialDataCollector sdc( 0 );
             splash::DataCollector::FileCreationAttr fCAttr;
@@ -168,7 +203,7 @@ namespace readInFuncs
 
             fCAttr.fileAccType = splash::DataCollector::FAT_READ;
 
-            sdc.open( _filename.c_str( ), fCAttr );
+            sdc.open( rFilename.c_str( ), fCAttr );
 
             int32_t * ids = NULL;
             size_t num_ids = 0;

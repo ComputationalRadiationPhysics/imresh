@@ -31,7 +31,7 @@
 #include "libs/diffractionIntensity.hpp"
 #include "algorithms/shrinkWrap.hpp"                // shrinkWrap
 #include "libs/fftShift.hpp"
-#include "algorithms/cuda/cudaShrinkWrap.h"
+#include "algorithms/cuda/cudaShrinkWrap.hpp"
 #include "createTestData/createAtomCluster.hpp"
 #include "io/writeOutFuncs/writeOutFuncs.hpp"
 #include "io/readInFuncs/readInFuncs.hpp"
@@ -40,53 +40,96 @@
 int main( int argc, char ** argv )
 {
     using namespace imresh::io::writeOutFuncs;
-    using ImageDimensions = std::pair<unsigned int, unsigned int>;
 
-    std::vector<unsigned> imageSize { 6000, 3000};
-    float * pAtomCluster;
+    std::vector<unsigned> imageSize{ 600, 300 };
+    float * pData;
 
     if ( argc > 1 )
     {
         #if USE_PNG
-            auto file = imresh::io::readInFuncs::readPNG( argv[1] );
+            std::string filename( argv[1] );
+            auto file = imresh::io::readInFuncs::readPNG( filename.c_str() );
             imageSize[0] = file.second.first;
             imageSize[1] = file.second.second;
-            pAtomCluster = file.first;
-            printf( "name: %s, memory: %p, width: %u, height: %u\n", argv[1], pAtomCluster, imageSize[0], imageSize[1] );
-            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+            pData = file.first;
+            printf( "name: %s, memory: %p, width: %u, height: %u\n", filename.c_str(), pData, imageSize[0], imageSize[1] );
+            using imresh::libs::fftShift;
+            if ( argc > 2 and argv[2][0] == 'O' )
+            {
+                imresh::libs::diffractionIntensity( pData, imageSize[0], imageSize[1] );
+                fftShift( pData, imageSize[0], imageSize[1] );
+            }
+            std::cout << "Write out the following values: ";
+            for ( int i = 0; i < 10; ++i )
+                std::cout << 65535*pData[i] << " ";
+            std::cout << std::endl;
+            writeOutPNG( pData, imageSize[0], imageSize[1],
+                std::string( argv[1] ) + std::string( "-diffraction.png" ) );
+            fftShift( pData, imageSize[0], imageSize[1] );
+        #else
+            std::cout << "This program was compiled without the cmake option USE_PNG, therefore it may not be given any arguments! (Normally the first argument is a path to a PNG diffraction intensity to reconstruct)" << std::endl;
+            exit(1);
         #endif
     }
     else
     {
         using namespace examples::createTestData;
-        pAtomCluster = createAtomCluster( imageSize[0], imageSize[1] );
+        pData = createAtomCluster( imageSize[0], imageSize[1] );
         #if USE_PNG
-            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-object.png" );
+            writeOutPNG( pData, imageSize[0], imageSize[1], "atomCluster-object.png" );
         #endif
 
-        imresh::libs::diffractionIntensity( pAtomCluster, imageSize[0], imageSize[1] );
+        imresh::libs::diffractionIntensity( pData, imageSize[0], imageSize[1] );
         #if USE_PNG
             using imresh::libs::fftShift;
-            fftShift( pAtomCluster, imageSize[0], imageSize[1] );
-            writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-diffractionIntensity.png" );
-            fftShift( pAtomCluster, imageSize[0], imageSize[1] );
+            fftShift( pData, imageSize[0], imageSize[1] );
+            writeOutPNG( pData, imageSize[0], imageSize[1], "atomCluster-diffractionIntensity.png" );
+            fftShift( pData, imageSize[0], imageSize[1] );
         #endif
     }
 
+    /* unfortunately there is a difference in the interface between
+     * shrinkWrap and cudaShrinkWrap because of cuda streams */
     #if USE_FFTW
-        imresh::algorithms::shrinkWrap( pAtomCluster, imageSize[0], imageSize[1], 64 /*cycles*/, 1e-6 /* targetError */ );
+        imresh::algorithms::shrinkWrap(
+            pData,
+            imageSize[0],
+            imageSize[1],
+            64      /*cycles*/,
+            1e-6    /* targetError */
+        );
     #else
-        imresh::algorithms::cuda::cudaShrinkWrap( pAtomCluster, imageSize[0], imageSize[1], cudaStream_t(0) /* stream */, 64 /*cycles*/, 1e-6 /* targetError */ );
+        imresh::algorithms::cuda::cudaShrinkWrap(
+            pData,
+            imageSize[0],
+            imageSize[1],
+            cudaStream_t(0),
+            96      /* nBlocks          */,
+            256     /* nThreads         */,
+            64      /* cycles           */,
+            1e-6    /* targetError      */,
+            0       /* HioBeta (auto)   */,
+            0.001   /* rIntensityCutOffAutoCorel (auto) */,
+            0.01    /* rIntensityCutOff */,
+            0       /* rSigma0          */,
+            0       /* rSigmaChange     */
+        );
     #endif
-    /* pAtomCluster now holds the original image again (with some deviation)
+    /* pData now holds the original image again (with some deviation)
      * you could compare the current state with the data returned by
      * createAtomCluster now */
 
+    std::string fileName;
+    if ( argc > 1 )
+        fileName = std::string( argv[1] ) + std::string( "-reconstructed.png" );
+    else
+        fileName = std::string( "atomCluster-reconstructed.png" );
     #if USE_PNG
-        writeOutPNG( pAtomCluster, ImageDimensions{ imageSize[0], imageSize[1] }, "atomCluster-reconstructed.png" );
+        writeOutAndFreePNG( pData, imageSize[0], imageSize[1], fileName.c_str() );
+    #else
+        delete[] pData;
+        std::cout << "[note] can't output the result if not compiled with the CMake-option 'USE_PNG'\n";
     #endif
-
-    delete[] pAtomCluster;
 
     return 0;
 }

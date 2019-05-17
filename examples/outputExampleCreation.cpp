@@ -43,13 +43,15 @@ namespace examples
     void saveToPng
     (
         float * data,
-        std::pair<unsigned int,unsigned int> const& size,
+        unsigned int const rImageWidth,
+        unsigned int const rImageHeight,
         std::string const filename
     )
     {
 #       ifdef USE_PNG
-            imresh::io::writeOutFuncs::writeOutPNG( data, size, filename );
+            imresh::io::writeOutFuncs::writeOutPNG( data, rImageWidth, rImageHeight, filename );
 #       endif
+        delete[] data;
     }
 
 
@@ -77,39 +79,49 @@ int main( void )
 
         data = createRectangle( Nx,Ny, 0.1,0.3, 0.5,0.5, 0 );
         filename << "rectangle_" << Nx << "x" << Ny << "_0.1x0.3_0-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createRectangle( Nx,Ny, 0.1,0.3, 0.5,0.5, 10 );
         filename << "rectangle_" << Nx << "x" << Ny << "_0.1x0.3_10-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
-        data = createRectangle( Nx,Ny, 0.1,0.05, 0.2,0.6 );
+        data = createRectangle( Nx,Ny, 0.1,0.05, 0.2,0.6, 10 );
         filename << "rectangle_" << Nx << "x" << Ny << "_0.1x0.05_+0.2,0.6_10-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createAtomCluster( Nx,Ny );
         filename << "atomCluster_" << Nx << "x" << Ny << ".png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createCheckerboard( Nx,Ny, 0.1,0.3, 0 );
         filename << "checkerboard_" << Nx << "x" << Ny << "_0.1x0.3_0-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createCheckerboard( Nx,Ny, 0.1,0.3, 30 );
         filename << "checkerboard_" << Nx << "x" << Ny << "_0.1x0.3_30-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createCheckerboard( Nx,Ny, 0.05,0.05, 45 );
         filename << "checkerboard_" << Nx << "x" << Ny << "_0.05x0.05_45-deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createCircularSection( Nx,Ny, 0.2 );
         filename << "circularSection_" << Nx << "x" << Ny << "_r-0.2_+0,0_0-to-2pi.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
 
         data = createCircularSection( Nx,Ny, 0.2, 0.4,0.6, 10.*M_PI/180., 240.*M_PI/180. );
         filename << "circularSection_" << Nx << "x" << Ny << "_r-0.2_+0.4,0.6_10deg-to-170deg.png";
-        saveToPng( data, size, filename.str() ); filename.str("");
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
+
+
+        auto dataCircle = createCircularSection( Nx,Ny, 0.2, 0.5,0.5 );
+        data = createRectangle( Nx,Ny, 1.0,0.05, 0.5,0.5, 10 );
+        #pragma omp parallel for
+        for ( auto i = 0u; i < Nx*Ny; ++i )
+            data[i] = fmax( data[i], dataCircle[i] );
+        filename << "oI_" << Nx << "x" << Ny << ".png";
+        saveToPng( data, Nx, Ny, filename.str() ); filename.str("");
+        delete[] dataCircle;
     }
 
     return 0;

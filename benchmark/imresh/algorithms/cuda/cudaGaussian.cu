@@ -36,7 +36,7 @@
 #include <utility>          // pair
 #include <cuda.h>
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 /* constant memory declaration doesn't work inside namespaces */

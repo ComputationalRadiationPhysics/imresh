@@ -39,8 +39,9 @@ int main( void )
     using namespace imresh::io;
 
     testFft();
-    testShrinkWrap();
-    testPng();
+    #ifdef USE_PNG
+        testPng();
+    #endif
 
     testVectorIndex();
     testUnpackBitMask();
@@ -49,6 +50,7 @@ int main( void )
     testVectorElementwise();
 
     TestGaussian testGaussian; testGaussian();
+    testShrinkWrap();
 
     std::cout << "All tests OK.\n";
 

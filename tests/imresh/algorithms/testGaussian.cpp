@@ -37,11 +37,11 @@
 #include <cfloat>    // FLT_MAX, FLT_EPSILON
 #include <cuda_runtime.h>
 #include "algorithms/vectorReduce.hpp"
-#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaGaussian.hpp"
 #include "benchmark/imresh/algorithms/cuda/cudaGaussian.hpp"
 #include "libs/gaussian.hpp"
 #include "libs/calcGaussianKernel.hpp"
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 #include "benchmarkHelper.hpp"
 
 
@@ -682,12 +682,13 @@ namespace algorithms
         using namespace imresh::algorithms::cuda;
         using namespace imresh::libs;
 
-        /* fill test data with random numbers from [-0.5,0.5] */
-        CUDA_ERROR( cudaMallocHost( (void**) &pData, nMaxElements*sizeof(pData[0]) ) );
-        CUDA_ERROR( cudaMallocHost( (void**) &pResult, nMaxElements*sizeof(pData[0]) ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpData, nMaxElements*sizeof(dpData[0]) ) );
+        /* allocate pinned memory */
+        mallocPinnedArray( &pData  , nMaxElements );
+        mallocPinnedArray( &pResult, nMaxElements );
+        mallocCudaArray( &dpData, nMaxElements );
         pResultCpu = new float[nMaxElements];
         pSolution  = new float[nMaxElements];
+        /* fill test data with random numbers from [-0.5,0.5] */
         srand(350471643);
         fillWithRandomValues( dpData, pData, nMaxElements );
 

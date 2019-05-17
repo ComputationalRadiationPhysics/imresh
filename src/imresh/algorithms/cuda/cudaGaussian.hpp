@@ -37,39 +37,6 @@ namespace cuda
 
 
     /**
-     * Applies a kernel, i.e. convolution vector, i.e. weighted sum, to data.
-     *
-     * Every element @f[ x_i @f] is updated to
-     * @f[ x_i^* = \sum_{k=-N_w}^{N_w} w_K x_k @f]
-     * here @f[ N_w = \frac{\mathrm{rnWeights}-1}{2} @f]
-     * If the kernel reaches an edge, the edge colors is extended beyond the edge.
-     * This is done, so that a kernel whose sum is 1, still acts as a kind of mean,
-     * else the colors to the edge would darken, e.g. when setting those parts of
-     * the sum to 0.
-     *
-     * @tparam     T_PREC datatype to use, e.g. int,float,double,...
-     * @param[in]  rData vector onto which to apply the kernel
-     * @param[in]  rnData number of elements in rData
-     * @param[in]  rWeights the kernel, convulation matrix, mask to use
-     * @param[in]  rnWeights length of kernel. Must be an odd number!
-     * @param[out] rData will hold the result, meaning this routine works in-place
-     *
-     * @todo make buffer work if rnData > bufferSize
-     * @todo use T_KERNELSIZE to hardcode and unroll the loops, see if gcc
-     *       automatically unrolls the loops if templated
-     **/
-    template<class T_PREC>
-    void cudaApplyKernel
-    (
-        T_PREC * rdpData,
-        unsigned int rnData,
-        T_PREC const * rdpWeights,
-        unsigned int rnWeights,
-        unsigned int rnThreads = 128
-    );
-
-
-    /**
      * Blurs a 2D vector of elements using a gaussian kernel
      *
      * @f[ \forall i\in N_x,j\in N_y: x_{ij} = \sum\limits_{k=-n}^n
@@ -82,12 +49,15 @@ namespace cuda
      * @f] With this we have decomposed the 2D convolution in two consequent 1D
      * convolutions! This makes the calculation of the kernel easier.
      *
-     * @param[in]  rData vector to blur
+     * @param[in]  rdpData vector in GPU memory to blur
      * @param[in]  rnDataX number of columns in matrix, i.e. line length
      * @param[in]  rnDataY number of rows in matrix, i.e. number of lines
      * @param[in]  rSigma standard deviation of gaussian to use. Higher means
      *             a blurrier result.
-     * @param[out] rData blurred vector (in-place)
+     * @param[in]  rStream CUDA stream to use
+     * @param[in]  rAsync if true, then don't wait for the CUDA kernel to
+     *             finish, else call cudaStreamSynchronize on rStream.
+     * @param[out] rdpData blurred vector (in-place)
      **/
     template<class T_PREC>
     void cudaGaussianBlur

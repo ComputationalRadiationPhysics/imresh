@@ -22,12 +22,14 @@
  * SOFTWARE.
  */
 
-#include "cudaShrinkWrap.h"
+#include "cudaShrinkWrap.hpp"
 
-#ifndef NDEBUG
-#   define DEBUG_CUDASHRINKWRAP 0  // change this if you want to turn on debugging
-#else
-#   define DEBUG_CUDASHRINKWRAP 0  // leave this as it is
+#ifndef NDEBUG // change the following, if you want to turn on debugging
+#   define DEBUG_CUDASHRINKWRAP 1
+#   define WRITE_OUT_SHRINKWRAP_DEBUG 0
+#else   // leave this as it is
+#   define DEBUG_CUDASHRINKWRAP 0
+#   define WRITE_OUT_SHRINKWRAP_DEBUG 0
 #endif
 
 #include <iostream>
@@ -39,14 +41,17 @@
 #include <cuda.h>       // atomicCAS
 #include <cufft.h>
 #include <utility>      // std::pair
-#include "algorithms/cuda/cudaGaussian.h"
+#include "algorithms/cuda/cudaGaussian.hpp"
 #include "algorithms/cuda/cudaVectorReduce.hpp"
 #if DEBUG_CUDASHRINKWRAP == 1
-#    include <fftw3.h>    // kinda problematic to mix this with cufft, but should work if it isn't cufftw.h
-#    include "algorithms/vectorReduce.hpp"
-#    include "algorithms/vectorElementwise.hpp"
+#   include "algorithms/vectorReduce.hpp"
+#   include "algorithms/vectorElementwise.hpp"
 #endif
-#include "libs/cudacommon.h"
+#if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+#   include <sstream>
+#   include "io/writeOutFuncs/writeOutFuncs.hpp"
+#endif
+#include "libs/cudacommon.hpp"
 #include "libs/checkCufftError.hpp"
 #include "cudaVectorElementwise.hpp"
 
@@ -158,24 +163,25 @@ namespace cuda
 
     int cudaShrinkWrap
     (
-        float * const rIntensity,
-        unsigned const rImageWidth,
-        unsigned const rImageHeight,
-        cudaStream_t const rStream,
-        unsigned int nBlocks,
-        unsigned int nThreads,
-        unsigned int rnCycles,
-        float rTargetError,
-        float rHioBeta,
-        float rIntensityCutOffAutoCorel,
-        float rIntensityCutOff,
-        float rSigma0,
-        float rSigmaChange,
-        unsigned int rnHioCycles
+        float *      const  rIntensity               ,
+        unsigned int const  rImageWidth              ,
+        unsigned int const  rImageHeight             ,
+        cudaStream_t const  rStream                  ,
+        unsigned int        nBlocks                  ,
+        unsigned int        nThreads                 ,
+        unsigned int        rnCycles                 ,
+        float               rTargetError             ,
+        float               rHioBeta                 ,
+        float               rIntensityCutOffAutoCorel,
+        float               rIntensityCutOff         ,
+        float               rSigma0                  ,
+        float               rSigmaChange             ,
+        unsigned int        rnHioCycles
     )
     {
         /* load libraries and functions which we need */
         using namespace imresh::algorithms;
+        using imresh::libs::mallocCudaArray;
 
         /* Evaluate input parameters and fill with default values if necessary */
         assert( rImageWidth > 0 );
@@ -184,16 +190,17 @@ namespace cuda
         /* this makes it possible to specifiy new values for e.g. rSigma0,
          * while still using the default values for rHioBeta, rTargetError,
          * ... */
+        if ( rnCycles                  == 0 ) rnCycles                  = 20  ;
         if ( rTargetError              <= 0 ) rTargetError              = 1e-5;
-        if ( rnHioCycles               == 0 ) rnHioCycles               = 20;
-        if ( rHioBeta                  <= 0 ) rHioBeta                  = 0.9;
-        if ( rIntensityCutOffAutoCorel <= 0 ) rIntensityCutOffAutoCorel = 0.04;
-        if ( rIntensityCutOff          <= 0 ) rIntensityCutOff          = 0.2;
-        if ( rSigma0                   <= 0 ) rSigma0                   = 3.0;
+        if ( rHioBeta                  <= 0 ) rHioBeta                  = 0.9 ;
+        if ( rIntensityCutOffAutoCorel <= 0 ) rIntensityCutOffAutoCorel = 0.02; /* better: choose a value such that the mask contains 50% of the image, or some over scheme -> try making a histogram @TODO!!! */
+        if ( rIntensityCutOff          <= 0 ) rIntensityCutOff          = 0.2 ;
+        if ( rSigma0                   <= 0 ) rSigma0                   = 3.0 ;
         if ( rSigmaChange              <= 0 ) rSigmaChange              = 0.01;
+        if ( rnHioCycles               == 0 ) rnHioCycles               = 20  ;
 
         float sigma = rSigma0;
-        unsigned const nElements = rImageWidth * rImageHeight;
+        auto const nElements = rImageWidth * rImageHeight;
 
         /* allocate needed memory so that HIO doesn't need to allocate and
          * deallocate on each call */
@@ -201,89 +208,200 @@ namespace cuda
         cufftComplex * dpgPrevious;
         float * dpIntensity;
         float * dpIsMasked;
-        CUDA_ERROR( cudaMalloc( (void**)&dpCurData  , sizeof(dpCurData  [0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpgPrevious, sizeof(dpgPrevious[0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpIntensity, sizeof(dpIntensity[0])*nElements ) );
-        CUDA_ERROR( cudaMalloc( (void**)&dpIsMasked , sizeof(dpIsMasked [0])*nElements ) );
+        mallocCudaArray( &dpCurData  , nElements );
+        mallocCudaArray( &dpgPrevious, nElements );
+        mallocCudaArray( &dpIntensity, nElements );
+        mallocCudaArray( &dpIsMasked , nElements );
         CUDA_ERROR( cudaMemcpyAsync( dpIntensity, rIntensity, sizeof(dpIntensity[0])*nElements, cudaMemcpyHostToDevice, rStream ) );
+        #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+            /* allocate 2*nElements to hold if necessary nElements
+             * cufftComplex elements */
+            float * pHostToWrite = new float[ 2*nElements ];
+        #endif
+
+        #define RUN(x) cudaKernel##x<<<nBlocks,nThreads,0,rStream>>>
 
         /* create fft plans G' to g' and g to G */
         cufftHandle ftPlan;
         CUFFT_ERROR( cufftPlan2d( &ftPlan, rImageHeight /* nRows */, rImageWidth /* nColumns */, CUFFT_C2C ) );
         CUFFT_ERROR( cufftSetStream( ftPlan, rStream ) );
 
-        /* create first guess for mask from autocorrelation (fourier transform
-         * of the intensity @see
-         * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
-        cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream >>>( dpCurData, dpIntensity, nElements );
-
+        RUN(CopyToRealPart)( dpCurData, dpIntensity, nElements );
+        CUDA_ERROR( cudaPeekAtLastError() );
+        /* intensity -> autocorrelation / G (current guess for object) */
         CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
-        cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream >>>( dpIsMasked, dpCurData, nElements );
-        cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream,
-                          true /* don't call cudaDeviceSynchronize */ );
-
-        /* apply threshold to make binary mask */
-        const float maskedAbsMax = cudaVectorMax( dpIsMasked, nElements, rStream );
-        const float maskedThreshold = rIntensityCutOffAutoCorel * maskedAbsMax;
-        cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, maskedThreshold, 1.0f, 0.0f );
-
-        /* copy original image into fftw_complex array @todo: add random phase */
-        cudaKernelCopyToRealPart<<<nBlocks,nThreads,0,rStream>>>( dpCurData, dpIntensity, nElements );
-
-        /* in the first step the last value for g is to be approximated
-         * by g'. The last value for g, called g_k is needed, because
-         * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
-         * because the fft is needed */
-        cudaMemcpyAsync( dpgPrevious, dpCurData, sizeof(dpCurData[0]) * nElements,
-                    cudaMemcpyDeviceToDevice, rStream );
 
         /* repeatedly call HIO algorithm and change mask */
-        for ( unsigned iCycleShrinkWrap = 0; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
+        for ( auto iCycleShrinkWrap = 0u; iCycleShrinkWrap < rnCycles; ++iCycleShrinkWrap )
         {
             /************************** Update Mask ***************************/
 
-            /* blur |g'| (normally g' should be real!, so |.| not necessary) */
-            cudaKernelComplexNormElementwise<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, dpCurData, nElements );
+            /* blur |g'| (normally g' should be real!, so |.| not necessary, only copy from real part to dpIsMasked) */
+            RUN(ComplexNormElementwise)( dpIsMasked, dpCurData, nElements );
+            CUDA_ERROR( cudaPeekAtLastError() );
             cudaGaussianBlur( dpIsMasked, rImageWidth, rImageHeight, sigma, rStream, true /* don't call cudaDeviceSynchronize */ );
+            #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_a_first-mask-blurred.png";
+                CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_a_first-mask-blurred-log-scale.png";
+                CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                #pragma omp parallel for
+                for ( auto i = 0u; i < nElements; ++i )
+                    pHostToWrite[i] = logf( pHostToWrite[i] );
+
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
 
             /* apply threshold to make binary mask */
+            /* create first guess for mask from autocorrelation (fourier transform
+             * of the intensity @see
+             * https://en.wikipedia.org/wiki/Wiener%E2%80%93Khinchin_theorem */
             const float absMax = cudaVectorMax( dpIsMasked, nElements, rStream );
-            const float threshold = rIntensityCutOff * absMax;
-            cudaKernelCutOff<<<nBlocks,nThreads,0,rStream>>>( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
+            const float threshold = ( iCycleShrinkWrap == 0 ?
+                rIntensityCutOffAutoCorel : rIntensityCutOff ) * absMax;
+            RUN(CutOff)( dpIsMasked, nElements, threshold, 1.0f, 0.0f );
+            CUDA_ERROR( cudaPeekAtLastError() );
+            #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                      << "-a_mask.png";
+                CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                CUDA_ERROR( cudaMemcpy( pHostToWrite, dpIsMasked, nElements *
+                    sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
 
             /* update the blurring sigma */
             sigma = fmax( 1.5f, ( 1.0f - rSigmaChange ) * sigma );
+            /************************ Update Mask End *************************/
 
-            for ( unsigned iHioCycle = 0; iHioCycle < rnHioCycles; ++iHioCycle )
+            /* in first step add random phase to intensity by filling
+             * unmasked area with ranfom uniform noise with mean value
+             * equal to zero frequency / highest value in diffraction pattern */
+            /* in the first step the last value for g is to be approximated
+             * by g'. The last value for g, called g_k is needed, because
+             * g_{k+1} = g_k - hioBeta * g' ! This is inside the loop
+             * because the fft is needed -> dpgPrevious */
+            if ( iCycleShrinkWrap == 0 )
+            {
+                //RUN(ApplyComplexModulus)( dpCurData, dpCurData, dpIntensity, nElements );
+                cudaMemcpyAsync( dpgPrevious, dpCurData, sizeof(dpCurData[0]) * nElements,
+                            cudaMemcpyDeviceToDevice, rStream );
+            }
+
+            for ( auto iHioCycle = 0u; iHioCycle < rnHioCycles; ++iHioCycle )
             {
                 /* apply domain constraints to g' to get g */
-                cudaKernelApplyHioDomainConstraints<<<nBlocks,nThreads,0,rStream >>>
+                RUN(ApplyHioDomainConstraints)
                     ( dpgPrevious, dpCurData, dpIsMasked, nElements, rHioBeta );
+                CUDA_ERROR( cudaPeekAtLastError() );
 
                 /* Transform new guess g for f back into frequency space G' */
                 CUFFT_ERROR( cufftExecC2C( ftPlan, dpgPrevious, dpCurData, CUFFT_FORWARD ) );
 
                 /* Replace absolute of G' with measured absolute |F| */
-                cudaKernelApplyComplexModulus<<<nBlocks,nThreads,0,rStream>>>
-                    ( dpCurData, dpCurData, dpIntensity, nElements );
+                RUN(ApplyComplexModulus)( dpCurData, dpCurData, dpIntensity, nElements );
+                CUDA_ERROR( cudaPeekAtLastError() );
+                #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-b_intensity.png";
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                    CUDA_ERROR( cudaMemcpy( pHostToWrite, dpCurData, 2*nElements *
+                        sizeof( pHostToWrite[0] ), cudaMemcpyDeviceToHost ) );
+                    for ( auto i = 0u; i < nElements; ++i )
+                    {
+                        pHostToWrite[i] = sqrtf( pHostToWrite[2*i+0]*pHostToWrite[2*i+0] +
+                                                 pHostToWrite[2*i+1]*pHostToWrite[2*i+1] );
+                    }
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                    );
+                }
+                #endif
 
                 CUFFT_ERROR( cufftExecC2C( ftPlan, dpCurData, dpCurData, CUFFT_INVERSE ) );
+                #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+                {
+                    std::stringstream fname;
+                    fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                          << "_iHio-" << iHioCycle << "-c_object.png";
+                    CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                    CUDA_ERROR( cudaMemcpy2D(
+                        pHostToWrite,              /* dest addr */
+                        sizeof( pHostToWrite[0] ), /* dest pitch */
+                        dpCurData,                 /* src addr */
+                        sizeof( dpCurData[0] ),    /* src pitch */
+                        sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                        nElements,                 /* number of columns */
+                        cudaMemcpyDeviceToHost
+                    ) );
+
+                    imresh::io::writeOutFuncs::writeOutPNG(
+                        pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                    );
+                }
+                #endif
             } // HIO loop
 
             /* check if we are done */
             const float currentError = cudaCalculateHioError( dpCurData /*g'*/, dpIsMasked, nElements, false /* don't invert mask */, rStream );
-#           ifdef IMRESH_DEBUG
+            #ifdef IMRESH_DEBUG
                 std::cout << "[Error " << currentError << "/" << rTargetError << "] "
                           << "[Cycle " << iCycleShrinkWrap << "/" << rnCycles-1 << "]"
                           << std::endl;
-#           endif
+            #endif
             if ( rTargetError > 0 && currentError < rTargetError )
                 break;
             if ( iCycleShrinkWrap >= rnCycles )
                 break;
+
+            #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+            {
+                std::stringstream fname;
+                fname << "shrinkWrap_b_iC-" << iCycleShrinkWrap
+                      << "-d_object.png";
+                CUDA_ERROR( cudaStreamSynchronize( rStream ) );
+                CUDA_ERROR( cudaMemcpy2D(
+                    pHostToWrite,              /* dest addr */
+                    sizeof( pHostToWrite[0] ), /* dest pitch */
+                    dpCurData,                 /* src addr */
+                    sizeof( dpCurData[0] ),    /* src pitch */
+                    sizeof( pHostToWrite[0] ), /* col width (bytes) */
+                    nElements,                 /* number of columns */
+                    cudaMemcpyDeviceToHost
+                ) );
+
+                imresh::io::writeOutFuncs::writeOutPNG(
+                    pHostToWrite, rImageWidth, rImageHeight, fname.str().c_str()
+                );
+            }
+            #endif
         } // shrink wrap loop
-        cudaKernelCopyFromRealPart<<<nBlocks,nThreads,0,rStream>>>( dpIntensity, dpCurData, nElements );
+        RUN(CopyFromRealPart)( dpIntensity, dpCurData, nElements );
+        CUDA_ERROR( cudaPeekAtLastError() );
         CUDA_ERROR( cudaMemcpyAsync( rIntensity, dpIntensity, sizeof(rIntensity[0])*nElements, cudaMemcpyDeviceToHost, rStream ) );
+        #undef RUN
 
         /* wait for everything to finish */
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
@@ -294,6 +412,9 @@ namespace cuda
         CUDA_ERROR( cudaFree( dpgPrevious ) );
         CUDA_ERROR( cudaFree( dpIntensity ) );
         CUDA_ERROR( cudaFree( dpIsMasked  ) );
+        #if WRITE_OUT_SHRINKWRAP_DEBUG == 1
+            delete[] pHostToWrite;
+        #endif
 
         return 0;
     }

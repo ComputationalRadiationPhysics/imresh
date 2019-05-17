@@ -61,7 +61,6 @@ namespace io
         using namespace imresh::io::readInFuncs;
         using namespace imresh::io::writeOutFuncs;
         using namespace imresh::tests;
-        using ImageDim = std::pair<unsigned int, unsigned int>;
 
         /**
          * The test consists of writing out some data and reading it again
@@ -102,8 +101,7 @@ namespace io
                 for ( auto i = 0; i < nElements; ++i )
                     pData[i] = (float) rand() / RAND_MAX;
 
-                /* note that this call deletes the pointer @todo: move delete[] inside taskQueue.cu */
-                writeOutPNG( pData, ImageDim{ Nx, Ny }, tmpFileName );
+                writeOutAndFreePNG( pData, Nx, Ny, tmpFileName );
 
                 file = readPNG( tmpFileName );
                 assert( file.second.first == Nx );
@@ -133,7 +131,7 @@ namespace io
             {
                 /* write */
                 clock0 = clock::now();
-                    writeOutPNG( file.first, ImageDim{ Nx, Ny }, tmpFileName );
+                    writeOutAndFreePNG( file.first, Nx, Ny, tmpFileName );
                 clock1 = clock::now();
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeRead.push_back( seconds.count() * 1000 );
@@ -145,14 +143,18 @@ namespace io
                 seconds = duration_cast<duration<double>>( clock1 - clock0 );
                 timeWrite.push_back( seconds.count() * 1000 );
 
-                for ( auto i = 0u; i < Nx*Ny; ++i )
-                {
-                    if( not ( file.first[i] == tmpSaved0[i] ) )
+                #ifdef IMRESH_DEBUG
+                    for ( auto i = 0u; i < Nx*Ny; ++i )
                     {
-                        printf( "read from png pixel %i: %f != %f read initially\n", i, file.first[i], tmpSaved[i] );
-                        assert( file.first[i] == tmpSaved0[i] );
+                        if( not ( file.first[i] == tmpSaved0[i] ) )
+                        {
+                            std::cout << "read from png pixel " << i << ": "
+                                      << file.first[i] << " != " << tmpSaved[i]
+                                      << " read initially." << std::endl;
+                            assert( file.first[i] == tmpSaved0[i] );
+                        }
                     }
-                }
+                #endif
             }
             std::cout << std::setprecision(4);
             std::cout << std::setw(8) << mean( timeMemcpy ) << " +- " << std::setw(8) << stddev( timeMemcpy ) << " | " << std::flush;

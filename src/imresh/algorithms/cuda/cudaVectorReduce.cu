@@ -31,7 +31,7 @@
 #include <cmath>
 #include <cuda.h>     // atomicCAS
 #include <cufft.h>    // cufftComplex, cufftDoubleComplex
-#include "libs/cudacommon.h"
+#include "libs/cudacommon.hpp"
 
 
 namespace imresh
@@ -178,6 +178,8 @@ namespace cuda
         cudaStream_t rStream
     )
     {
+        using imresh::libs::mallocCudaArray;
+
         const unsigned nThreads = 128;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         //printf( "nThreads = %i, nBlocks = %i\n", nThreads, nBlocks );
@@ -193,13 +195,14 @@ namespace cuda
         T_PREC * dpReducedValue;
         T_PREC initValue = rInitValue;
 
-        CUDA_ERROR( cudaMalloc( (void**) &dpReducedValue, sizeof(T_PREC) ) );
+        mallocCudaArray( &dpReducedValue, 1 );
         CUDA_ERROR( cudaMemcpyAsync( dpReducedValue, &initValue, sizeof(T_PREC),
                                      cudaMemcpyHostToDevice, rStream ) );
 
         /* memcpy is on the same stream as kernel will be, so no synchronize needed! */
         kernelVectorReduce<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rnElements, dpReducedValue, f, rInitValue );
+        CUDA_ERROR( cudaPeekAtLastError() );
 
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
         CUDA_ERROR( cudaMemcpyAsync( &reducedValue, dpReducedValue, sizeof(T_PREC),
@@ -256,15 +259,15 @@ namespace cuda
     }
 
     /**
-     * "For the input-output algorithms the error E_F is
-     *  usually meaningless since the input g_k(X) is no longer
+     * "For the input-output algorithms the error @f[ E_F @f] is
+     *  usually meaningless since the input @f[ g_k(X) @f] is no longer
      *  an estimate of the object. Then the meaningful error
-     *  is the object-domain error E_0 given by Eq. (15)."
+     *  is the object-domain error @f[ E_0 @f] given by Eq. (15)."
      *                                      (Fienup82)
      * Eq.15:
      * @f[ E_{0k}^2 = \sum\limits_{x\in\gamma} |g_k'(x)^2|^2 @f]
-     * where \gamma is the domain at which the constraints are
-     * not met. SO this is the sum over the domain which should
+     * where @f[ \gamma @f] is the domain at which the constraints are
+     * not met. So this is the sum over the domain which should
      * be 0.
      *
      * Eq.16:
@@ -363,6 +366,8 @@ namespace cuda
         float * const rpnMaskedPixels
     )
     {
+        using imresh::libs::mallocCudaArray;
+
         const unsigned nThreads = 256;
         //const unsigned nBlocks  = ceil( (float) rnElements / nThreads );
         const unsigned nBlocks  = 256;
@@ -371,14 +376,15 @@ namespace cuda
         float     totalError,     nMaskedPixels;
         float * dpTotalError, * dpnMaskedPixels;
 
-        CUDA_ERROR( cudaMalloc( (void**) &dpTotalError   , sizeof(float) ) );
-        CUDA_ERROR( cudaMalloc( (void**) &dpnMaskedPixels, sizeof(float) ) );
+        mallocCudaArray( &dpTotalError   , 1 );
+        mallocCudaArray( &dpnMaskedPixels, 1 );
         CUDA_ERROR( cudaMemsetAsync( dpTotalError   , 0, sizeof(float), rStream ) );
         CUDA_ERROR( cudaMemsetAsync( dpnMaskedPixels, 0, sizeof(float), rStream ) );
 
         /* memset is on the same stream as kernel will be, so no synchronize needed! */
         cudaKernelCalculateHioError<<< nBlocks, nThreads, 0, rStream >>>
             ( rdpData, rdpIsMasked, rnElements, rInvertMask, dpTotalError, dpnMaskedPixels );
+        CUDA_ERROR( cudaPeekAtLastError() );
         CUDA_ERROR( cudaStreamSynchronize( rStream ) );
 
         CUDA_ERROR( cudaMemcpyAsync( &totalError   , dpTotalError   , sizeof(float), cudaMemcpyDeviceToHost, rStream ) );

@@ -61,8 +61,8 @@ namespace createTestData
         for ( unsigned iy = 0; iy < Ny; ++iy )
         for ( unsigned ix = 0; ix < Nx; ++ix )
         {
-            float x = (float) ix / Nmin - x0;
-            float y = (float) iy / Nmin - y0;
+            float x = (float) ix / Nmin - x0 * Nx / Nmin;
+            float y = (float) iy / Nmin - y0 * Ny / Nmin;
             float r2  = x*x + y*y;
             float phi = M_PI + atan2( y, x );
 
